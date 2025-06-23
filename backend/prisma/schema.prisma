@@ -1,0 +1,32 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MobilePlan {
+  id          Int      @id @default(autoincrement())
+  operator    String   // Nom de l'opérateur (ex: "Sosh")
+  planName    String   // Nom du forfait (ex: "Le 100Go")
+  price       Float    // Prix en euros par mois
+  dataGb      Int      // Quantité de data en Go
+  calls       String?  // Info sur les appels (ex: "illimités")
+  sms         String?  // Info sur les SMS (ex: "illimités")
+  network     String?  // Type de réseau (ex: "4G/5G")
+  score       Float?   // Notre score €/Go calculé
+  url         String?  // Lien vers l'offre
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([operator, planName])
+}

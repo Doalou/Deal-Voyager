@@ -1,0 +1,60 @@
+---
+import type { MobilePlan } from '../types';
+import { DealExplorer } from '../components/DealExplorer';
+import MainLayout from '../layouts/MainLayout.astro';
+
+let deals: MobilePlan[] = [];
+let error: string | null = null;
+
+try {
+  // En environnement Docker, on utilise le nom du service `backend`.
+  // L'appel se fait côté serveur lors de la génération de la page.
+  const response = await fetch('http://backend:3001/api/v1/deals');
+  
+  if (response.ok) {
+    deals = await response.json();
+  } else {
+    const errorText = await response.text();
+    console.error(`Failed to fetch deals: ${response.status} ${response.statusText}`, errorText);
+    error = `Erreur ${response.status}: Impossible de récupérer les offres. Le backend est-il démarré et accessible ?`;
+  }
+} catch (e: any) {
+  console.error('Error fetching deals:', e);
+  error = "Une erreur de connexion est survenue. Impossible de joindre l'API du backend via le réseau Docker.";
+}
+---
+
+<MainLayout title="Deal Voyager - Les meilleures offres mobiles">
+  <div class="container mx-auto px-4 py-8">
+    <header class="text-center mb-12">
+      <h1 class="text-5xl font-bold tracking-tighter mb-4 bg-gradient-to-br from-primary to-foreground/80 bg-clip-text text-transparent">Deal Voyager</h1>
+      <p class="text-lg text-muted-foreground max-w-2xl mx-auto">Votre copilote pour trouver le meilleur forfait mobile, en toute simplicité. Nous analysons les offres pour vous présenter un score <span class="text-foreground font-semibold">€/Go</span> clair et direct.</p>
+    </header>
+
+    {error && (
+      <div class="bg-destructive/15 text-destructive border border-destructive/20 rounded-lg p-4 text-center my-8 max-w-2xl mx-auto">
+        <h2 class="font-semibold">Oups ! Une erreur est survenue.</h2>
+        <p>{error}</p>
+      </div>
+    )}
+
+    {deals.length === 0 && !error && (
+      <div class="text-center py-10 bg-card/50 rounded-lg border">
+        <p class="text-muted-foreground mb-4">Aucune offre dans la base de données. Lancez un scraping pour commencer.</p>
+        
+        <!-- Ce formulaire poste vers l'API via le navigateur du client -->
+        <form method="POST" action="http://localhost:3001/api/v1/scrape" target="scrape-frame">
+          <button type="submit" class="bg-primary text-primary-foreground hover:bg-primary/90 h-11 rounded-md px-8 inline-flex items-center justify-center whitespace-nowrap text-sm font-medium">
+            Lancer le scraping
+          </button>
+        </form>
+        <p class="text-xs text-muted-foreground mt-2">(L'opération peut prendre plusieurs minutes)</p>
+        <iframe name="scrape-frame" class="hidden" title="Scraping frame"></iframe>
+      </div>
+    )}
+
+    {deals.length > 0 && (
+      <DealExplorer client:load initialDeals={deals} />
+    )}
+  </div>
+</MainLayout>
