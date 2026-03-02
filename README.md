@@ -1,47 +1,45 @@
-# 🚀 Deal-Voyager
+# 📡 Deal-Voyager
 
-**Votre copilote pour trouver le meilleur forfait mobile en France**
+**Vos forfaits mobiles sans embrouilles.**
 
-Deal-Voyager est une application web moderne qui scrape automatiquement les offres des opérateurs mobiles français (MNO/MVNO) et les classe selon un score **€/Go** pour vous aider à trouver le forfait le plus avantageux.
+Deal-Voyager est un comparateur de forfaits mobiles français indépendant. Il scrape automatiquement les prix des opérateurs (MNO/MVNO) et les classe au centime près pour vous aider à trouver l'offre la plus honnête — sans partenariat, sans pub, sans bullshit.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
-![Astro](https://img.shields.io/badge/Astro-FF5D01?style=for-the-badge&logo=astro&logoColor=white)
+![Nuxt](https://img.shields.io/badge/Nuxt_3-00DC82?style=for-the-badge&logo=nuxt.js&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
 
 ## ✨ Fonctionnalités
 
-- 🔍 **Scraping automatisé** des offres mobiles de 13+ opérateurs français
-- 📊 **Scoring intelligent** basé sur le ratio €/Go
-- 🎨 **Interface moderne** avec thème sombre et design responsive
-- 🏷️ **Identification visuelle** des opérateurs par couleur
-- 🔄 **Tri et filtrage** des offres en temps réel
-- 🐳 **Déploiement Docker** one-click
-- ⚡ **Performance optimisée** avec mise en cache
+- 🔍 **Scraping automatisé** — Puppeteer + Stealth Plugin pour Sosh, RED, B&You, Free
+- 📊 **Classement transparent** — Tri par coût annuel réel (prix × 12 + carte SIM) avec score €/Go affiché
+- 🎨 **Interface Néo-Brutaliste** — Design original avec bordures épaisses, ombres dures et couleurs pop
+- 🎛️ **Slider interactif + saisie directe** — Filtrage par data (0 à 400 Go), cliquable pour taper un chiffre précis
+- 🔗 **Liens directs opérateurs** — Accès en un clic à la page de souscription de chaque forfait
+- 💳 **Prix SIM/eSIM éditables** — Personnalisables par forfait depuis l'admin
+- ⚙️ **Panneau d'administration** (`/admin`) — Relancer le scraping, éditer les prix SIM, modérer les opérateurs
+- 📱 **Affichage Mo/Go intelligent** — Les forfaits < 1 Go s'affichent en Mo
+- 🐳 **Déploiement Docker** one-click (migrations auto au démarrage)
 
-## 🏗️ Architecture
+## 🏗️ Stack Technologique
 
-### Stack Technologique
-
-- **Backend** : Node.js + TypeScript + Express.js + Prisma ORM
-- **Scraping** : Puppeteer avec plugins anti-détection
-- **Frontend** : Astro + React + TypeScript + Tailwind CSS + shadcn/ui
-- **Base de données** : PostgreSQL
-- **Déploiement** : Docker + Docker Compose
+| Couche | Technologie |
+|--------|-------------|
+| **Backend** | Node.js + TypeScript + Express.js + Prisma ORM |
+| **Scraping** | Puppeteer avec plugin Stealth anti-détection |
+| **Frontend** | Nuxt 3 + Tailwind CSS |
+| **Base de données** | PostgreSQL 15 |
+| **Déploiement** | Docker + Docker Compose |
 
 ### Opérateurs Supportés
 
-| Opérateur | Type | Statut |
-|-----------|------|--------|
-| Sosh | MNO (Orange) | ✅ Actif |
-| RED by SFR | MNO (SFR) | ✅ Actif |
-| B&You | MNO (Bouygues) | ✅ Actif |
-| Free Mobile | MNO | ✅ Actif |
-| Prixtel | MVNO | 🔄 En développement |
-| La Poste Mobile | MVNO | 🔄 En développement |
-| NRJ Mobile | MVNO | 🔄 En développement |
-| Et 6 autres... | MVNO | 🔄 En développement |
+| Opérateur | Type | URL Scrapée | Statut |
+|-----------|------|-------------|--------|
+| Sosh | MNO (Orange) | sosh.fr/forfaits-mobile/ | ✅ Actif |
+| RED by SFR | MNO (SFR) | red-by-sfr.fr/forfaits-mobiles/ | ✅ Actif |
+| B&You | MNO (Bouygues) | bouyguestelecom.fr/forfaits-mobiles/b-and-you | ✅ Actif |
+| Free Mobile | MNO | mobile.free.fr/ | ✅ Actif |
 
 ## 🚀 Démarrage Rapide
 
@@ -49,211 +47,91 @@ Deal-Voyager est une application web moderne qui scrape automatiquement les offr
 
 - Docker & Docker Compose
 - Git
-- 4GB RAM disponible minimum
+- 4 Go RAM minimum
 
 ### Installation
 
-1. **Cloner le repository**
 ```bash
 git clone https://github.com/votre-username/Deal-Voyager.git
 cd Deal-Voyager
+docker compose up --build
 ```
 
-2. **Configurer l'environnement**
-```bash
-# Copier le fichier d'exemple
-cp .env.example .env
-# Éditer si nécessaire (les valeurs par défaut fonctionnent)
-```
+C'est tout. Le schéma Prisma se synchronise automatiquement au démarrage via `prisma db push`.
 
-3. **Lancer avec Docker Compose**
-```bash
-docker-compose up --build
-```
+### Accès
 
-4. **Accéder à l'application**
-- **Frontend** : http://localhost:4321
-- **API Backend** : http://localhost:3001
+| Service | URL |
+|---------|-----|
+| **Frontend** | http://localhost:3000 |
+| **API Backend** | http://localhost:3001 |
 
-### Premier Scraping
+### Premier Lancement
 
-1. Rendez-vous sur http://localhost:4321
-2. Cliquez sur **"Lancer le scraping"** (peut prendre 5-10 minutes)
-3. Rafraîchissez la page pour voir les offres
+1. Allez sur **http://localhost:3000/admin**
+2. Cliquez sur **« Lancer l'extraction maintenant »**
+3. Patientez ~2 minutes (le scraper parcourt les sites des opérateurs)
+4. Retournez sur la page d'accueil pour explorer les forfaits
 
 ## 📡 API
 
-### Endpoints Disponibles
+### Endpoints
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| `GET` | `/api/v1/deals` | Récupère toutes les offres triées par score |
+| `GET` | `/api/v1/deals` | Toutes les offres triées par score |
+| `GET` | `/api/v1/stats` | État du système (nb offres, date MàJ, lock scraping) |
+| `GET` | `/api/v1/operators` | Liste des opérateurs et leur statut fairplay |
 | `POST` | `/api/v1/scrape` | Lance le scraping en arrière-plan |
+| `PUT` | `/api/v1/deals/:id` | Modifier une offre (prix SIM, etc.) |
+| `PUT` | `/api/v1/operators/:name/fairplay` | Toggle le statut fairplay d'un opérateur |
+| `DELETE` | `/api/v1/clear` | Vide la base de données |
 
-### Exemple de Réponse
-
-```json
-{
-  "id": 1,
-  "operator": "Sosh",
-  "planName": "Le 100Go",
-  "price": 19.99,
-  "dataGb": 100,
-  "calls": "Illimités",
-  "sms": "Illimités",
-  "network": "Orange",
-  "score": 0.20,
-  "url": "https://www.sosh.fr/forfaits-mobiles",
-  "createdAt": "2024-01-15T10:30:00Z",
-  "updatedAt": "2024-01-15T10:30:00Z"
-}
-```
-
-## 🛠️ Développement
-
-### Structure du Projet
+## 🛠️ Structure du Projet
 
 ```
 Deal-Voyager/
 ├── backend/                 # API Express.js + Scraper
 │   ├── src/
-│   │   ├── controllers/     # Contrôleurs API
-│   │   ├── services/        # Logique de scraping
+│   │   ├── controllers/     # Contrôleurs API (scrape, deals, operators)
+│   │   ├── services/        # Orchestrateur de scraping
+│   │   │   └── scrapers/    # Logique par opérateur (sosh, red, byou, free)
 │   │   ├── routes/          # Routes Express
-│   │   └── lib/             # Utilitaires (Prisma, etc.)
+│   │   └── lib/             # Client Prisma
 │   ├── prisma/
-│   │   └── schema.prisma    # Schéma de base de données
+│   │   └── schema.prisma    # Schéma BDD (MobilePlan, OperatorSettings)
+│   ├── entrypoint.sh        # Script de démarrage (prisma generate + db push)
 │   └── Dockerfile
-├── frontend/                # Application Astro
-│   ├── src/
-│   │   ├── components/      # Composants React
-│   │   ├── layouts/         # Layouts Astro
-│   │   ├── pages/           # Pages Astro
-│   │   └── styles/          # CSS globaux
+├── frontend/                # Application Nuxt 3 (Port 3000)
+│   ├── components/          # Composants Vue
+│   │   ├── HeroSection.vue  # Hero néo-brutaliste
+│   │   ├── DataSlider.vue   # Slider avec saisie directe au Go près
+│   │   ├── DealCard.vue     # Carte forfait (€/Go, lien, SIM price)
+│   │   └── OperatorBadge.vue # Badge couleur par opérateur
+│   ├── layouts/             # Layout par défaut
+│   ├── pages/               # Pages (index, admin)
+│   ├── assets/css/          # Styles Tailwind + utilitaires néo-brutalistes
+│   ├── tailwind.config.js   # Thème custom
 │   └── Dockerfile
-├── docker-compose.yml       # Orchestration Docker
+├── compose.yml              # Orchestration Docker (db, backend, frontend)
+├── CHANGELOG.md             # Historique des modifications
 └── README.md
 ```
 
-### Développement Local
+## 📋 Roadmap
 
-1. **Backend (mode développement)**
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-2. **Frontend (mode développement)**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-3. **Base de données**
-```bash
-# Démarrer PostgreSQL
-docker run -d -p 5432:5432 -e POSTGRES_DB=deal_voyager -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password postgres:15-alpine
-
-# Appliquer les migrations
-cd backend
-npx prisma migrate dev
-```
-
-### Ajouter un Nouvel Opérateur
-
-1. Créer une fonction de scraping dans `backend/src/services/scraper.service.ts`
-2. Ajouter la configuration dans le tableau `scraperConfigs`
-3. Ajouter la couleur de l'opérateur dans `frontend/src/components/DealCard.tsx`
-
-Exemple :
-```typescript
-const nouveauOperateurScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-  // Votre logique de scraping ici
-  return plans.map(plan => ({ 
-    ...plan, 
-    operator: 'Nouvel Opérateur', 
-    network: 'Réseau' 
-  }));
-};
-```
-
-## 🔧 Configuration
-
-### Variables d'Environnement
-
-```bash
-# Base de données
-DATABASE_URL=postgresql://user:password@db:5432/deal_voyager
-
-# Serveur backend
-PORT=3001
-
-# Mode développement (optionnel)
-NODE_ENV=development
-```
-
-### Personnalisation du Scraping
-
-- **Fréquence** : Modifiez le cron dans `backend/src/index.ts`
-- **Timeout** : Ajustez les délais dans `scraper.service.ts`
-- **User Agent** : Personnalisez dans la fonction `launchBrowser`
-
-## 📊 Métriques et Monitoring
-
-- **Logs** : `docker-compose logs -f backend`
-- **Base de données** : Accès via client PostgreSQL sur le port 5432
-- **Métriques de scraping** : Consultez les logs du backend
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! Veuillez :
-
-1. Forker le projet
-2. Créer une branche feature (`git checkout -b feature/amelioration`)
-3. Commiter vos changements (`git commit -m 'Ajout de fonctionnalité'`)
-4. Pousser vers la branche (`git push origin feature/amelioration`)
-5. Ouvrir une Pull Request
-
-### Guidelines
-
-- Respecter la convention de nommage TypeScript
-- Tester les nouveaux scrapers avec des données réelles
-- Documenter les nouvelles fonctionnalités
-- Maintenir la compatibilité Docker
-
-## 📋 TODO / Roadmap
-
-- [ ] Ajouter les 6 MVNOs restants
-- [ ] Système de notifications (nouveau forfait avantageux)
-- [ ] API GraphQL
-- [ ] Comparaison historique des prix
-- [ ] Export des données (CSV, JSON)
-- [ ] Interface d'administration
-- [ ] Tests automatisés complets
-- [ ] CI/CD avec GitHub Actions
-
-## 🚨 Avertissements
-
-- Le scraping doit respecter les `robots.txt` et les conditions d'utilisation
-- Utilisez des délais appropriés pour éviter la surcharge des serveurs
-- Les prix et offres peuvent changer rapidement
-- Ce projet est à des fins éducatives et de comparaison
+- [ ] Ajouter les MVNOs restants (Prixtel, La Poste Mobile, NRJ, etc.)
+- [ ] Scraping automatique du prix SIM/eSIM par opérateur
+- [ ] Notifications (nouveau forfait avantageux détecté)
+- [ ] Historique des prix
+- [ ] Export CSV/JSON
+- [ ] Tests automatisés
+- [ ] CI/CD
 
 ## 📄 Licence
 
-Ce projet est sous licence **GNU General Public License v3.0**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
-
-## 🙏 Remerciements
-
-- [Puppeteer](https://pptr.dev/) pour le scraping web
-- [Astro](https://astro.build/) pour le framework frontend
-- [shadcn/ui](https://ui.shadcn.com/) pour les composants UI
-- [Prisma](https://www.prisma.io/) pour l'ORM moderne
+GNU General Public License v3.0 — voir [LICENSE](LICENSE.txt).
 
 ---
 
-**Fait avec ❤️ pour la communauté telco française**
-
-Si ce projet vous aide à économiser sur votre forfait mobile, n'hésitez pas à ⭐ le repository ! 
+**Fait avec ❤️ pour la communauté télécoms française** — Si ce projet vous aide à économiser, n'hésitez pas à ⭐ le repo !

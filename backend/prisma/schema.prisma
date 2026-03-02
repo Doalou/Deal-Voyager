@@ -1,12 +1,8 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -29,4 +25,12 @@ model MobilePlan {
   updatedAt   DateTime @updatedAt
 
   @@unique([operator, planName])
+  @@index([score])
+}
+
+model OperatorSettings {
+  operatorName String   @id
+  isFairplay   Boolean  @default(true)
+  simPrice     Float?   // Prix de la carte SIM / activation pour cet opérateur
+  updatedAt    DateTime @updatedAt
 }
