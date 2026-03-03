@@ -45,6 +45,7 @@ jobs:
 
       - name: Build et Push de l'image
         uses: docker/build-push-action@v5
+        run: docker build -f ../backend/Dockerfile ../frontend/Dockerfile
         with:
           context: .
           # On publie l'image uniquement si on n'est pas sur une Pull Request
