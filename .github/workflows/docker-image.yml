@@ -5,13 +5,11 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  # Permet de déclencher le workflow manuellement depuis l'interface GitHub
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Nécessaire pour publier sur le GitHub Container Registry (ghcr.io)
     permissions:
       contents: read
       packages: write
@@ -25,33 +23,54 @@ jobs:
 
       - name: Connexion au GitHub Container Registry
         uses: docker/login-action@v3
-        # On ne se connecte que si ce n'est pas une Pull Request (sécurité)
         if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extraction des métadonnées (tags, labels)
-        id: meta
+      # ---- BACKEND ----
+      - name: Métadonnées Backend
+        id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository }}/backend
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=sha
 
-      - name: Build et Push de l'image
+      - name: Build et Push Backend
         uses: docker/build-push-action@v5
-        run: docker build -f ../backend/Dockerfile ../frontend/Dockerfile
         with:
-          context: .
-          # On publie l'image uniquement si on n'est pas sur une Pull Request
+          context: ./backend
+          file: ./backend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # Utilisation du cache GitHub Actions pour optimiser les temps de build
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---- FRONTEND ----
+      - name: Métadonnées Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha
+
+      - name: Build et Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
