@@ -3,7 +3,7 @@ import cors from 'cors';
 import scrapeRouter from './routes/scrape.router';
 
 import { scrapeOffers } from './services/scraper.service';
-import cron from 'node-cron';
+import schedule from 'node-schedule';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -24,7 +24,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Planification du scraping automatique toutes les heures
-cron.schedule('0 * * * *', () => {
+schedule.scheduleJob('0 * * * *', () => {
   console.log(`Exécution du scraping planifié par Cron (${new Date().toLocaleTimeString('fr-FR')})...`);
   scrapeOffers();
 });
