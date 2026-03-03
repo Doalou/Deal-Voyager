@@ -172,14 +172,14 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
               <div class="bg-primary text-primary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">1</div>
               <div>
                 <h3 class="font-bold text-xl uppercase mb-2">Le Coût Réel (1 an)</h3>
-                <p>Nous ne nous laissons pas duper par les prix d'appel. Notre algorithme calcule le coût total sur la première année, incluant obligatoirement le forfait mensuel, le coût de la carte SIM, les éventuels frais d'activation et de résiliation.</p>
+                <p>Fini les mauvaises surprises ! On calcule pour vous le vrai coût sur la première année. On prend tout en compte : le forfait, la carte SIM, et même les éventuels petits frais cachés d'activation ou de résiliation.</p>
               </div>
             </div>
             <div class="flex items-start gap-4">
               <div class="bg-secondary text-secondary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">2</div>
               <div>
-                <h3 class="font-bold text-xl uppercase mb-2">Le Filtre Data Intransigeant</h3>
-                <p>Lorsque vous réglez votre besoin en gigaoctets, notre système élimine instantanément toute offre inférieure et réordonne purement par le coût annuel le plus bas. L'offre star est mathématiquement la moins chère.</p>
+                <h3 class="font-bold text-xl uppercase mb-2">Le Juste Prix pour Vos Besoins</h3>
+                <p>Dites-nous de combien de gigas vous avez besoin, et on s'occupe du reste. On écarte les forfaits qui ne vous conviennent pas pour mettre en lumière la meilleure offre, celle qui est vraiment la plus économique pour vous.</p>
               </div>
             </div>
           </div>
@@ -187,15 +187,15 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
             <div class="flex items-start gap-4 mb-6">
               <div class="bg-accent text-accent-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">3</div>
               <div>
-                <h3 class="font-bold text-xl uppercase mb-2">Indépendance Totale</h3>
-                <p>Nos robots (scrapers) parcourent les sites des opérateurs plusieurs fois par jour pour récupérer les vrais prix en direct. Zéro sponsoring, zéro manipulation : 100% data brute.</p>
+                <h3 class="font-bold text-xl uppercase mb-2">100% Indépendants</h3>
+                <p>On surveille les sites des opérateurs tous les jours pour vous dénicher les vrais prix en temps réel. Ici, pas de favoritisme ni d'offres sponsorisées : on vous montre la réalité, tout simplement.</p>
               </div>
             </div>
             <div class="flex items-start gap-4">
               <div class="bg-destructive text-destructive-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">4</div>
               <div>
-                <h3 class="font-bold text-xl uppercase mb-2">Le Label "Fairplay"</h3>
-                <p>Un opérateur est coutumier des augmentations de tarifs sauvages en cours d'année ? Nous lui retirons son label Fairplay. Un badge d'alerte s'affiche pour vous prévenir du risque de hausse.</p>
+                <h3 class="font-bold text-xl uppercase mb-2">Notre Label "Fairplay"</h3>
+                <p>Certains opérateurs ont la fâcheuse habitude d'augmenter leurs prix en cours de route. Si c'est le cas, on retire leur badge "Fairplay" et on vous prévient du risque pour vous éviter de revoir votre facture à la hausse.</p>
               </div>
             </div>
           </div>
