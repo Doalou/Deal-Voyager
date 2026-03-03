@@ -1,4 +1,4 @@
-name: NodeJS with Webpack
+name: Build
 
 on:
   push:
@@ -7,22 +7,40 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-backend:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
-
     steps:
     - uses: actions/checkout@v4
-
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-
-    - name: Build
+    - name: Build Backend
+      working-directory: ./backend
       run: |
         npm install
-        npx webpack
+        npm run build
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: Build Frontend
+      working-directory: ./frontend
+      run: |
+        npm install
+        npm run build
