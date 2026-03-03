@@ -25,6 +25,8 @@ interface OperatorSettings {
   operatorName: string;
   isFairplay: boolean;
   simPrice: number | null;
+  activationPrice: number | null;
+  cancellationPrice: number | null;
 }
 
 // Fetch data (client-only to avoid SSR Docker networking issues)
@@ -46,6 +48,16 @@ const getSimPrice = (operatorName: string): number => {
   return op?.simPrice ?? 10 // 10€ by default
 }
 
+const getActivationPrice = (operatorName: string): number => {
+  const op = operators.value?.find(o => o.operatorName === operatorName)
+  return op?.activationPrice ?? 0
+}
+
+const getCancellationPrice = (operatorName: string): number => {
+  const op = operators.value?.find(o => o.operatorName === operatorName)
+  return op?.cancellationPrice ?? 0
+}
+
 // Computed: Filtered deals
 const filteredDeals = computed(() => {
   if (!deals.value) return []
@@ -56,8 +68,8 @@ const filteredDeals = computed(() => {
   return deals.value
     .filter(d => d.dataGb >= targetDataGb.value)
     .sort((a, b) => {
-      const costA = (a.price * 12) + getSimPrice(a.operator);
-      const costB = (b.price * 12) + getSimPrice(b.operator);
+      const costA = (a.price * 12) + getSimPrice(a.operator) + getActivationPrice(a.operator) + getCancellationPrice(a.operator);
+      const costB = (b.price * 12) + getSimPrice(b.operator) + getActivationPrice(b.operator) + getCancellationPrice(b.operator);
       if (costA === costB) return b.dataGb - a.dataGb;
       return costA - costB;
     })
@@ -84,7 +96,7 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
 
       <!-- Loading State -->
       <div v-if="pendingDeals" class="w-full max-w-5xl py-24 flex justify-center">
-        <div class="bg-primary text-black font-black text-2xl border-4 border-black px-6 py-4 shadow-neo animate-pulse transform -rotate-2">
+        <div class="bg-primary text-primary-foreground font-black text-2xl border-4 border-border px-6 py-4 shadow-neo animate-pulse transform -rotate-2">
           Recherche des meilleures offres...
         </div>
       </div>
@@ -99,12 +111,14 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
             :is-fairplay="isFairplay(starOffer.operator)" 
             :is-star-offer="true"
             :sim-price="getSimPrice(starOffer.operator)"
+            :activation-price="getActivationPrice(starOffer.operator)"
+            :cancellation-price="getCancellationPrice(starOffer.operator)"
           />
         </div>
 
         <!-- Alternatives -->
         <div v-if="otherOffers.length > 0">
-          <div class="inline-block bg-black text-white px-4 py-2 font-bold uppercase tracking-widest mb-8 border-l-8 border-secondary">
+          <div class="inline-block bg-foreground text-background px-4 py-2 font-bold uppercase tracking-widest mb-8 border-l-8 border-secondary">
             Alternatives Solides
           </div>
           
@@ -116,6 +130,8 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
               :is-fairplay="isFairplay(deal.operator)" 
               :is-star-offer="false"
               :sim-price="getSimPrice(deal.operator)"
+              :activation-price="getActivationPrice(deal.operator)"
+              :cancellation-price="getCancellationPrice(deal.operator)"
             />
           </div>
 
@@ -123,7 +139,7 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
           <div v-if="hasMoreDeals" class="flex justify-center mt-12">
             <button 
               @click="showAllDeals = !showAllDeals"
-              class="neo-button bg-white text-black hover:bg-primary text-xl px-12 py-4 transform hover:-rotate-1"
+              class="neo-button bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground text-xl px-12 py-4 transform hover:-rotate-1"
             >
               <span v-if="!showAllDeals">📋 Voir les {{ filteredDeals.length - 4 }} autres forfaits</span>
               <span v-else>↑ Réduire la liste</span>
@@ -134,13 +150,13 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
       </div>
 
       <!-- Empty State -->
-      <div v-else class="w-full max-w-2xl text-center py-24 neo-box p-12 bg-white">
-        <div class="w-24 h-24 bg-muted border-4 border-black shadow-neo mx-auto mb-8 flex items-center justify-center transform rotate-12">
+      <div v-else class="w-full max-w-2xl text-center py-24 neo-box p-12 bg-card">
+        <div class="w-24 h-24 bg-muted border-4 border-border shadow-neo mx-auto mb-8 flex items-center justify-center transform rotate-12 text-muted-foreground">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </div>
-        <h3 class="text-3xl font-black uppercase mb-4">Aïe, c'est désert !</h3>
-        <p class="text-xl font-medium border-l-4 border-black pl-4 text-left inline-block">
-          Il n'y a actuellement aucune offre qui correspond à <span class="bg-secondary px-1 font-bold border-2 border-black">{{ targetDataGb }} Go</span>. Essayez de baisser vos critères ou relancez un scraping.
+        <h3 class="text-3xl font-black uppercase mb-4 text-card-foreground">Aïe, c'est désert !</h3>
+        <p class="text-xl font-medium border-l-4 border-border pl-4 text-left inline-block text-card-foreground">
+          Il n'y a actuellement aucune offre qui correspond à <span class="bg-secondary px-1 font-bold border-2 border-border text-secondary-foreground">{{ targetDataGb }} Go</span>. Essayez de baisser vos critères ou relancez un scraping.
         </p>
       </div>
 

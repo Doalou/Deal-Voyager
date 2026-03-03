@@ -11,26 +11,26 @@ export default {
     theme: {
         extend: {
             colors: {
-                background: "#f4f0EA", // Cream/paper white base
-                foreground: "#111111", // Pitch black text
-                primary: "#FFD000",   // Mustard Yellow
-                "primary-foreground": "#111111",
-                secondary: "#FFB0E6", // Light pink
-                "secondary-foreground": "#111111",
-                accent: "#4F46E5",    // Electric Blue
-                "accent-foreground": "#ffffff",
-                destructive: "#FF4545",
-                "destructive-foreground": "#ffffff",
-                muted: "#e3ddd5",
-                "muted-foreground": "#555555",
-                card: "#ffffff",
-                "card-foreground": "#111111",
-                border: "#111111",    // Black borders
+                background: "var(--background)",
+                foreground: "var(--foreground)",
+                primary: "var(--primary)",
+                "primary-foreground": "var(--primary-foreground)",
+                secondary: "var(--secondary)",
+                "secondary-foreground": "var(--secondary-foreground)",
+                accent: "var(--accent)",
+                "accent-foreground": "var(--accent-foreground)",
+                destructive: "var(--destructive)",
+                "destructive-foreground": "var(--destructive-foreground)",
+                muted: "var(--muted)",
+                "muted-foreground": "var(--muted-foreground)",
+                card: "var(--card)",
+                "card-foreground": "var(--card-foreground)",
+                border: "var(--border)",
             },
             boxShadow: {
-                'neo': '4px 4px 0px 0px rgba(0,0,0,1)',
-                'neo-hover': '2px 2px 0px 0px rgba(0,0,0,1)',
-                'neo-lg': '8px 8px 0px 0px rgba(0,0,0,1)',
+                'neo': '4px 4px 0px 0px var(--shadow-color)',
+                'neo-hover': '2px 2px 0px 0px var(--shadow-color)',
+                'neo-lg': '8px 8px 0px 0px var(--shadow-color)',
             },
             fontFamily: {
                 sans: ['Outfit', 'Space Grotesk', 'system-ui', 'sans-serif'],

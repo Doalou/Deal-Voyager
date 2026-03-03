@@ -103,8 +103,11 @@ export const handleToggleFairplayRequest = async (req: Request, res: Response) =
 
 export const handleUpdateOperatorSimPriceRequest = async (req: Request, res: Response) => {
   const { name } = req.params;
-  const { simPrice } = req.body;
-  const parsedPrice = simPrice !== null && simPrice !== undefined ? parseFloat(simPrice) : null;
+  const { simPrice, activationPrice, cancellationPrice } = req.body;
+
+  const parsedSimPrice = simPrice !== null && simPrice !== undefined ? parseFloat(simPrice) : null;
+  const parsedActivationPrice = activationPrice !== null && activationPrice !== undefined ? parseFloat(activationPrice) : null;
+  const parsedCancellationPrice = cancellationPrice !== null && cancellationPrice !== undefined ? parseFloat(cancellationPrice) : null;
 
   try {
     const existing = await prisma.operatorSettings.findUnique({
@@ -115,18 +118,28 @@ export const handleUpdateOperatorSimPriceRequest = async (req: Request, res: Res
     if (existing) {
       operator = await prisma.operatorSettings.update({
         where: { operatorName: name },
-        data: { simPrice: parsedPrice },
+        data: {
+          simPrice: parsedSimPrice,
+          activationPrice: parsedActivationPrice,
+          cancellationPrice: parsedCancellationPrice
+        },
       });
     } else {
       operator = await prisma.operatorSettings.create({
-        data: { operatorName: name, isFairplay: true, simPrice: parsedPrice },
+        data: {
+          operatorName: name,
+          isFairplay: true,
+          simPrice: parsedSimPrice,
+          activationPrice: parsedActivationPrice,
+          cancellationPrice: parsedCancellationPrice
+        },
       });
     }
 
-    console.log(`[SIM PRICE] ${name} mis à jour : simPrice=${parsedPrice}€`);
+    console.log(`[FEES] ${name} mis à jour : sim=${parsedSimPrice}€ act=${parsedActivationPrice}€ résil=${parsedCancellationPrice}€`);
     res.status(200).json(operator);
   } catch (error) {
-    console.error("Erreur maj simPrice :", error);
-    res.status(500).json({ message: "Erreur lors de la mise à jour du prix SIM." });
+    console.error("Erreur maj fees :", error);
+    res.status(500).json({ message: "Erreur lors de la mise à jour des frais de l'opérateur." });
   }
 }; 

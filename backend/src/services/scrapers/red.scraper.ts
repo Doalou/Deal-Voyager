@@ -14,7 +14,7 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
             }
         } catch (e) { }
 
-        const plans: { planName: string; dataGb: number; price: number }[] = [];
+        const plans: { planName: string; dataGb: number; price: number; calls: string }[] = [];
 
         // RED utilise des labels avec des IDs préfixés "datanat"
         let labels = await page.$$('label[id^="datanat"]');
@@ -97,12 +97,21 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
                     }
 
                     console.log(`[RED DOM] Biggest font-size: ${biggestFontSize}px, price: ${bestPrice}`);
-                    return bestPrice;
+
+                    // Extraire les appels sur la page visible
+                    let foundCalls = "Illimités";
+                    const pageText = document.body.innerText.toLowerCase();
+                    if (pageText.match(/(\d+)h\s*d*'*appels/i)) {
+                        const m = pageText.match(/(\d+)h\s*d*'*appels/i);
+                        if (m) foundCalls = `${m[1]}h`;
+                    }
+
+                    return { bestPrice, calls: foundCalls };
                 });
 
-                if (price > 0 && !plans.some(p => p.dataGb === dataGb)) {
-                    plans.push({ planName: `${dataGb} Go`, dataGb, price });
-                    console.log(`[RED] Trouvé : ${dataGb} Go à ${price}€/mois`);
+                if (price.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
+                    plans.push({ planName: `${dataGb} Go`, dataGb, price: price.bestPrice, calls: price.calls });
+                    console.log(`[RED] Trouvé : ${dataGb} Go à ${price.bestPrice}€/mois`);
                 }
             } catch (err) {
                 console.warn('[RED] Erreur:', err);
@@ -112,7 +121,14 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
         console.log(`[RED] Plans finaux :`, JSON.stringify(plans));
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)
-            .map(plan => ({ ...plan, operator: 'RED by SFR', network: 'SFR' }));
+            .map(plan => ({
+                planName: plan.planName,
+                dataGb: plan.dataGb,
+                price: plan.price,
+                calls: plan.calls,
+                operator: 'RED by SFR',
+                network: 'SFR'
+            }));
     } catch (error) {
         console.error('Erreur dans la collecte RED by SFR:', error);
         return [];

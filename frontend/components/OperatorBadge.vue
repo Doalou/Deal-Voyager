@@ -15,7 +15,7 @@ const getOperatorStyle = (name: string) => {
   if (normalized.includes('free')) return 'bg-[#CC0000] text-white'
   
   // Default fallback
-  return 'bg-white text-black'
+  return 'bg-card text-card-foreground'
 }
 
 const badgeClass = computed(() => getOperatorStyle(props.name))
@@ -23,10 +23,10 @@ const badgeClass = computed(() => getOperatorStyle(props.name))
 
 <template>
   <div class="flex items-center gap-3">
-    <div :class="['px-4 py-1.5 font-black uppercase text-sm border-2 border-black shadow-neo-hover transform -rotate-2', badgeClass]">
+    <div :class="['px-4 py-1.5 font-black uppercase text-sm border-2 border-border shadow-neo-hover transform -rotate-2', badgeClass]">
       {{ name }}
     </div>
-    <div class="px-2 py-1 bg-white border-2 border-black text-xs font-bold uppercase shadow-neo-hover">
+    <div class="px-2 py-1 bg-card border-2 border-border text-card-foreground text-xs font-bold uppercase shadow-neo-hover">
       Réseau {{ network }}
     </div>
   </div>

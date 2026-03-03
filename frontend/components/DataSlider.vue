@@ -32,14 +32,14 @@ const finishEditing = () => {
 </script>
 
 <template>
-  <div class="w-full max-w-2xl mx-auto bg-white border-4 border-black shadow-neo-lg p-6 md:p-10 mb-16 z-20 relative">
+  <div class="w-full max-w-2xl mx-auto bg-card text-card-foreground border-4 border-border shadow-neo-lg p-6 md:p-10 mb-16 z-20 relative">
     
-    <div class="flex items-end justify-between mb-8 border-b-4 border-black pb-4">
-      <h2 class="text-xl md:text-2xl font-black uppercase tracking-wider">Vos Besoins en Data</h2>
+    <div class="flex items-end justify-between mb-8 border-b-4 border-border pb-4">
+      <h2 class="text-xl md:text-2xl font-black uppercase tracking-wider text-card-foreground">Vos Besoins en Data</h2>
       
       <!-- Editable value display -->
       <div 
-        class="bg-primary border-4 border-black px-6 py-2 shadow-neo font-black text-4xl transform rotate-2 cursor-pointer hover:shadow-neo-hover transition-all"
+        class="bg-primary text-primary-foreground border-4 border-border px-6 py-2 shadow-neo font-black text-4xl transform rotate-2 cursor-pointer hover:shadow-neo-hover transition-all"
         @click="startEditing"
         v-if="!isEditing"
         title="Cliquez pour saisir une valeur"
@@ -48,14 +48,14 @@ const finishEditing = () => {
       </div>
       
       <!-- Input mode -->
-      <div v-else class="flex items-center gap-2 bg-primary border-4 border-black px-4 py-2 shadow-neo transform rotate-2">
+      <div v-else class="flex items-center gap-2 bg-primary text-primary-foreground border-4 border-border px-4 py-2 shadow-neo transform rotate-2">
         <input
           v-model="editValue"
           type="number"
           min="0"
           max="400"
           autofocus
-          class="w-24 text-4xl font-black bg-transparent text-center outline-none border-b-4 border-black"
+          class="w-24 text-4xl font-black bg-transparent text-center text-primary-foreground outline-none border-b-4 border-border"
           @keyup.enter="finishEditing"
           @keyup.escape="isEditing = false"
           @blur="finishEditing"
@@ -69,11 +69,11 @@ const finishEditing = () => {
         type="range" 
         v-model.number="value" 
         min="0" max="400" step="5"
-        class="w-full appearance-none bg-muted border-4 border-black h-8 rounded-full outline-none slider-thumb-neo"
+        class="w-full appearance-none bg-muted border-4 border-border h-8 rounded-full outline-none slider-thumb-neo"
       />
-      <div class="flex justify-between text-sm font-bold uppercase mt-4 px-1">
-        <span class="bg-white border-2 border-black px-2 py-1 shadow-neo-hover">0 Go</span>
-        <span class="bg-white border-2 border-black px-2 py-1 shadow-neo-hover">400 Go</span>
+      <div class="flex justify-between text-sm font-bold uppercase mt-4 px-1 text-card-foreground">
+        <span class="bg-card border-2 border-border px-2 py-1 shadow-neo-hover">0 Go</span>
+        <span class="bg-card border-2 border-border px-2 py-1 shadow-neo-hover">400 Go</span>
       </div>
     </div>
   </div>

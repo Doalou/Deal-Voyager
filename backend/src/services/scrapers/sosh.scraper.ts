@@ -1,9 +1,10 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page Sosh…');
+    console.log('Extraction des données de la page Sosh (nouvelle URL)…');
     try {
-        // Attendre le chargement complet (Sosh est une SPA lente)
+        // Redirection vers la nouvelle boutique Sosh
+        await page.goto("https://shop.sosh.fr/mobile/forfaits-mobiles", { waitUntil: 'networkidle2', timeout: 60000 });
         await new Promise(r => setTimeout(r, 7000));
 
         // Fermer bannière cookies
@@ -13,137 +14,87 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
             await new Promise(r => setTimeout(r, 1500));
         } catch (e) { }
 
-        // Scroller pour charger le contenu lazy
-        for (let i = 0; i < 3; i++) {
-            await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-            await new Promise(r => setTimeout(r, 1500));
-        }
+        // Scroll pour forcer le chargement de toute la page
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await new Promise(r => setTimeout(r, 2000));
 
-        const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number }[] = [];
-            const bodyText = document.body.innerText;
+        const plans: any = await page.evaluate(() => {
+            const results: { planName: string; dataGb: number; price: number; calls: string }[] = [];
+            let bodyText = "";
+            try {
+                bodyText = document.body.innerText || "";
+            } catch (e) { }
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-            // DEBUG
-            console.log('[Sosh Debug] Total lignes:', lines.length);
-            console.log('[Sosh Debug] Premières lignes:', JSON.stringify(lines.slice(0, 150)));
-
-            // Stratégie 1 : chercher les patterns "X Go" isolés et trouver le prix associé
+            // Rechercher les blocs qui commencent par "Forfait"
             for (let i = 0; i < lines.length; i++) {
-                // Chercher une mention de données (formulations Sosh variées)
-                const dataMatch = lines[i].match(/(\d{1,4})\s*(Go|Mo)/i);
-                if (!dataMatch) continue;
+                if (lines[i].startsWith("Forfait ") && !lines[i].includes("Voyage")) { // On ignore le Forfait Voyage Sosh très spécifique si besoin, mais on peut le prendre. Prenons "Forfait "
 
-                const rawData = parseInt(dataMatch[1], 10);
-                const unit = dataMatch[2].toLowerCase();
-                const dataGb = unit === 'mo' ? rawData / 1000 : rawData;
+                    const nameLine = lines[i];
 
-                if (dataGb <= 0 || dataGb > 1000) continue;
-                // Ignorer les mentions de roaming (ex: "15 Go en Europe")
-                if (/europe|roaming|dom|étranger/i.test(lines[i])) continue;
+                    // Extraire les GB du nom
+                    const dataMatch = nameLine.match(/(\d{1,4})\s*(Go|Mo)/i);
+                    if (!dataMatch) continue;
 
-                // Chercher un prix dans les lignes autour
-                let price = 0;
-                for (let j = Math.max(0, i - 10); j < Math.min(lines.length, i + 10); j++) {
-                    const cleanLine = lines[j].replace(/\u00a0/g, ' ').trim();
+                    const rawData = parseInt(dataMatch[1], 10);
+                    const unit = dataMatch[2].toLowerCase();
+                    const dataGb = unit === 'mo' ? rawData / 1000 : rawData;
 
-                    // "XX,XX€" ou "XX,XX €/mois"
-                    let priceMatch = cleanLine.match(/(\d{1,3})[,.](\d{2})\s*€/);
-                    if (!priceMatch) {
-                        // "XX€XX"
-                        priceMatch = cleanLine.match(/(\d{1,3})\s*€\s*(\d{2})/);
-                    }
-                    if (!priceMatch) {
-                        // Prix entier "X€"
-                        const intMatch = cleanLine.match(/^(\d{1,2})\s*€/);
-                        if (intMatch) {
-                            const p = parseInt(intMatch[1], 10);
-                            if (p > 0 && p < 80) { price = p; break; }
+                    if (dataGb <= 0 || dataGb > 1000) continue;
+
+                    // Chercher le prix dans les 3-4 lignes suivantes
+                    let price = 0;
+                    let calls = "Illimités"; // Par défaut
+
+                    for (let j = i + 1; j < Math.min(lines.length, i + 15); j++) {
+                        const cleanLine = lines[j].replace(/\u00a0/g, ' ').trim();
+
+                        // Détecter un prix
+                        if (price === 0) {
+                            const priceMatch = cleanLine.match(/(\d{1,3})[,.](\d{2})\s*€/);
+                            if (priceMatch) {
+                                price = parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
+                            }
                         }
-                        continue;
-                    }
 
-                    const euros = parseInt(priceMatch[1], 10);
-                    const cents = priceMatch[2] ? parseInt(priceMatch[2], 10) : 0;
-                    const candidate = euros + cents / 100;
-
-                    if (candidate > 0 && candidate < 80) {
-                        if (price === 0 || candidate < price) {
-                            price = candidate;
-                        }
-                    }
-                }
-
-                if (price > 0 && !results.some(r => r.dataGb === dataGb)) {
-                    results.push({
-                        planName: `Forfait Sosh ${dataGb} Go`,
-                        dataGb,
-                        price
-                    });
-                }
-            }
-
-            // Stratégie 2 (fallback) : DOM spatial — trouver les éléments "Go" et le prix le plus proche visuellement
-            if (results.length === 0) {
-                const allEls = document.querySelectorAll('*');
-                const dataElements: { dataGb: number; rect: DOMRect }[] = [];
-
-                for (const el of Array.from(allEls)) {
-                    const text = (el.textContent || '').trim();
-                    if (text.length > 25) continue;
-                    const m = text.match(/^(\d{1,4})\s*(Go|Mo)$/i);
-                    if (m) {
-                        const val = parseInt(m[1], 10);
-                        const u = m[2].toLowerCase();
-                        const gb = u === 'mo' ? val / 1000 : val;
-                        if (gb > 0 && gb <= 1000) {
-                            dataElements.push({ dataGb: gb, rect: el.getBoundingClientRect() });
-                        }
-                    }
-                }
-
-                for (const de of dataElements) {
-                    let bestPrice = 0;
-                    let bestDist = Infinity;
-
-                    for (const el of Array.from(allEls)) {
-                        const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-                        if (text.length > 30) continue;
-                        const pm = text.match(/^(\d{1,3})[,.](\d{2})\s*€?$/);
-                        if (!pm) continue;
-                        const p = parseFloat(`${pm[1]}.${pm[2]}`);
-                        if (p <= 0 || p >= 80) continue;
-
-                        const rect = el.getBoundingClientRect();
-                        const dist = Math.sqrt(Math.pow(rect.x - de.rect.x, 2) + Math.pow(rect.y - de.rect.y, 2));
-                        if (dist < bestDist) {
-                            bestDist = dist;
-                            bestPrice = p;
+                        // Détecter les heures d'appels spécifiques
+                        const callMatch = cleanLine.match(/(\d+)h\s*d'appels/i);
+                        if (callMatch) {
+                            calls = `${callMatch[1]}h`;
+                        } else if (cleanLine.match(/appels.*illimit/i) || cleanLine.match(/SMS\/MMS illimit/i)) {
+                            if (calls === "Illimités" && cleanLine.match(/appels.*illimit/i)) {
+                                calls = "Illimités";
+                            }
                         }
                     }
 
-                    if (bestPrice > 0 && !results.some(r => r.dataGb === de.dataGb)) {
+                    if (price > 0 && !results.some(r => r.dataGb === dataGb && r.price === price)) {
                         results.push({
-                            planName: `Forfait Sosh ${de.dataGb} Go`,
-                            dataGb: de.dataGb,
-                            price: bestPrice
+                            planName: nameLine,
+                            dataGb,
+                            price,
+                            calls
                         });
                     }
                 }
             }
 
-            return results;
+            return { results, debugText: bodyText };
         });
 
-        console.log(`[Sosh] Plans extraits :`, JSON.stringify(plans));
-        for (const p of plans) {
-            console.log(`[Sosh] Trouvé : ${p.dataGb} Go à ${p.price}€/mois`);
+        console.log(`[Sosh] Plans extraits :`, JSON.stringify(plans.results));
+        console.log("SOSH DEBUG LENGTH PROD:", plans.debugText.length);
+        if (plans.debugText.length < 500) {
+            console.log("SOSH DEBUG TEXT (trop court):", plans.debugText);
         }
 
-        return plans
-            .filter(p => p.price > 0 && p.dataGb > 0)
-            .map(plan => ({
-                ...plan,
+        return plans.results
+            .filter((p: any) => p.price > 0 && p.dataGb > 0)
+            .map((plan: any) => ({
+                planName: plan.planName,
+                dataGb: plan.dataGb,
+                price: plan.price,
+                calls: plan.calls,
                 operator: 'Sosh',
                 network: 'Orange'
             }));

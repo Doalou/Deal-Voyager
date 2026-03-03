@@ -106,6 +106,7 @@ export const scrapeOffers = async () => {
                   data: {
                     price: plan.price,
                     dataGb: plan.dataGb,
+                    calls: plan.calls || 'Illimités',
                     network: plan.network,
                     url: config.url,
                     score: score,
@@ -118,7 +119,7 @@ export const scrapeOffers = async () => {
                     planName: plan.planName,
                     price: plan.price,
                     dataGb: plan.dataGb,
-                    calls: 'Illimités',
+                    calls: plan.calls || 'Illimités',
                     sms: 'Illimités',
                     network: plan.network,
                     url: config.url,

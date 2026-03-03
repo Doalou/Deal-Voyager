@@ -5,6 +5,7 @@ export interface ScrapedPlan {
   planName: string;
   price: number;
   dataGb: number;
+  calls?: string;
   simPrice?: number;
   network?: string;
   url?: string;

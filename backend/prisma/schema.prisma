@@ -29,8 +29,10 @@ model MobilePlan {
 }
 
 model OperatorSettings {
-  operatorName String   @id
-  isFairplay   Boolean  @default(true)
-  simPrice     Float?   // Prix de la carte SIM / activation pour cet opérateur
-  updatedAt    DateTime @updatedAt
+  operatorName      String   @id
+  isFairplay        Boolean  @default(true)
+  simPrice          Float?   // Prix de la carte SIM / activation pour cet opérateur
+  activationPrice   Float?   // Frais d'activation supplémentaires (si existants)
+  cancellationPrice Float?   // Frais de résiliation
+  updatedAt         DateTime @updatedAt
 }

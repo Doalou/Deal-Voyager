@@ -18,7 +18,7 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await new Promise(r => setTimeout(r, 3000));
 
-        const plans: { planName: string; dataGb: number; price: number }[] = [];
+        const plans: { planName: string; dataGb: number; price: number; calls: string }[] = [];
 
         // Stratégie B&You : la page utilise un configurateur dynamique avec des .radio-label
         // Il faut cliquer sur chaque option et lire le prix dans le bandeau "Votre sélection" en bas de page
@@ -75,19 +75,25 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                 const unit = dataMatch[2].toLowerCase();
                 const dataGb = unit === 'mo' ? rawData / 1000 : rawData;
 
+                let specificCalls = "Illimités";
+                const explicitCallMatch = info.text.match(/(\d+)h/i);
+                if (explicitCallMatch) {
+                    specificCalls = `${explicitCallMatch[1]}h`;
+                }
+
                 // Cliquer sur le label pour sélectionner ce forfait
                 await targetLabel.click();
                 await new Promise(r => setTimeout(r, 2000));
 
                 // Lire le prix depuis le bandeau "Votre sélection" en bas OU depuis le DOM
-                const price = await page.evaluate(() => {
+                const priceData = await page.evaluate(() => {
                     // Stratégie 1 : bandeau de sélection en bas de page
                     const bottomBar = document.querySelector('[class*="sticky"], [class*="bottom"], [class*="selection"], [class*="recap"], [class*="footer"]');
                     if (bottomBar) {
                         const text = (bottomBar.textContent || '').replace(/\u00a0/g, ' ');
                         const priceMatch = text.match(/(\d{1,3})[,.](\d{2})\s*€\s*\/?\s*mois/i);
                         if (priceMatch) {
-                            return parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
+                            return { bestPrice: parseFloat(`${priceMatch[1]}.${priceMatch[2]}`), calls: "Illimités" };
                         }
                     }
 
@@ -121,13 +127,28 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                         }
                     }
 
-                    return bestPrice;
+                    // Extraire les appels s'il y a une limite spécifique affichée
+                    let foundCalls = "Illimités";
+                    const pageText = document.body.innerText.toLowerCase();
+                    if (pageText.match(/(\d+)h\s*d*['’]*appels/i)) {
+                        const m = pageText.match(/(\d+)h\s*d*['’]*appels/i);
+                        if (m) foundCalls = `${m[1]}h`;
+                    }
+
+                    return { bestPrice, calls: foundCalls };
                 });
 
-                if (price > 0 && !plans.some(p => p.dataGb === dataGb)) {
+                let finalCalls = "Illimités";
+                if (specificCalls !== "Illimités") {
+                    finalCalls = specificCalls;
+                } else if (priceData && priceData.calls !== "Illimités") {
+                    finalCalls = priceData.calls;
+                }
+
+                if (priceData && typeof priceData === 'object' && 'bestPrice' in priceData && priceData.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
                     const planName = `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`;
-                    plans.push({ planName, dataGb, price });
-                    console.log(`[B&You] Trouvé : ${planName} à ${price}€/mois`);
+                    plans.push({ planName, dataGb, price: priceData.bestPrice, calls: finalCalls });
+                    console.log(`[B&You] Trouvé : ${planName} à ${priceData.bestPrice}€/mois`);
                 }
             } catch (err) {
                 console.warn('[B&You] Erreur sur une option:', err);
@@ -138,17 +159,23 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         if (plans.length === 0) {
             console.log('[B&You] Fallback: extraction texte brut...');
             const fallbackPlans = await page.evaluate(() => {
-                const results: { planName: string; dataGb: number; price: number }[] = [];
+                const results: { planName: string; dataGb: number; price: number; calls: string }[] = [];
                 const bodyText = document.body.innerText;
                 const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
                 for (let i = 0; i < lines.length; i++) {
-                    const dataMatch = lines[i].match(/^(\d{1,4})\s*(Go|Mo)\s*$/i);
+                    const dataMatch = lines[i].match(/^(?:(\d+)h\s*)?(\d{1,4})\s*(Go|Mo)\s*$/i);
                     if (!dataMatch) continue;
-                    const rawData = parseInt(dataMatch[1], 10);
-                    const unit = dataMatch[2].toLowerCase();
+                    const hoursRaw = dataMatch[1];
+                    const rawData = parseInt(dataMatch[2], 10);
+                    const unit = dataMatch[3].toLowerCase();
                     const dataGb = unit === 'mo' ? rawData / 1000 : rawData;
                     if (dataGb <= 0) continue;
+
+                    let fallbackExplicitCalls = "Illimités";
+                    if (hoursRaw) {
+                        fallbackExplicitCalls = `${hoursRaw}h`;
+                    }
 
                     // Chercher un prix dans les 15 lignes autour
                     for (let j = Math.max(0, i - 15); j < Math.min(lines.length, i + 15); j++) {
@@ -157,10 +184,21 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                         if (priceMatch) {
                             const price = parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
                             if (price > 0 && price < 80 && !results.some(r => r.dataGb === dataGb)) {
+
+                                // Scan pour les appels sur ces lignes
+                                let calls = fallbackExplicitCalls;
+                                if (calls === "Illimités") {
+                                    for (let k = Math.max(0, i - 5); k < Math.min(lines.length, i + 10); k++) {
+                                        const m = lines[k].match(/(\d+)h\s*d*['’]*appels/i);
+                                        if (m) calls = `${m[1]}h`;
+                                    }
+                                }
+
                                 results.push({
                                     planName: `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`,
                                     dataGb,
-                                    price
+                                    price,
+                                    calls
                                 });
                             }
                             break;
@@ -179,7 +217,14 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         console.log(`[B&You] Plans finaux :`, JSON.stringify(plans));
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)
-            .map(plan => ({ ...plan, operator: 'B&You', network: 'Bouygues Telecom' }));
+            .map(plan => ({
+                planName: plan.planName,
+                dataGb: plan.dataGb,
+                price: plan.price,
+                calls: plan.calls,
+                operator: 'B&You',
+                network: 'Bouygues Telecom'
+            }));
     } catch (error) {
         console.error('Erreur dans la collecte B&You:', error);
         return [];

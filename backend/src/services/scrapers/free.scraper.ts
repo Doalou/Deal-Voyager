@@ -8,7 +8,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string }[] = [];
             const bodyText = document.body.innerText;
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -28,6 +28,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
             for (const block of planBlocks) {
                 let dataGb = 0;
                 let price = -1;
+                let calls = "Illimités"; // Par défaut
 
                 for (let j = block.startIdx; j < Math.min(block.startIdx + 40, lines.length); j++) {
                     // Stopper si on rencontre un autre bloc
@@ -91,11 +92,21 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                             }
                         }
                     }
+
+                    // Chercher les appels
+                    const text = lines[j].toLowerCase();
+                    if (text.match(/(\d+)h\s*d*['’]*appels/i) || text.match(/appels\s*(\d+)h/i)) {
+                        const m = text.match(/(\d+)h/i);
+                        if (m) calls = `${m[1]}h`;
+                    } else if (text.match(/appels.*illimit/i) && calls === "Illimités") {
+                        // On garde Illimités seulement si on n'a pas mis un 2h plus tôt
+                        calls = "Illimités";
+                    }
                 }
 
                 if (dataGb > 0 && price >= 0 && price < 100) {
                     if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                        results.push({ planName: block.name, dataGb, price });
+                        results.push({ planName: block.name, dataGb, price, calls });
                     }
                 }
             }
@@ -111,7 +122,10 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)
             .map(plan => ({
-                ...plan,
+                planName: plan.planName,
+                dataGb: plan.dataGb,
+                price: plan.price,
+                calls: plan.calls,
                 operator: 'Free Mobile',
                 network: 'Free Mobile'
             }));
