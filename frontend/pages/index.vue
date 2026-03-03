@@ -161,5 +161,47 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
       </div>
 
     </main>
+
+    <!-- Section Méthodologie -->
+    <section class="container mx-auto px-4 mt-24 mb-16 relative z-10">
+      <div class="neo-box bg-card p-8 md:p-12 border-4 border-border text-card-foreground">
+        <h2 class="text-3xl md:text-4xl font-black uppercase mb-6 border-b-8 border-border pb-4 inline-block">Notre Méthodologie</h2>
+        <div class="grid md:grid-cols-2 gap-8 text-lg font-medium">
+          <div>
+            <div class="flex items-start gap-4 mb-6">
+              <div class="bg-primary text-primary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">1</div>
+              <div>
+                <h3 class="font-bold text-xl uppercase mb-2">Le Coût Réel (1 an)</h3>
+                <p>Nous ne nous laissons pas duper par les prix d'appel. Notre algorithme calcule le coût total sur la première année, incluant obligatoirement le forfait mensuel, le coût de la carte SIM, les éventuels frais d'activation et de résiliation.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="bg-secondary text-secondary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">2</div>
+              <div>
+                <h3 class="font-bold text-xl uppercase mb-2">Le Filtre Data Intransigeant</h3>
+                <p>Lorsque vous réglez votre besoin en gigaoctets, notre système élimine instantanément toute offre inférieure et réordonne purement par le coût annuel le plus bas. L'offre star est mathématiquement la moins chère.</p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-start gap-4 mb-6">
+              <div class="bg-accent text-accent-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">3</div>
+              <div>
+                <h3 class="font-bold text-xl uppercase mb-2">Indépendance Totale</h3>
+                <p>Nos robots (scrapers) parcourent les sites des opérateurs plusieurs fois par jour pour récupérer les vrais prix en direct. Zéro sponsoring, zéro manipulation : 100% data brute.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="bg-destructive text-destructive-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">4</div>
+              <div>
+                <h3 class="font-bold text-xl uppercase mb-2">Le Label "Fairplay"</h3>
+                <p>Un opérateur est coutumier des augmentations de tarifs sauvages en cours d'année ? Nous lui retirons son label Fairplay. Un badge d'alerte s'affiche pour vous prévenir du risque de hausse.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </div>
 </template>

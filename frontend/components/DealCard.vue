@@ -92,7 +92,10 @@ const formattedScore = (score: number | null) => {
           <span v-if="activationPrice > 0" class="text-[10px] text-muted-foreground">Activation: {{ activationPrice }}€</span>
           <span v-if="cancellationPrice > 0" class="text-[10px] text-muted-foreground">Résiliation: {{ cancellationPrice }}€</span>
         </div>
-        <div v-if="isStarOffer" class="bg-foreground text-background px-3 py-1 font-bold text-sm">
+        <div :class="[
+          'px-3 py-1 font-bold text-sm text-center md:text-right mt-1', 
+          isStarOffer ? 'bg-foreground text-background' : 'bg-muted border-2 border-border text-muted-foreground'
+        ]">
           Abonnement 1 an: {{ (deal.price * 12 + simPrice + activationPrice + cancellationPrice).toFixed(2) }}€
         </div>
       </div>

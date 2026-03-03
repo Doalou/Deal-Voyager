@@ -82,7 +82,10 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                 }
 
                 // Cliquer sur le label pour sélectionner ce forfait
-                await targetLabel.click();
+                await targetLabel.evaluate((el: any) => el.click()).catch(async (e: any) => {
+                    console.log("[B&You] Fallback click puppeteer:", e.message);
+                    await targetLabel.click();
+                });
                 await new Promise(r => setTimeout(r, 2000));
 
                 // Lire le prix depuis le bandeau "Votre sélection" en bas OU depuis le DOM

@@ -1,5 +1,5 @@
 # Utiliser l'image officielle de Puppeteer qui inclut déjà Chrome et toutes les dépendances.
-FROM ghcr.io/puppeteer/puppeteer:latest
+FROM --platform=linux/amd64 ghcr.io/puppeteer/puppeteer:latest
 
 USER pptruser
 WORKDIR /home/pptruser/app
