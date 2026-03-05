@@ -1,7 +1,6 @@
 import type { ScraperConfig } from './types';
 
 export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page YouPrice...');
     try {
         await new Promise(r => setTimeout(r, 3000));
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -27,7 +26,7 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                 else if (lowerLine.includes('réseau bouygues')) currentNetwork = 'Bouygues';
 
                 if (/\b5g\b/i.test(line)) currentGeneration = '5G';
-                else if (/\b4g\b/i.test(line) && !/5g/i.test(line)) currentGeneration = '4G';
+                else if (/\b4g\b/i.test(line) && !/\b5g\b/i.test(line)) currentGeneration = '4G';
 
                 // Cas 1: Ligne complète "XXGo à YY,YY€/mois"
                 // On s'appuie uniquement sur ce format "Titre" pour éviter d'aspirer la "Data EU" ou "Data DOM" par erreur.
@@ -73,9 +72,7 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
             }
         }
 
-        console.log(`[YouPrice] Plans extraits :`, JSON.stringify(uniquePlans));
         for (const p of uniquePlans) {
-            console.log(`[YouPrice] Trouvé : ${p.planName} — ${p.dataGb} Go à ${p.price}€/mois`);
         }
 
         return uniquePlans;

@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page Auchan Telecom…');
     try {
         await new Promise(r => setTimeout(r, 5000));
 
@@ -88,7 +87,7 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
 
                 let gen = '4G';
                 for (let j = dataLineIdx; j < Math.min(lines.length, dataLineIdx + 20); j++) {
-                    if (/5g/i.test(lines[j])) { gen = '5G'; break; }
+                    if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
                 }
 
                 const planName = `Forfait Auchan Telecom ${rawData} ${unit}`;
@@ -101,7 +100,6 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
             return results;
         });
 
-        console.log(`[Auchan Telecom] Plans extraits :`, JSON.stringify(plans));
 
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)

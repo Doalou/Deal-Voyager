@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page B&You…');
     try {
         await new Promise(r => setTimeout(r, 5000));
 
@@ -49,7 +48,6 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
             } catch (e) { }
         }
 
-        console.log(`[B&You] ${labelInfos.length} options de forfait trouvées`);
 
         for (const info of labelInfos) {
             try {
@@ -83,7 +81,6 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
 
                 // Cliquer sur le label pour sélectionner ce forfait
                 await targetLabel.evaluate((el: any) => el.click()).catch(async (e: any) => {
-                    console.log("[B&You] Fallback click puppeteer:", e.message);
                     await targetLabel.click();
                 });
                 await new Promise(r => setTimeout(r, 2000));
@@ -148,12 +145,11 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                     finalCalls = priceData.calls;
                 }
 
-                const gen = /5g/i.test(info.text) ? '5G' : '4G';
+                const gen = /\b5g\b/i.test(info.text) ? '5G' : '4G';
 
                 if (priceData && typeof priceData === 'object' && 'bestPrice' in priceData && priceData.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
                     const planName = `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`;
                     plans.push({ planName, dataGb, price: priceData.bestPrice, calls: finalCalls, networkGeneration: gen });
-                    console.log(`[B&You] Trouvé : ${planName} à ${priceData.bestPrice}€/mois (${gen})`);
                 }
             } catch (err) {
                 console.warn('[B&You] Erreur sur une option:', err);
@@ -162,7 +158,6 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
 
         // Fallback global si rien n'a été trouvé via les clics
         if (plans.length === 0) {
-            console.log('[B&You] Fallback: extraction texte brut...');
             const fallbackPlans = await page.evaluate(() => {
                 const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
                 const bodyText = document.body.innerText;
@@ -200,7 +195,7 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                                 }
 
                                 const nearbyText = lines.slice(Math.max(0, i - 5), i + 5).join(' ');
-                                const fbGen = /5g/i.test(nearbyText) ? '5G' : '4G';
+                                const fbGen = /\b5g\b/i.test(nearbyText) ? '5G' : '4G';
 
                                 results.push({
                                     planName: `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`,
@@ -219,11 +214,9 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
 
             for (const p of fallbackPlans) {
                 plans.push({ ...p, networkGeneration: p.networkGeneration || '4G' });
-                console.log(`[B&You] Trouvé (fallback) : ${p.planName} à ${p.price}€/mois (${p.networkGeneration || '4G'})`);
             }
         }
 
-        console.log(`[B&You] Plans finaux :`, JSON.stringify(plans));
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)
             .map(plan => ({

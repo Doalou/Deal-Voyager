@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const symaMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page Syma Mobile…');
     try {
         await new Promise(r => setTimeout(r, 8000));
 
@@ -65,7 +64,7 @@ export const symaMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
 
                 let gen = '4G';
                 for (let j = Math.max(0, i - 3); j < Math.min(lines.length, i + 15); j++) {
-                    if (/5g/i.test(lines[j])) { gen = '5G'; break; }
+                    if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
                 }
 
                 const planName = `Forfait Syma Mobile ${dataMatch[1]} ${dataMatch[2]}`;
@@ -78,7 +77,6 @@ export const symaMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
             return results;
         });
 
-        console.log(`[Syma Mobile] Plans extraits :`, JSON.stringify(plans));
 
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)

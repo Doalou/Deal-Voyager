@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const laPosteMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page La Poste Mobile…');
     try {
         await new Promise(r => setTimeout(r, 5000));
 
@@ -65,7 +64,7 @@ export const laPosteMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (
                 // 5G if link or nearby text mentions it, the 100 Mo plan is 4G only
                 let gen = '4G';
                 for (let j = Math.max(0, i - 3); j < Math.min(lines.length, i + 20); j++) {
-                    if (/5g/i.test(lines[j])) { gen = '5G'; break; }
+                    if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
                 }
                 if (dataGb < 1) gen = '4G';
 
@@ -77,7 +76,6 @@ export const laPosteMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (
             return results;
         });
 
-        console.log(`[La Poste Mobile] Plans extraits :`, JSON.stringify(plans));
 
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)

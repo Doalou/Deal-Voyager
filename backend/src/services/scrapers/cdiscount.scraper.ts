@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page Cdiscount Mobile…');
     try {
         await new Promise(r => setTimeout(r, 7000));
 
@@ -88,7 +87,7 @@ export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async
                 // Detect 5G from "5G OFFERTE" or "5G -" or "5g" in surrounding lines
                 let gen = '4G';
                 for (let j = Math.max(0, dataLineIdx - 5); j < Math.min(lines.length, dataLineIdx + 15); j++) {
-                    if (/5g/i.test(lines[j])) { gen = '5G'; break; }
+                    if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
                 }
 
                 const planName = `Forfait Cdiscount Mobile ${rawData} ${unit}`;
@@ -101,7 +100,6 @@ export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async
             return results;
         });
 
-        console.log(`[Cdiscount Mobile] Plans extraits :`, JSON.stringify(plans));
 
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)

@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page Lebara…');
     try {
         await new Promise(r => setTimeout(r, 7000));
 
@@ -64,7 +63,7 @@ export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) =
 
                 let gen = '4G';
                 for (let j = Math.max(0, i - 3); j < Math.min(lines.length, i + 15); j++) {
-                    if (/5g/i.test(lines[j])) { gen = '5G'; break; }
+                    if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
                 }
 
                 const planName = `Forfait Lebara ${dataMatch[1]} ${dataMatch[2]}`;
@@ -77,7 +76,6 @@ export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) =
             return results;
         });
 
-        console.log(`[Lebara] Plans extraits :`, JSON.stringify(plans));
 
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)

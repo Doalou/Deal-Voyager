@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page RED by SFR…');
     try {
         await new Promise(r => setTimeout(r, 5000));
 
@@ -34,7 +33,6 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
         );
         const validLabels = labelIds.filter(id => id);
 
-        console.log(`[RED] ${validLabels.length} labels de data trouvés`);
 
         for (const labelId of validLabels) {
             try {
@@ -96,7 +94,6 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
                         }
                     }
 
-                    console.log(`[RED DOM] Biggest font-size: ${biggestFontSize}px, price: ${bestPrice}`);
 
                     // Extraire les appels sur la page visible
                     let foundCalls = "Illimités";
@@ -109,18 +106,16 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
                     return { bestPrice, calls: foundCalls };
                 });
 
-                const gen = /5g/i.test(labelText) ? '5G' : '4G';
+                const gen = /\b5g\b/i.test(labelText) ? '5G' : '4G';
 
                 if (price.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
                     plans.push({ planName: `${dataGb} Go`, dataGb, price: price.bestPrice, calls: price.calls, networkGeneration: gen });
-                    console.log(`[RED] Trouvé : ${dataGb} Go à ${price.bestPrice}€/mois (${gen})`);
                 }
             } catch (err) {
                 console.warn('[RED] Erreur:', err);
             }
         }
 
-        console.log(`[RED] Plans finaux :`, JSON.stringify(plans));
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)
             .map(plan => ({

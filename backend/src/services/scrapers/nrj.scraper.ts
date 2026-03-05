@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const nrjMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page NRJ Mobile…');
     try {
         await new Promise(r => setTimeout(r, 6000));
 
@@ -87,7 +86,7 @@ export const nrjMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page
 
                 let gen = '4G';
                 for (let j = Math.max(0, dataLineIdx - 3); j < Math.min(lines.length, dataLineIdx + 20); j++) {
-                    if (/5g/i.test(lines[j])) { gen = '5G'; break; }
+                    if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
                 }
 
                 const planName = `Forfait NRJ Mobile ${rawData} ${unit}`;
@@ -100,7 +99,6 @@ export const nrjMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page
             return results;
         });
 
-        console.log(`[NRJ Mobile] Plans extraits :`, JSON.stringify(plans));
 
         return plans
             .filter(p => p.price > 0 && p.dataGb > 0)

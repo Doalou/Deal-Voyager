@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page Free Mobile…');
     try {
         await new Promise(r => setTimeout(r, 5000));
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -12,8 +11,6 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
             const bodyText = document.body.innerText;
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-            // DEBUG: log les 100 premières lignes pour comprendre la structure
-            console.log('[Free Debug] Premières lignes:', JSON.stringify(lines.slice(0, 100)));
 
             // Identifier les blocs de forfait par titres
             const planBlocks: { startIdx: number; name: string }[] = [];
@@ -23,7 +20,6 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                 }
             }
 
-            console.log('[Free Debug] Blocs trouvés:', JSON.stringify(planBlocks));
 
             for (const block of planBlocks) {
                 let dataGb = 0;
@@ -104,7 +100,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                     }
                 }
 
-                const gen = /5g/i.test(block.name) ? '5G' : '4G';
+                const gen = /\b5g\b/i.test(block.name) ? '5G' : '4G';
 
                 if (dataGb > 0 && price >= 0 && price < 100) {
                     if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
@@ -116,9 +112,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
             return results;
         });
 
-        console.log(`[Free Mobile] Plans extraits :`, JSON.stringify(plans));
         for (const p of plans) {
-            console.log(`[Free Mobile] Trouvé : ${p.planName} — ${p.dataGb} Go à ${p.price}€/mois`);
         }
 
         return plans

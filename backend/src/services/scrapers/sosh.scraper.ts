@@ -1,7 +1,6 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 
 export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page Sosh (nouvelle URL)…');
     try {
         // Redirection vers la nouvelle boutique Sosh
         await page.goto("https://shop.sosh.fr/mobile/forfaits-mobiles", { waitUntil: 'networkidle2', timeout: 60000 });
@@ -18,7 +17,6 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
         try {
             await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         } catch (e: any) {
-            console.log("[Sosh] Erreur ignorable au scroll:", e.message);
         }
         await new Promise(r => setTimeout(r, 2000));
 
@@ -76,7 +74,7 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
                                 }
                             }
 
-                            const gen = /5g/i.test(nameLine) ? '5G' : '4G';
+                            const gen = /\b5g\b/i.test(nameLine) ? '5G' : '4G';
 
                             if (price > 0 && !results.some(r => r.dataGb === dataGb && r.price === price)) {
                                 results.push({
@@ -96,7 +94,6 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
             } catch (err: any) {
                 if (err.message && err.message.includes('Execution context was destroyed')) {
                     retries++;
-                    console.log(`[Sosh] Contexte détruit, attente et nouvelle tentative (${retries}/3)...`);
                     await new Promise(r => setTimeout(r, 4000));
                 } else {
                     throw err;
@@ -105,14 +102,10 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
         }
 
         if (!plans) {
-            console.log("[Sosh] Impossible de lire la page après plusieurs tentatives.");
             return [];
         }
 
-        console.log(`[Sosh] Plans extraits :`, JSON.stringify(plans.results));
-        console.log("SOSH DEBUG LENGTH PROD:", plans.debugText.length);
         if (plans.debugText.length < 500) {
-            console.log("SOSH DEBUG TEXT (trop court):", plans.debugText);
         }
 
         return plans.results

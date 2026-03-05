@@ -1,7 +1,6 @@
 import type { ScraperConfig } from './types';
 
 export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-    console.log('Extraction des données de la page Coriolis...');
     try {
         await new Promise(r => setTimeout(r, 5000));
 
@@ -95,9 +94,7 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
             return results;
         });
 
-        console.log(`[Coriolis] Plans extraits :`, JSON.stringify(plans));
         for (const p of plans) {
-            console.log(`[Coriolis] Trouvé : ${p.planName} — ${p.dataGb} Go à ${p.price}€/mois (${p.networkGeneration})`);
         }
 
         return plans
