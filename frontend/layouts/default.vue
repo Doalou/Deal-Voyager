@@ -16,9 +16,9 @@ import DarkModeSwitch from '../components/DarkModeSwitch.vue'
         <p class="font-bold text-sm uppercase tracking-wider">
           © {{ new Date().getFullYear() }} Deal-Voyager — Le comparateur qui ne vous ment pas.
         </p>
-        <NuxtLink to="/admin" class="text-sm font-black uppercase tracking-widest bg-foreground text-background px-4 py-2 border-2 border-border shadow-neo hover:bg-accent hover:text-accent-foreground hover:shadow-neo-hover hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+        <a href="/admin" class="text-sm font-black uppercase tracking-widest bg-foreground text-background px-4 py-2 border-2 border-border shadow-neo hover:bg-accent hover:text-accent-foreground hover:shadow-neo-hover hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
           ⚙️ Admin
-        </NuxtLink>
+        </a>
       </div>
     </footer>
   </div>

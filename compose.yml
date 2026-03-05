@@ -6,13 +6,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=deal_voyager
-    ports:
-      - '5432:5432'
+      - POSTGRES_USER=${POSTGRES_USER:-dealvoyager}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - POSTGRES_DB=${POSTGRES_DB:-deal_voyager}
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user -d deal_voyager" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dealvoyager} -d ${POSTGRES_DB:-deal_voyager}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,26 +21,35 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - '3001:3001'
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/deal_voyager
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-dealvoyager}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-deal_voyager}
       - PORT=3001
+      - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - CORS_ORIGIN=http://frontend:3000
 
   frontend:
     container_name: deal_voyager_frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - API_INTERNAL_URL=http://backend:3001
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '${APP_PORT:-3000}:3000'
     environment:
       - NUXT_HOST=0.0.0.0
       - NUXT_PORT=3000
+      - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
     depends_on:
       - backend
 

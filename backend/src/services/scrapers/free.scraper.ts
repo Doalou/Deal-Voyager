@@ -8,7 +8,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
             const bodyText = document.body.innerText;
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -104,9 +104,11 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                     }
                 }
 
+                const gen = /5g/i.test(block.name) ? '5G' : '4G';
+
                 if (dataGb > 0 && price >= 0 && price < 100) {
                     if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                        results.push({ planName: block.name, dataGb, price, calls });
+                        results.push({ planName: block.name, dataGb, price, calls, networkGeneration: gen });
                     }
                 }
             }
@@ -127,7 +129,8 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                 price: plan.price,
                 calls: plan.calls,
                 operator: 'Free Mobile',
-                network: 'Free Mobile'
+                network: 'Free Mobile',
+                networkGeneration: plan.networkGeneration || '4G'
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Free Mobile:', error);

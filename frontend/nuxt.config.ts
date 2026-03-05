@@ -1,3 +1,5 @@
+const apiInternalUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+
 export default defineNuxtConfig({
     compatibilityDate: '2024-04-03',
     devtools: { enabled: false },
@@ -5,6 +7,9 @@ export default defineNuxtConfig({
         '@nuxtjs/tailwindcss',
         '@nuxtjs/color-mode'
     ],
+    routeRules: {
+        '/api/v1/**': { proxy: `${apiInternalUrl}/api/v1/**` }
+    },
     colorMode: {
         classSuffix: ''
     },

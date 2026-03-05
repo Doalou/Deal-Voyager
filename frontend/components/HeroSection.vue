@@ -1,5 +1,20 @@
 <script setup lang="ts">
-// HeroSection.vue
+const operators = [
+  { name: 'Sosh', color: '#FF7900', text: 'black' },
+  { name: 'RED', color: '#E2001A', text: 'white' },
+  { name: 'B&You', color: '#0089C5', text: 'white' },
+  { name: 'Free', color: '#CC0000', text: 'white' },
+  { name: 'YouPrice', color: '#1B1B3A', text: 'white' },
+  { name: 'Coriolis', color: '#6B2D8B', text: 'white' },
+  { name: 'La Poste', color: '#FFD300', text: 'black' },
+  { name: 'NRJ', color: '#E31937', text: 'white' },
+  { name: 'Auchan', color: '#E30613', text: 'white' },
+  { name: 'Cdiscount', color: '#00528A', text: 'white' },
+  { name: 'Syma', color: '#00A651', text: 'white' },
+  { name: 'Lebara', color: '#E6007E', text: 'white' },
+]
+
+const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1.5', '-2']
 </script>
 
 <template>
@@ -21,6 +36,25 @@
       
       <p class="text-xl md:text-2xl font-medium text-card-foreground max-w-2xl mx-auto bg-card border-2 border-border p-4 shadow-neo">
         Ajustez le curseur, on vous trouve <span class="font-black bg-secondary text-secondary-foreground px-1">le forfait le moins cher</span> au centime près.
+      </p>
+
+      <!-- Operator badges -->
+      <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
+        <div
+          v-for="(op, i) in operators"
+          :key="op.name"
+          class="px-3 py-1.5 font-black text-xs uppercase border-2 border-border shadow-neo select-none transition-transform hover:scale-110 hover:-translate-y-0.5"
+          :style="{
+            backgroundColor: op.color,
+            color: op.text,
+            transform: `rotate(${rotations[i]}deg)`,
+          }"
+        >
+          {{ op.name }}
+        </div>
+      </div>
+      <p class="mt-4 text-sm font-bold text-muted-foreground uppercase tracking-widest">
+        12 opérateurs scannés en temps réel
       </p>
     </div>
   </header>

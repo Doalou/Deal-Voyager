@@ -8,6 +8,14 @@ import { soshScrapeLogic } from './scrapers/sosh.scraper';
 import { redScrapeLogic } from './scrapers/red.scraper';
 import { bAndYouScrapeLogic } from './scrapers/byou.scraper';
 import { freeMobileScrapeLogic } from './scrapers/free.scraper';
+import { youPriceScrapeLogic } from './scrapers/youprice.scraper';
+import { coriolisScrapeLogic } from './scrapers/coriolis.scraper';
+import { laPosteMobileScrapeLogic } from './scrapers/laposte.scraper';
+import { auchanTelecomScrapeLogic } from './scrapers/auchan.scraper';
+import { nrjMobileScrapeLogic } from './scrapers/nrj.scraper';
+import { cdiscountMobileScrapeLogic } from './scrapers/cdiscount.scraper';
+import { symaMobileScrapeLogic } from './scrapers/syma.scraper';
+import { lebaraScrapeLogic } from './scrapers/lebara.scraper';
 
 // Appliquer le plugin stealth pour contourner certaines protections anti-bot
 puppeteer.use(StealthPlugin());
@@ -46,18 +54,15 @@ const scraperConfigs: ScraperConfig[] = [
   { name: 'B&You', url: 'https://www.bouyguestelecom.fr/forfaits-mobiles/b-and-you', scrapeFunction: bAndYouScrapeLogic },
   { name: 'Free Mobile', url: 'https://mobile.free.fr/', scrapeFunction: freeMobileScrapeLogic },
 
-  // Principaux MVNOs (placeholder)
-  /*
-  { name: 'Prixtel', url: 'https://www.prixtel.com/forfait-mobile/', scrapeFunction: placeholderScrapeLogic },
-  { name: 'La Poste Mobile', url: 'https://www.lapostemobile.fr/offres/forfaits-sans-engagement', scrapeFunction: placeholderScrapeLogic },
-  { name: 'NRJ Mobile', url: 'https://www.nrjmobile.fr/fr/forfaits.html', scrapeFunction: placeholderScrapeLogic },
-  { name: 'Auchan Telecom', url: 'https://www.auchantelecom.fr/fr/forfaits-mobiles.html', scrapeFunction: placeholderScrapeLogic },
-  { name: 'Cdiscount Mobile', url: 'https://www.cdiscountmobile.com/fr/forfaits.html', scrapeFunction: placeholderScrapeLogic },
-  { name: 'YouPrice', url: 'https://www.youprice.fr/', scrapeFunction: placeholderScrapeLogic },
-  { name: 'Syma Mobile', url: 'https://www.symamobile.com/forfaits-mobiles', scrapeFunction: placeholderScrapeLogic },
-  { name: 'Lebara', url: 'https://mobile.lebara.com/fr/fr/', scrapeFunction: placeholderScrapeLogic },
-  { name: 'Coriolis', url: 'https://www.coriolis.com/forfait-mobile/', scrapeFunction: placeholderScrapeLogic },
-  */
+  // Principaux MVNOs
+  { name: 'YouPrice', url: 'https://www.youprice.fr/forfaits', scrapeFunction: youPriceScrapeLogic },
+  { name: 'Coriolis', url: 'https://www.coriolis.com/forfaits-sans-mobile', scrapeFunction: coriolisScrapeLogic },
+  { name: 'La Poste Mobile', url: 'https://www.lapostemobile.fr/offres/forfaits-sans-engagement', scrapeFunction: laPosteMobileScrapeLogic },
+  { name: 'NRJ Mobile', url: 'https://www.nrjmobile.fr/forfait-se', scrapeFunction: nrjMobileScrapeLogic },
+  { name: 'Auchan Telecom', url: 'https://www.auchantelecom.fr/', scrapeFunction: auchanTelecomScrapeLogic },
+  { name: 'Cdiscount Mobile', url: 'https://www.cdiscount.com/cdiscount-mobile/v-164-0.html', scrapeFunction: cdiscountMobileScrapeLogic },
+  { name: 'Syma Mobile', url: 'https://www.symamobile.com/', scrapeFunction: symaMobileScrapeLogic },
+  { name: 'Lebara', url: 'https://mobile.lebara.com/fr/fr/', scrapeFunction: lebaraScrapeLogic },
 ];
 
 /**
@@ -97,6 +102,7 @@ export const scrapeOffers = async () => {
                 where: {
                   operator: plan.operator,
                   planName: plan.planName,
+                  network: plan.network || undefined,
                 },
               });
 
@@ -108,6 +114,7 @@ export const scrapeOffers = async () => {
                     dataGb: plan.dataGb,
                     calls: plan.calls || 'Illimités',
                     network: plan.network,
+                    networkGeneration: plan.networkGeneration || null,
                     url: config.url,
                     score: score,
                   },
@@ -122,6 +129,7 @@ export const scrapeOffers = async () => {
                     calls: plan.calls || 'Illimités',
                     sms: 'Illimités',
                     network: plan.network,
+                    networkGeneration: plan.networkGeneration || null,
                     url: config.url,
                     score: score,
                   },

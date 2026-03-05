@@ -17,6 +17,7 @@ interface MobilePlan {
   calls: string;
   sms: string;
   network: string;
+  networkGeneration: string;
   score: number;
   url: string;
 }
@@ -29,9 +30,8 @@ interface OperatorSettings {
   cancellationPrice: number | null;
 }
 
-// Fetch data (client-only to avoid SSR Docker networking issues)
-const { data: deals, pending: pendingDeals } = useFetch<MobilePlan[]>('http://localhost:3001/api/v1/deals', { default: () => [], server: false, lazy: true })
-const { data: operators } = useFetch<OperatorSettings[]>('http://localhost:3001/api/v1/operators', { default: () => [], server: false, lazy: true })
+const { data: deals, pending: pendingDeals } = useFetch<MobilePlan[]>('/api/v1/deals', { default: () => [], server: false, lazy: true })
+const { data: operators } = useFetch<OperatorSettings[]>('/api/v1/operators', { default: () => [], server: false, lazy: true })
 
 // State
 const targetDataGb = ref(20)
@@ -94,71 +94,74 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
       
       <DataSlider v-model="targetDataGb" />
 
-      <!-- Loading State -->
-      <div v-if="pendingDeals" class="w-full max-w-5xl py-24 flex justify-center">
-        <div class="bg-primary text-primary-foreground font-black text-2xl border-4 border-border px-6 py-4 shadow-neo animate-pulse transform -rotate-2">
-          Recherche des meilleures offres...
-        </div>
-      </div>
-
-      <!-- Results Section -->
-      <div v-else-if="filteredDeals.length > 0" class="w-full max-w-5xl">
-        
-        <!-- L'OFFRE STAR -->
-        <div v-if="starOffer" class="mb-16">
-          <DealCard 
-            :deal="starOffer" 
-            :is-fairplay="isFairplay(starOffer.operator)" 
-            :is-star-offer="true"
-            :sim-price="getSimPrice(starOffer.operator)"
-            :activation-price="getActivationPrice(starOffer.operator)"
-            :cancellation-price="getCancellationPrice(starOffer.operator)"
-          />
-        </div>
-
-        <!-- Alternatives -->
-        <div v-if="otherOffers.length > 0">
-          <div class="inline-block bg-foreground text-background px-4 py-2 font-bold uppercase tracking-widest mb-8 border-l-8 border-secondary">
-            Alternatives Solides
+      <!-- Dynamic Data Section (Client-only to prevent hydration mismatch) -->
+      <ClientOnly>
+        <!-- Loading State -->
+        <div v-if="pendingDeals" class="w-full max-w-5xl py-24 flex justify-center">
+          <div class="bg-primary text-primary-foreground font-black text-2xl border-4 border-border px-6 py-4 shadow-neo animate-pulse transform -rotate-2">
+            Recherche des meilleures offres...
           </div>
+        </div>
+
+        <!-- Results Section -->
+        <div v-else-if="filteredDeals.length > 0" class="w-full max-w-5xl">
           
-          <div class="grid md:grid-cols-3 gap-8">
+          <!-- L'OFFRE STAR -->
+          <div v-if="starOffer" class="mb-16">
             <DealCard 
-              v-for="deal in otherOffers" 
-              :key="deal.id" 
-              :deal="deal" 
-              :is-fairplay="isFairplay(deal.operator)" 
-              :is-star-offer="false"
-              :sim-price="getSimPrice(deal.operator)"
-              :activation-price="getActivationPrice(deal.operator)"
-              :cancellation-price="getCancellationPrice(deal.operator)"
+              :deal="starOffer" 
+              :is-fairplay="isFairplay(starOffer.operator)" 
+              :is-star-offer="true"
+              :sim-price="getSimPrice(starOffer.operator)"
+              :activation-price="getActivationPrice(starOffer.operator)"
+              :cancellation-price="getCancellationPrice(starOffer.operator)"
             />
           </div>
 
-          <!-- See All / Collapse Button -->
-          <div v-if="hasMoreDeals" class="flex justify-center mt-12">
-            <button 
-              @click="showAllDeals = !showAllDeals"
-              class="neo-button bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground text-xl px-12 py-4 transform hover:-rotate-1"
-            >
-              <span v-if="!showAllDeals">📋 Voir les {{ filteredDeals.length - 4 }} autres forfaits</span>
-              <span v-else>↑ Réduire la liste</span>
-            </button>
+          <!-- Alternatives -->
+          <div v-if="otherOffers.length > 0">
+            <div class="inline-block bg-foreground text-background px-4 py-2 font-bold uppercase tracking-widest mb-8 border-l-8 border-secondary">
+              Alternatives Solides
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-8">
+              <DealCard 
+                v-for="deal in otherOffers" 
+                :key="deal.id" 
+                :deal="deal" 
+                :is-fairplay="isFairplay(deal.operator)" 
+                :is-star-offer="false"
+                :sim-price="getSimPrice(deal.operator)"
+                :activation-price="getActivationPrice(deal.operator)"
+                :cancellation-price="getCancellationPrice(deal.operator)"
+              />
+            </div>
+
+            <!-- See All / Collapse Button -->
+            <div v-if="hasMoreDeals" class="flex justify-center mt-12">
+              <button 
+                @click="showAllDeals = !showAllDeals"
+                class="neo-button bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground text-xl px-12 py-4 transform hover:-rotate-1"
+              >
+                <span v-if="!showAllDeals">📋 Voir les {{ filteredDeals.length - 4 }} autres forfaits</span>
+                <span v-else>↑ Réduire la liste</span>
+              </button>
+            </div>
           </div>
+
         </div>
 
-      </div>
-
-      <!-- Empty State -->
-      <div v-else class="w-full max-w-2xl text-center py-24 neo-box p-12 bg-card">
-        <div class="w-24 h-24 bg-muted border-4 border-border shadow-neo mx-auto mb-8 flex items-center justify-center transform rotate-12 text-muted-foreground">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <!-- Empty State -->
+        <div v-else class="w-full max-w-2xl text-center py-24 neo-box p-12 bg-card">
+          <div class="w-24 h-24 bg-muted border-4 border-border shadow-neo mx-auto mb-8 flex items-center justify-center transform rotate-12 text-muted-foreground">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <h3 class="text-3xl font-black uppercase mb-4 text-card-foreground">Aïe, c'est désert !</h3>
+          <p class="text-xl font-medium border-l-4 border-border pl-4 text-left inline-block text-card-foreground">
+            Il n'y a actuellement aucune offre qui correspond à <span class="bg-secondary px-1 font-bold border-2 border-border text-secondary-foreground">{{ targetDataGb }} Go</span>. Essayez de baisser vos critères ou relancez un scraping.
+          </p>
         </div>
-        <h3 class="text-3xl font-black uppercase mb-4 text-card-foreground">Aïe, c'est désert !</h3>
-        <p class="text-xl font-medium border-l-4 border-border pl-4 text-left inline-block text-card-foreground">
-          Il n'y a actuellement aucune offre qui correspond à <span class="bg-secondary px-1 font-bold border-2 border-border text-secondary-foreground">{{ targetDataGb }} Go</span>. Essayez de baisser vos critères ou relancez un scraping.
-        </p>
-      </div>
+      </ClientOnly>
 
     </main>
 

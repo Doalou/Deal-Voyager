@@ -18,7 +18,7 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await new Promise(r => setTimeout(r, 3000));
 
-        const plans: { planName: string; dataGb: number; price: number; calls: string }[] = [];
+        const plans: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
 
         // Stratégie B&You : la page utilise un configurateur dynamique avec des .radio-label
         // Il faut cliquer sur chaque option et lire le prix dans le bandeau "Votre sélection" en bas de page
@@ -148,10 +148,12 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                     finalCalls = priceData.calls;
                 }
 
+                const gen = /5g/i.test(info.text) ? '5G' : '4G';
+
                 if (priceData && typeof priceData === 'object' && 'bestPrice' in priceData && priceData.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
                     const planName = `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`;
-                    plans.push({ planName, dataGb, price: priceData.bestPrice, calls: finalCalls });
-                    console.log(`[B&You] Trouvé : ${planName} à ${priceData.bestPrice}€/mois`);
+                    plans.push({ planName, dataGb, price: priceData.bestPrice, calls: finalCalls, networkGeneration: gen });
+                    console.log(`[B&You] Trouvé : ${planName} à ${priceData.bestPrice}€/mois (${gen})`);
                 }
             } catch (err) {
                 console.warn('[B&You] Erreur sur une option:', err);
@@ -162,7 +164,7 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         if (plans.length === 0) {
             console.log('[B&You] Fallback: extraction texte brut...');
             const fallbackPlans = await page.evaluate(() => {
-                const results: { planName: string; dataGb: number; price: number; calls: string }[] = [];
+                const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
                 const bodyText = document.body.innerText;
                 const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -197,11 +199,15 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                                     }
                                 }
 
+                                const nearbyText = lines.slice(Math.max(0, i - 5), i + 5).join(' ');
+                                const fbGen = /5g/i.test(nearbyText) ? '5G' : '4G';
+
                                 results.push({
                                     planName: `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`,
                                     dataGb,
                                     price,
-                                    calls
+                                    calls,
+                                    networkGeneration: fbGen
                                 });
                             }
                             break;
@@ -212,8 +218,8 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
             });
 
             for (const p of fallbackPlans) {
-                plans.push(p);
-                console.log(`[B&You] Trouvé (fallback) : ${p.planName} à ${p.price}€/mois`);
+                plans.push({ ...p, networkGeneration: p.networkGeneration || '4G' });
+                console.log(`[B&You] Trouvé (fallback) : ${p.planName} à ${p.price}€/mois (${p.networkGeneration || '4G'})`);
             }
         }
 
@@ -226,7 +232,8 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                 price: plan.price,
                 calls: plan.calls,
                 operator: 'B&You',
-                network: 'Bouygues Telecom'
+                network: 'Bouygues Telecom',
+                networkGeneration: plan.networkGeneration
             }));
     } catch (error) {
         console.error('Erreur dans la collecte B&You:', error);

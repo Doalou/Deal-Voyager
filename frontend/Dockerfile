@@ -1,20 +1,17 @@
 FROM node:20-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy source code
 COPY . .
 
-# Build Nuxt application
+ARG API_INTERNAL_URL=http://localhost:3001
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
+
 RUN npm run build
 
-# Expose port
 EXPOSE 3000
 
-# Start server using the Nuxt generated entrypoint
 CMD ["node", ".output/server/index.mjs"]

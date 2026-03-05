@@ -1,137 +1,239 @@
-# 📡 Deal-Voyager
+# Deal-Voyager
 
-**Vos forfaits mobiles sans embrouilles.**
+> **Vos forfaits mobiles sans embrouilles.**
 
-Deal-Voyager est un comparateur de forfaits mobiles français indépendant. Il scrape automatiquement les prix des opérateurs (MNO/MVNO) et les classe au centime près pour vous aider à trouver l'offre la plus honnête — sans partenariat, sans pub, sans bullshit.
+Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. Il scrape automatiquement les prix des operateurs (MNO/MVNO) et les classe au centime pres pour vous aider a trouver l'offre la plus honnete — sans partenariat financier, sans publicite, et sans bullshit.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Vue.js](https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vue.js&logoColor=4FC08D)
+![Nuxt](https://img.shields.io/badge/Nuxt_4-00DC82?style=for-the-badge&logo=nuxt.js&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
-![Nuxt](https://img.shields.io/badge/Nuxt_3-00DC82?style=for-the-badge&logo=nuxt.js&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Express](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
+![Puppeteer](https://img.shields.io/badge/Puppeteer-40B5A4?style=for-the-badge&logo=puppeteer&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-## ✨ Fonctionnalités
+---
 
-- 🔍 **Scraping automatisé** — Puppeteer + Stealth Plugin pour Sosh, RED, B&You, Free
-- 📊 **Classement transparent** — Tri par coût annuel réel (prix × 12 + carte SIM) avec score €/Go affiché
-- 🎨 **Interface Néo-Brutaliste** — Design original avec bordures épaisses, ombres dures et couleurs pop
-- 🎛️ **Slider interactif + saisie directe** — Filtrage par data (0 à 400 Go), cliquable pour taper un chiffre précis
-- 🔗 **Liens directs opérateurs** — Accès en un clic à la page de souscription de chaque forfait
-- 💳 **Prix SIM/eSIM éditables** — Personnalisables par forfait depuis l'admin
-- ⚙️ **Panneau d'administration** (`/admin`) — Relancer le scraping, éditer les prix SIM, modérer les opérateurs
-- 📱 **Affichage Mo/Go intelligent** — Les forfaits < 1 Go s'affichent en Mo
-- 🐳 **Déploiement Docker** one-click (migrations auto au démarrage)
+## Fonctionnalites Principales
 
-## 🏗️ Stack Technologique
+- **Scraping Automatise & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 6 operateurs. Cron horaire + declenchement manuel. Detection automatique 4G/5G.
+- **Classement Transparent (Cout Reel sur 1 An)** — Tri base sur le cout annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de resiliation. Score euro/Go calcule.
+- **Design Neobrutaliste & Dark Mode** — Interface avec bordures epaisses, contrastes forts, ombres nettes et Dark Mode dynamique.
+- **Filtrage Avance** — Slider interactif (0 a 400 Go) avec saisie directe au Go pres.
+- **Liens Directs Sans Affiliation** — Acces en un clic aux pages operateurs, zero tracking.
+- **Control Room** — Panneau d'administration sur `/admin` avec suivi du scraping en temps reel, gestion des frais par operateur, label "Fairplay", et bouton de purge de la base.
+- **Deploiement Docker Securise** — Stack complete (Frontend, Backend, BDD) avec credentials configurables via `.env`, proxy interne Nitro, et zero port expose inutilement.
 
-| Couche | Technologie |
-|--------|-------------|
-| **Backend** | Node.js + TypeScript + Express.js + Prisma ORM |
-| **Scraping** | Puppeteer avec plugin Stealth anti-détection |
-| **Frontend** | Nuxt 3 + Tailwind CSS |
-| **Base de données** | PostgreSQL 15 |
-| **Déploiement** | Docker + Docker Compose |
+---
 
-### Opérateurs Supportés
+## Operateurs Couverts
 
-| Opérateur | Type | URL Scrapée | Statut |
-|-----------|------|-------------|--------|
-| Sosh | MNO (Orange) | sosh.fr/forfaits-mobile/ | ✅ Actif |
-| RED by SFR | MNO (SFR) | red-by-sfr.fr/forfaits-mobiles/ | ✅ Actif |
-| B&You | MNO (Bouygues) | bouyguestelecom.fr/forfaits-mobiles/b-and-you | ✅ Actif |
-| Free Mobile | MNO | mobile.free.fr/ | ✅ Actif |
+| Operateur | Type | Reseau | Detection 4G/5G |
+|-----------|------|--------|-----------------|
+| **Sosh** | MNO low-cost | Orange | Oui |
+| **RED by SFR** | MNO low-cost | SFR | Oui |
+| **B&You** | MNO low-cost | Bouygues Telecom | Oui |
+| **Free Mobile** | MNO | Free | Oui |
+| **YouPrice** | MVNO | Orange / SFR / Bouygues | Oui (multi-reseau) |
+| **Coriolis** | MVNO | SFR | Oui |
 
-## 🚀 Démarrage Rapide
+---
 
-### Prérequis
+## Architecture
 
-- Docker & Docker Compose
-- Git
-- 4 Go RAM minimum
+```text
+                    ┌─────────────────────────┐
+                    │     Navigateur (port     │
+                    │     configurable)        │
+                    └────────────┬────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │   Frontend Nuxt (SSR)    │
+                    │   Proxy /api/v1/** ──────┼──► Backend Express:3001
+                    │   Auth HTTP Basic        │        │
+                    └─────────────────────────┘        │
+                                                       ▼
+                                              ┌────────────────┐
+                                              │ PostgreSQL:5432 │
+                                              └────────────────┘
+```
 
-### Installation
+Seul le port du frontend est expose. Le backend et PostgreSQL communiquent exclusivement via le reseau Docker interne.
+
+| Couche | Technologie | Role |
+|--------|-------------|------|
+| **Frontend** | Nuxt 4 (Vue 3) + Tailwind CSS | Interface utilisateur, SSR, proxy API via Nitro `routeRules` |
+| **Backend** | Node.js + Express 5 | API REST, orchestration du scraping, auth Basic avec rate limiting |
+| **Scrapers** | Puppeteer + Stealth Plugin | Extraction DOM + analyse textuelle heuristique par operateur |
+| **BDD** | PostgreSQL 15 + Prisma ORM | Stockage des forfaits (`MobilePlan`) et config operateurs (`OperatorSettings`) |
+| **Infra** | Docker Compose | Conteneurisation, reseau interne, healthchecks |
+
+---
+
+## Demarrage Rapide
+
+### Prerequis
+
+- [Docker](https://www.docker.com/products/docker-desktop/) (Engine + Compose)
+- **4 Go de RAM** minimum (instances Chromium headless pendant le scraping)
+
+### 1. Configuration
 
 ```bash
 git clone https://github.com/votre-username/Deal-Voyager.git
 cd Deal-Voyager
-docker compose up --build
+cp .env.example .env
 ```
 
-C'est tout. Le schéma Prisma se synchronise automatiquement au démarrage via `prisma db push`.
+Editez le fichier `.env` avec vos propres credentials :
 
-### Accès
+```env
+# Identifiants admin (OBLIGATOIRE)
+# /!\ Si le mot de passe contient un $, doublez-le : Pa$$word
+ADMIN_USERNAME=votre_identifiant
+ADMIN_PASSWORD=votre_mot_de_passe
+
+# Base de donnees PostgreSQL (OBLIGATOIRE pour le mot de passe)
+POSTGRES_USER=dealvoyager
+POSTGRES_PASSWORD=votre_mdp_postgres
+POSTGRES_DB=deal_voyager
+
+# Port public (optionnel, defaut: 3000)
+# APP_PORT=3000
+```
+
+> **Important :** Le deploiement refuse de demarrer si les variables obligatoires ne sont pas definies.
+
+### 2. Lancement
+
+```bash
+docker compose up -d --build
+```
+
+Le conteneur `backend` execute automatiquement `prisma db push` au demarrage pour creer/mettre a jour le schema.
+
+### 3. Acces
 
 | Service | URL |
 |---------|-----|
-| **Frontend** | http://localhost:3000 |
-| **API Backend** | http://localhost:3001 |
+| **Comparateur** | [http://localhost:3000](http://localhost:3000) |
+| **Control Room** | [http://localhost:3000/admin](http://localhost:3000/admin) |
 
-### Premier Lancement
+L'API n'est pas exposee directement — toutes les requetes `/api/v1/*` passent par le proxy Nuxt.
 
-1. Allez sur **http://localhost:3000/admin**
-2. Cliquez sur **« Lancer l'extraction maintenant »**
-3. Patientez ~2 minutes (le scraper parcourt les sites des opérateurs)
-4. Retournez sur la page d'accueil pour explorer les forfaits
+### 4. Premier Scraping
 
-## 📡 API
-
-### Endpoints
-
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| `GET` | `/api/v1/deals` | Toutes les offres triées par score |
-| `GET` | `/api/v1/stats` | État du système (nb offres, date MàJ, lock scraping) |
-| `GET` | `/api/v1/operators` | Liste des opérateurs et leur statut fairplay |
-| `POST` | `/api/v1/scrape` | Lance le scraping en arrière-plan |
-| `PUT` | `/api/v1/deals/:id` | Modifier une offre (prix SIM, etc.) |
-| `PUT` | `/api/v1/operators/:name/fairplay` | Toggle le statut fairplay d'un opérateur |
-| `DELETE` | `/api/v1/clear` | Vide la base de données |
-
-## 🛠️ Structure du Projet
-
-```
-Deal-Voyager/
-├── backend/                 # API Express.js + Scraper
-│   ├── src/
-│   │   ├── controllers/     # Contrôleurs API (scrape, deals, operators)
-│   │   ├── services/        # Orchestrateur de scraping
-│   │   │   └── scrapers/    # Logique par opérateur (sosh, red, byou, free)
-│   │   ├── routes/          # Routes Express
-│   │   └── lib/             # Client Prisma
-│   ├── prisma/
-│   │   └── schema.prisma    # Schéma BDD (MobilePlan, OperatorSettings)
-│   ├── entrypoint.sh        # Script de démarrage (prisma generate + db push)
-│   └── Dockerfile
-├── frontend/                # Application Nuxt 3 (Port 3000)
-│   ├── components/          # Composants Vue
-│   │   ├── HeroSection.vue  # Hero néo-brutaliste
-│   │   ├── DataSlider.vue   # Slider avec saisie directe au Go près
-│   │   ├── DealCard.vue     # Carte forfait (€/Go, lien, SIM price)
-│   │   └── OperatorBadge.vue # Badge couleur par opérateur
-│   ├── layouts/             # Layout par défaut
-│   ├── pages/               # Pages (index, admin)
-│   ├── assets/css/          # Styles Tailwind + utilitaires néo-brutalistes
-│   ├── tailwind.config.js   # Thème custom
-│   └── Dockerfile
-├── compose.yml              # Orchestration Docker (db, backend, frontend)
-├── CHANGELOG.md             # Historique des modifications
-└── README.md
-```
-
-## 📋 Roadmap
-
-- [ ] Ajouter les MVNOs restants (Prixtel, La Poste Mobile, NRJ, etc.)
-- [ ] Scraping automatique du prix SIM/eSIM par opérateur
-- [ ] Notifications (nouveau forfait avantageux détecté)
-- [ ] Historique des prix
-- [ ] Export CSV/JSON
-- [ ] Tests automatisés
-- [ ] CI/CD
-
-## 📄 Licence
-
-GNU General Public License v3.0 — voir [LICENSE](LICENSE.txt).
+1. Rendez-vous sur la [Control Room](http://localhost:3000/admin) (authentification HTTP Basic).
+2. Cliquez sur **Lancer l'extraction maintenant**.
+3. Patientez 1 a 2 minutes — la page suit la progression automatiquement.
+4. Les offres apparaissent sur l'accueil une fois le scraping termine.
 
 ---
 
-**Fait avec ❤️ pour la communauté télécoms française** — Si ce projet vous aide à économiser, n'hésitez pas à ⭐ le repo !
+## Securite
+
+| Mesure | Detail |
+|--------|--------|
+| **Pas de credentials par defaut** | Aucun fallback `admin/secret`. Variables d'environnement obligatoires. |
+| **Comparaison timing-safe** | Mots de passe compares via XOR constant-time (backend + frontend). |
+| **Rate limiting** | 10 tentatives max par IP sur 15 min (backend). |
+| **Proxy interne** | Le backend n'est pas expose — tout passe par le proxy Nitro du frontend. |
+| **PostgreSQL isole** | Port 5432 non expose, accessible uniquement via le reseau Docker. |
+| **CORS restreint** | Whitelist configurable au lieu de `origin: *`. |
+| **Auth header transmis** | Le header HTTP Basic du navigateur est stocke cote serveur (`useState`) et reutilise pour les appels API — jamais code en dur. |
+
+---
+
+## Endpoints API (`/api/v1`)
+
+Tous accessibles via le proxy frontend. Les routes marquees d'un cadenas necessitent l'authentification Basic.
+
+| Methode | Endpoint | Auth | Description |
+|---------|----------|------|-------------|
+| `GET` | `/deals` | | Toutes les offres triees par score. |
+| `GET` | `/stats` | | Etat du backend (nombre d'offres, dernier scraping, statut). |
+| `GET` | `/operators` | | Configuration par operateur (SIM, frais, fairplay). |
+| `POST` | `/scrape` | Oui | Declenche le scraping global. |
+| `PUT` | `/operators/:name/simprice` | Oui | Met a jour les frais (SIM, activation, resiliation). |
+| `PUT` | `/operators/:name/fairplay` | Oui | Bascule le label Fairplay. |
+| `DELETE` | `/clear` | Oui | Purge la base de donnees. |
+
+---
+
+## Structure du Projet
+
+```text
+Deal-Voyager/
+├── backend/
+│   ├── src/
+│   │   ├── controllers/        # Logique de reponse HTTP
+│   │   ├── middlewares/        # Auth Basic + rate limiting
+│   │   ├── services/
+│   │   │   └── scrapers/       # Un fichier par operateur
+│   │   │       ├── sosh.scraper.ts
+│   │   │       ├── red.scraper.ts
+│   │   │       ├── byou.scraper.ts
+│   │   │       ├── free.scraper.ts
+│   │   │       ├── youprice.scraper.ts
+│   │   │       ├── coriolis.scraper.ts
+│   │   │       └── types.ts
+│   │   ├── routes/
+│   │   └── lib/                # Prisma Client
+│   ├── prisma/schema.prisma
+│   ├── entrypoint.sh
+│   └── Dockerfile
+│
+├── frontend/
+│   ├── components/             # DealCard, DataSlider, OperatorBadge...
+│   ├── layouts/
+│   ├── middleware/             # Auth HTTP Basic (route middleware)
+│   ├── pages/                 # Accueil + Admin
+│   ├── assets/css/
+│   └── Dockerfile
+│
+├── compose.yml
+├── .env.example                # Template de configuration
+├── CHANGELOG.md
+└── README.md
+```
+
+---
+
+## Deploiement sur un Serveur
+
+Pour exposer Deal-Voyager sur un domaine avec HTTPS, ajoutez un reverse proxy (Caddy recommande) devant le frontend :
+
+```yaml
+# Exemple Caddyfile
+deal-voyager.mondomaine.fr {
+    reverse_proxy frontend:3000
+}
+```
+
+Pensez a :
+- Rediriger les ports 80/443 sur votre routeur
+- Pointer le DNS vers l'IP publique de votre serveur
+- Mettre a jour `APP_PORT` si necessaire
+
+---
+
+## Roadmap
+
+- [ ] Automatisation de la tarification SIM/eSIM pendant le scraping
+- [ ] Notifications Telegram/Discord pour les offres exceptionnelles
+- [ ] Historisation des prix et graphiques de tendances
+- [ ] Export CSV/JSON de l'inventaire
+- [ ] CI/CD & tests E2E (Playwright)
+- [ ] Ajout d'operateurs : Prixtel, La Poste Mobile, NRJ Mobile, Syma...
+
+---
+
+## Licence
+
+**GNU General Public License v3.0** — Voir [LICENSE](LICENSE.txt).
+
+---
+
+**Fait avec soin pour la communaute telecoms francaise.**

@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 
+definePageMeta({
+  middleware: 'auth'
+})
+
 interface MobilePlan {
   id: number;
   operator: string;
   planName: string;
   price: number;
   dataGb: number;
+  networkGeneration: string;
   score: number;
 }
 
@@ -24,10 +29,16 @@ interface OperatorSettings {
   cancellationPrice: number | null;
 }
 
-// Fetch all necessary data (client-only to avoid SSR Docker networking issues)
-const { data: stats, refresh: refreshStats } = useFetch<Stats>('http://localhost:3001/api/v1/stats', { default: () => ({ totalOffers: 0, isScraping: false, lastUpdate: null }), server: false, lazy: true })
-const { data: deals, refresh: refreshDeals } = useFetch<MobilePlan[]>('http://localhost:3001/api/v1/deals', { default: () => [], server: false, lazy: true })
-const { data: operators, refresh: refreshOperators } = useFetch<OperatorSettings[]>('http://localhost:3001/api/v1/operators', { default: () => [], server: false, lazy: true })
+const authToken = useState<string | null>('authToken')
+
+const authHeaders = computed(() => {
+  if (!authToken.value) return {}
+  return { Authorization: authToken.value }
+})
+
+const { data: stats, refresh: refreshStats } = useFetch<Stats>('/api/v1/stats', { default: () => ({ totalOffers: 0, isScraping: false, lastUpdate: null }), server: false, lazy: true })
+const { data: deals, refresh: refreshDeals } = useFetch<MobilePlan[]>('/api/v1/deals', { default: () => [], server: false, lazy: true })
+const { data: operators, refresh: refreshOperators } = useFetch<OperatorSettings[]>('/api/v1/operators', { default: () => [], server: false, lazy: true })
 
 // Loading states
 const isScrapingAction = ref(false)
@@ -97,7 +108,10 @@ const triggerScrape = async () => {
   isScrapingAction.value = true
   
   try {
-    const res = await $fetch('/api/v1/scrape', { baseURL: 'http://localhost:3001', method: 'POST' }).catch((e) => e.data)
+    const res = await $fetch('/api/v1/scrape', { 
+        method: 'POST',
+        headers: authHeaders.value
+    }).catch((e) => e.data)
     if (res && res.message) {
       showNotification(res.message, 'success')
       await refreshStats()
@@ -115,7 +129,10 @@ const clearDB = async () => {
   isClearingAction.value = true
   
   try {
-    await $fetch('http://localhost:3001/api/v1/clear', { method: 'DELETE' })
+    await $fetch('/api/v1/clear', { 
+        method: 'DELETE',
+        headers: authHeaders.value 
+    })
     showNotification("Base de données détruite avec succès.", 'success')
     refreshStats()
     refreshDeals()
@@ -129,8 +146,9 @@ const clearDB = async () => {
 const toggleFairplay = async (operatorName: string, currentState: boolean) => {
   try {
     const newState = !currentState
-    await $fetch(`http://localhost:3001/api/v1/operators/${encodeURIComponent(operatorName)}/fairplay`, {
+    await $fetch(`/api/v1/operators/${encodeURIComponent(operatorName)}/fairplay`, {
       method: 'PUT',
+      headers: authHeaders.value,
       body: { isFairplay: newState }
     })
     showNotification(`${operatorName} → ${newState ? 'Fairplay ✓' : 'Signalé frauduleux ⚠️'}`, 'success')
@@ -152,8 +170,9 @@ const saveSimPrice = async (operatorName: string) => {
   const canc = editingCancellationPrice.value[operatorName]
   
   try {
-    await $fetch(`http://localhost:3001/api/v1/operators/${encodeURIComponent(operatorName)}/simprice`, {
+    await $fetch(`/api/v1/operators/${encodeURIComponent(operatorName)}/simprice`, {
       method: 'PUT',
+      headers: authHeaders.value,
       body: { 
         simPrice: sim ? parseFloat(sim) : null,
         activationPrice: act ? parseFloat(act) : null,
@@ -368,6 +387,7 @@ const dealsByOperator = computed(() => {
               <tr class="border-b-4 border-border text-xs uppercase tracking-wider bg-card text-card-foreground">
                 <th class="p-3 md:p-4 font-black border-r-2 border-border">Forfait</th>
                 <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Data</th>
+                <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Réseau</th>
                 <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Prix/mois</th>
                 <th class="p-3 md:p-4 font-black text-center">€/Go</th>
               </tr>
@@ -377,6 +397,12 @@ const dealsByOperator = computed(() => {
                 <td class="p-3 md:p-4 font-bold text-lg border-r-2 border-border">{{ deal.planName }}</td>
                 <td class="p-3 md:p-4 text-center font-bold border-r-2 border-border">
                   <span class="bg-secondary text-secondary-foreground border-2 border-border px-2 py-0.5 text-sm">{{ deal.dataGb }} Go</span>
+                </td>
+                <td class="p-3 md:p-4 text-center border-r-2 border-border">
+                  <span :class="[
+                    'px-2 py-0.5 text-xs font-black border-2 border-border',
+                    deal.networkGeneration === '5G' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
+                  ]">{{ deal.networkGeneration || '—' }}</span>
                 </td>
                 <td class="p-3 md:p-4 text-center font-black text-xl border-r-2 border-border">{{ deal.price.toFixed(2) }}€</td>
                 <td class="p-3 md:p-4 text-center font-mono text-sm">

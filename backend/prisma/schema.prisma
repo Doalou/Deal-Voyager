@@ -18,8 +18,9 @@ model MobilePlan {
   dataGb      Int      // Quantité de data en Go
   calls       String?  // Info sur les appels (ex: "illimités")
   sms         String?  // Info sur les SMS (ex: "illimités")
-  network     String?  // Type de réseau (ex: "4G/5G")
-  score       Float?   // Notre score €/Go calculé
+  network           String?  // Opérateur réseau (ex: "Orange", "SFR")
+  networkGeneration String?  // Génération réseau (ex: "4G", "5G")
+  score             Float?   // Notre score €/Go calculé
   url         String?  // Lien vers l'offre
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -27,7 +27,7 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
         while (retries < 3) {
             try {
                 plans = await page.evaluate(() => {
-                    const results: { planName: string; dataGb: number; price: number; calls: string }[] = [];
+                    const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
                     let bodyText = "";
                     try {
                         bodyText = document.body.innerText || "";
@@ -76,12 +76,15 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
                                 }
                             }
 
+                            const gen = /5g/i.test(nameLine) ? '5G' : '4G';
+
                             if (price > 0 && !results.some(r => r.dataGb === dataGb && r.price === price)) {
                                 results.push({
                                     planName: nameLine,
                                     dataGb,
                                     price,
-                                    calls
+                                    calls,
+                                    networkGeneration: gen
                                 });
                             }
                         }
@@ -120,7 +123,8 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
                 price: plan.price,
                 calls: plan.calls,
                 operator: 'Sosh',
-                network: 'Orange'
+                network: 'Orange',
+                networkGeneration: plan.networkGeneration || '4G'
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Sosh:', error);

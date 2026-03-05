@@ -8,10 +8,20 @@ import schedule from 'node-schedule';
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Enable CORS for Nuxt frontend
+// Validate required auth env vars at startup
+if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
+  console.error('FATAL: ADMIN_USERNAME and ADMIN_PASSWORD environment variables must be set.');
+  process.exit(1);
+}
+
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : ['http://localhost:3000'];
+
 app.use(cors({
-  origin: '*', // For dev mode, accept all. In production restrict to frontend URL
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
 }));
 
 app.use(express.json());

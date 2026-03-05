@@ -11,6 +11,7 @@ interface MobilePlan {
   calls: string;
   sms: string;
   network: string;
+  networkGeneration: string;
   score: number;
   url: string;
 }
@@ -52,7 +53,7 @@ const formattedScore = (score: number | null) => {
     </div>
 
     <div class="flex-1">
-      <OperatorBadge :name="deal.operator" :network="deal.network || 'Inconnu'" class="mb-6"/>
+      <OperatorBadge :name="deal.operator" :network="deal.network || 'Inconnu'" :network-generation="deal.networkGeneration" class="mb-6"/>
       
       <h3 :class="['font-black mb-4 leading-tight', isStarOffer ? 'text-4xl md:text-5xl text-primary-foreground' : 'text-2xl text-card-foreground']">
         {{ deal.planName }}
@@ -86,17 +87,17 @@ const formattedScore = (score: number | null) => {
         </div>
       </div>
 
-      <div class="text-right flex flex-col items-end">
-        <div class="bg-card border-2 border-border px-3 py-1 font-bold text-xs uppercase mb-2 shadow-neo-hover flex flex-col items-end leading-tight text-card-foreground">
+      <div class="text-right flex flex-col items-end gap-1">
+        <div class="bg-card border-2 border-border px-3 py-1 font-bold text-xs uppercase shadow-neo-hover flex flex-col items-end leading-tight text-card-foreground">
           <span>Carte SIM: <span class="text-primary text-base">{{ simPrice }}€</span></span>
           <span v-if="activationPrice > 0" class="text-[10px] text-muted-foreground">Activation: {{ activationPrice }}€</span>
           <span v-if="cancellationPrice > 0" class="text-[10px] text-muted-foreground">Résiliation: {{ cancellationPrice }}€</span>
         </div>
         <div :class="[
-          'px-3 py-1 font-bold text-sm text-center md:text-right mt-1', 
+          'px-3 py-1 font-bold text-xs uppercase', 
           isStarOffer ? 'bg-foreground text-background' : 'bg-muted border-2 border-border text-muted-foreground'
         ]">
-          Abonnement 1 an: {{ (deal.price * 12 + simPrice + activationPrice + cancellationPrice).toFixed(2) }}€
+          1 an: {{ (deal.price * 12 + simPrice + activationPrice + cancellationPrice).toFixed(2) }}€
         </div>
       </div>
 
