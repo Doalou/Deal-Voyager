@@ -12,6 +12,7 @@ interface MobilePlan {
   price: number;
   dataGb: number;
   networkGeneration: string;
+  dataEuGb: number | null;
   score: number;
 }
 

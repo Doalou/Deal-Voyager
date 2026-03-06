@@ -7,7 +7,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
             const bodyText = document.body.innerText;
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -102,9 +102,19 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
 
                 const gen = /\b5g\b/i.test(block.name) ? '5G' : '4G';
 
+                // Extract EU/DOM data from block
+                let euGb = 0;
+                for (let j = block.startIdx; j < Math.min(block.startIdx + 40, lines.length); j++) {
+                    if (j > block.startIdx + 2 && /^(Forfait|Série)\s/i.test(lines[j]) && lines[j].length < 40) break;
+                    const euMatch = lines[j].match(/(\d{1,3})\s*[Gg]o.*?(?:europ|UE|DOM)/i);
+                    if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                    const euMatch2 = lines[j].match(/(?:europ|UE|DOM).*?(\d{1,3})\s*[Gg]o/i);
+                    if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
+                }
+
                 if (dataGb > 0 && price >= 0 && price < 100) {
                     if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                        results.push({ planName: block.name, dataGb, price, calls, networkGeneration: gen });
+                        results.push({ planName: block.name, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb });
                     }
                 }
             }
@@ -124,7 +134,8 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                 calls: plan.calls,
                 operator: 'Free Mobile',
                 network: 'Free Mobile',
-                networkGeneration: plan.networkGeneration || '4G'
+                networkGeneration: plan.networkGeneration || '4G',
+                dataEuGb: plan.dataEuGb || undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Free Mobile:', error);

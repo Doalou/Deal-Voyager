@@ -7,15 +7,12 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; network: string; networkGeneration: string }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; network: string; networkGeneration: string; dataEuGb: number }[] = [];
 
             const allText = document.body.innerText;
             const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
             let currentNetwork = 'Orange / SFR';
-            let currentGeneration = '4G';
-            let currentData = 0;
-            let currentPrice = -1;
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -25,28 +22,62 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                 else if (lowerLine.includes('réseau sfr')) currentNetwork = 'SFR';
                 else if (lowerLine.includes('réseau bouygues')) currentNetwork = 'Bouygues';
 
-                if (/\b5g\b/i.test(line)) currentGeneration = '5G';
-                else if (/\b4g\b/i.test(line) && !/\b5g\b/i.test(line)) currentGeneration = '4G';
-
-                // Cas 1: Ligne complète "XXGo à YY,YY€/mois"
-                // On s'appuie uniquement sur ce format "Titre" pour éviter d'aspirer la "Data EU" ou "Data DOM" par erreur.
+                // Title line: "XXGo à YY,YY€/mois"
                 const fullMatch = lowerLine.match(/^(\d{1,3})\s*go\s*à\s*(\d{1,2})[,\.](\d{2})€/);
-                if (fullMatch) {
-                    currentData = parseInt(fullMatch[1], 10);
-                    currentPrice = parseFloat(`${fullMatch[2]}.${fullMatch[3]}`);
+                if (!fullMatch) continue;
 
-                    results.push({
-                        planName: `Forfait YouPrice ${currentData} Go (${currentNetwork})`,
-                        dataGb: currentData,
-                        price: currentPrice,
-                        calls: 'Illimités',
-                        network: currentNetwork,
-                        networkGeneration: currentGeneration
-                    });
+                const dataGb = parseInt(fullMatch[1], 10);
+                const price = parseFloat(`${fullMatch[2]}.${fullMatch[3]}`);
 
-                    currentData = 0; currentPrice = -1;
-                    continue;
+                // Look AHEAD for "Réseau 4G/5G" and "Go EU & DOM XXGo"
+                let gen = '4G';
+                let euGb = 0;
+                for (let j = i + 1; j < Math.min(lines.length, i + 15); j++) {
+                    const ahead = lines[j];
+                    if (gen === '4G') {
+                        const reseauMatch = ahead.match(/r[ée]seau\s+(4g|5g)/i) || ahead.match(/\b(5g)\b/i);
+                        if (reseauMatch) gen = reseauMatch[1].toUpperCase();
+                    }
+                    const euMatch = ahead.match(/(?:go\s*eu|europe|dom)\D*(\d{1,3})\s*go/i);
+                    if (!euMatch) {
+                        const euMatch2 = ahead.match(/^(\d{1,3})\s*go$/i);
+                        if (euMatch2 && /eu|dom|europe/i.test(lines[j - 1] || '')) {
+                            euGb = parseInt(euMatch2[1], 10);
+                        }
+                    } else {
+                        euGb = parseInt(euMatch[1], 10);
+                    }
+                    if (j > i + 1 && /^\d{1,3}\s*go\s*à\s*\d/i.test(ahead)) break;
                 }
+                if (gen === '4G') {
+                    const s = String(dataGb);
+                    for (const img of Array.from(document.querySelectorAll('img'))) {
+                        if (!/5g/i.test(`${img.getAttribute('alt') || ''} ${img.getAttribute('src') || ''}`)) continue;
+                        let p: Element | null = img;
+                        for (let d = 0; d < 10 && p; d++, p = p.parentElement)
+                            if ((p.textContent || '').includes(s) && /go/i.test(p.textContent || '')) { gen = '5G'; break; }
+                        if (gen === '5G') break;
+                    }
+                }
+                if (gen === '4G') {
+                    const s = String(dataGb);
+                    for (const el of Array.from(document.querySelectorAll('[class*="5g"],[class*="5G"],[aria-label*="5g"],[aria-label*="5G"]'))) {
+                        let p: Element | null = el;
+                        for (let d = 0; d < 10 && p; d++, p = p.parentElement)
+                            if ((p.textContent || '').includes(s) && /go/i.test(p.textContent || '')) { gen = '5G'; break; }
+                        if (gen === '5G') break;
+                    }
+                }
+
+                results.push({
+                    planName: `Forfait YouPrice ${dataGb} Go (${currentNetwork})`,
+                    dataGb,
+                    price,
+                    calls: 'Illimités',
+                    network: currentNetwork,
+                    networkGeneration: gen,
+                    dataEuGb: euGb
+                });
             }
 
             return results;
@@ -67,7 +98,8 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                     calls: plan.calls,
                     operator: 'YouPrice',
                     network: plan.network || 'Orange / SFR',
-                    networkGeneration: plan.networkGeneration || '4G'
+                    networkGeneration: plan.networkGeneration || '4G',
+                    dataEuGb: plan.dataEuGb || undefined
                 });
             }
         }

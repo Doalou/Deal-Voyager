@@ -17,7 +17,7 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await new Promise(r => setTimeout(r, 3000));
 
-        const plans: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+        const plans: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
 
         // Stratégie B&You : la page utilise un configurateur dynamique avec des .radio-label
         // Il faut cliquer sur chaque option et lire le prix dans le bandeau "Votre sélection" en bas de page
@@ -86,7 +86,7 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                 await new Promise(r => setTimeout(r, 2000));
 
                 // Lire le prix depuis le bandeau "Votre sélection" en bas OU depuis le DOM
-                const priceData = await page.evaluate(() => {
+                const priceData = await page.evaluate((selectedDataGb: number) => {
                     // Stratégie 1 : bandeau de sélection en bas de page
                     const bottomBar = document.querySelector('[class*="sticky"], [class*="bottom"], [class*="selection"], [class*="recap"], [class*="footer"]');
                     if (bottomBar) {
@@ -135,8 +135,33 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                         if (m) foundCalls = `${m[1]}h`;
                     }
 
-                    return { bestPrice, calls: foundCalls };
-                });
+                    const visibleText = document.body.innerText;
+                    let has5G = false;
+                    const rgx5g = new RegExp(`\\b${selectedDataGb}\\s*Go`, 'i');
+                    for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
+                        const t = (el.textContent || '').trim();
+                        if (t.length < 3 || t.length > 100) continue;
+                        if (rgx5g.test(t) && /\b5g\b/i.test(t)) { has5G = true; break; }
+                    }
+                    if (!has5G) {
+                        for (const img of Array.from(document.querySelectorAll('img'))) {
+                            const attrs = `${img.getAttribute('alt') || ''} ${img.getAttribute('src') || ''}`;
+                            if (!/5g/i.test(attrs)) continue;
+                            let p: Element | null = img.parentElement;
+                            for (let d = 0; d < 8 && p; d++, p = p.parentElement) {
+                                if ((p.textContent || '').length < 300 && rgx5g.test(p.textContent || '')) { has5G = true; break; }
+                            }
+                            if (has5G) break;
+                        }
+                    }
+
+                    // Extract EU/DOM data: "XX Go utilisables en Europe"
+                    let euGb = 0;
+                    const euMatch = visibleText.match(/(\d{1,3})\s*[Gg]o\s*utilisables?\s*en\s*[Ee]urop/);
+                    if (euMatch) euGb = parseInt(euMatch[1], 10);
+
+                    return { bestPrice, calls: foundCalls, has5G, euGb };
+                }, dataGb);
 
                 let finalCalls = "Illimités";
                 if (specificCalls !== "Illimités") {
@@ -145,11 +170,12 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                     finalCalls = priceData.calls;
                 }
 
-                const gen = /\b5g\b/i.test(info.text) ? '5G' : '4G';
+                const gen = (priceData?.has5G || /\b5g\b/i.test(info.text)) ? '5G' : '4G';
+                const euGb = priceData?.euGb || 0;
 
                 if (priceData && typeof priceData === 'object' && 'bestPrice' in priceData && priceData.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
                     const planName = `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`;
-                    plans.push({ planName, dataGb, price: priceData.bestPrice, calls: finalCalls, networkGeneration: gen });
+                    plans.push({ planName, dataGb, price: priceData.bestPrice, calls: finalCalls, networkGeneration: gen, dataEuGb: euGb });
                 }
             } catch (err) {
                 console.warn('[B&You] Erreur sur une option:', err);
@@ -194,8 +220,16 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                                     }
                                 }
 
-                                const nearbyText = lines.slice(Math.max(0, i - 5), i + 5).join(' ');
-                                const fbGen = /\b5g\b/i.test(nearbyText) ? '5G' : '4G';
+                                const nearbyText = lines.slice(Math.max(0, i - 5), i + 15).join(' ');
+                                let fbGen = /\b5g\b/i.test(nearbyText) ? '5G' : '4G';
+                                if (fbGen === '4G') {
+                                    const rgx = new RegExp(`\\b${dataGb}\\s*Go`, 'i');
+                                    for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
+                                        const t = (el.textContent || '').trim();
+                                        if (t.length < 3 || t.length > 100) continue;
+                                        if (rgx.test(t) && /\b5g\b/i.test(t)) { fbGen = '5G'; break; }
+                                    }
+                                }
 
                                 results.push({
                                     planName: `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`,
@@ -213,7 +247,7 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
             });
 
             for (const p of fallbackPlans) {
-                plans.push({ ...p, networkGeneration: p.networkGeneration || '4G' });
+                plans.push({ ...p, networkGeneration: p.networkGeneration || '4G', dataEuGb: 0 });
             }
         }
 
@@ -226,7 +260,8 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                 calls: plan.calls,
                 operator: 'B&You',
                 network: 'Bouygues Telecom',
-                networkGeneration: plan.networkGeneration
+                networkGeneration: plan.networkGeneration,
+                dataEuGb: plan.dataEuGb || undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte B&You:', error);

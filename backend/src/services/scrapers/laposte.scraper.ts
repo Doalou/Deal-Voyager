@@ -14,7 +14,7 @@ export const laPosteMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (
         await new Promise(r => setTimeout(r, 3000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
             const bodyText = document.body.innerText || '';
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -61,15 +61,41 @@ export const laPosteMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (
 
                 const planName = `Forfait La Poste Mobile ${dataMatch[1]} ${dataMatch[2]}`;
 
-                // 5G if link or nearby text mentions it, the 100 Mo plan is 4G only
                 let gen = '4G';
-                for (let j = Math.max(0, i - 3); j < Math.min(lines.length, i + 20); j++) {
+                for (let j = Math.max(0, i - 5); j < Math.min(lines.length, i + 25); j++) {
                     if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
+                }
+                if (gen === '4G') {
+                    const s = String(rawData);
+                    for (const img of Array.from(document.querySelectorAll('img'))) {
+                        if (!/5g/i.test(`${img.getAttribute('alt') || ''} ${img.getAttribute('src') || ''}`)) continue;
+                        let p: Element | null = img;
+                        for (let d = 0; d < 10 && p; d++, p = p.parentElement)
+                            if ((p.textContent || '').includes(s) && /go/i.test(p.textContent || '')) { gen = '5G'; break; }
+                        if (gen === '5G') break;
+                    }
+                }
+                if (gen === '4G') {
+                    const s = String(rawData);
+                    for (const el of Array.from(document.querySelectorAll('[class*="5g"],[class*="5G"],[aria-label*="5g"],[aria-label*="5G"]'))) {
+                        let p: Element | null = el;
+                        for (let d = 0; d < 10 && p; d++, p = p.parentElement)
+                            if ((p.textContent || '').includes(s) && /go/i.test(p.textContent || '')) { gen = '5G'; break; }
+                        if (gen === '5G') break;
+                    }
                 }
                 if (dataGb < 1) gen = '4G';
 
+                let euGb = 0;
+                for (let j = i; j < Math.min(lines.length, i + 20); j++) {
+                    const euMatch = lines[j].match(/\+?\s*(\d{1,3})\s*[Gg]o\s*(?:depuis|en|utilisables?)?\s*(?:l')?(?:europ|UE|DOM)/i);
+                    if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                    const euMatch2 = lines[j].match(/(?:europ|UE|DOM)\D*(\d{1,3})\s*[Gg]o/i);
+                    if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
+                }
+
                 if (!results.some(r => r.dataGb === dataGb && r.price === finalPrice)) {
-                    results.push({ planName, dataGb, price: finalPrice, calls, networkGeneration: gen });
+                    results.push({ planName, dataGb, price: finalPrice, calls, networkGeneration: gen, dataEuGb: euGb });
                 }
             }
 
@@ -87,6 +113,7 @@ export const laPosteMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (
                 operator: 'La Poste Mobile',
                 network: 'Bouygues',
                 networkGeneration: plan.networkGeneration || '4G',
+                dataEuGb: plan.dataEuGb || undefined,
             }));
     } catch (error) {
         console.error('Erreur dans la collecte La Poste Mobile:', error);

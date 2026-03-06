@@ -9,6 +9,7 @@ export interface ScrapedPlan {
   simPrice?: number;
   network?: string;
   networkGeneration?: string;
+  dataEuGb?: number;
   url?: string;
 }
 

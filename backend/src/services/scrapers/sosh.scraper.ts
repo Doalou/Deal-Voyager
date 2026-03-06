@@ -25,7 +25,7 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
         while (retries < 3) {
             try {
                 plans = await page.evaluate(() => {
-                    const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+                    const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
                     let bodyText = "";
                     try {
                         bodyText = document.body.innerText || "";
@@ -76,13 +76,21 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
 
                             const gen = /\b5g\b/i.test(nameLine) ? '5G' : '4G';
 
+                            // Extract EU/DOM data from nearby lines
+                            let euGb = 0;
+                            for (let j = i + 1; j < Math.min(lines.length, i + 15); j++) {
+                                const euMatch = lines[j].match(/(\d{1,3})\s*[Gg]o.*?(?:europ|UE|DOM)/i);
+                                if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                            }
+
                             if (price > 0 && !results.some(r => r.dataGb === dataGb && r.price === price)) {
                                 results.push({
                                     planName: nameLine,
                                     dataGb,
                                     price,
                                     calls,
-                                    networkGeneration: gen
+                                    networkGeneration: gen,
+                                    dataEuGb: euGb
                                 });
                             }
                         }
@@ -117,7 +125,8 @@ export const soshScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => 
                 calls: plan.calls,
                 operator: 'Sosh',
                 network: 'Orange',
-                networkGeneration: plan.networkGeneration || '4G'
+                networkGeneration: plan.networkGeneration || '4G',
+                dataEuGb: plan.dataEuGb || undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Sosh:', error);

@@ -17,7 +17,7 @@ export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
             const bodyText = document.body.innerText || '';
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -84,16 +84,43 @@ export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async
 
                 if (price <= 0) continue;
 
-                // Detect 5G from "5G OFFERTE" or "5G -" or "5g" in surrounding lines
                 let gen = '4G';
-                for (let j = Math.max(0, dataLineIdx - 5); j < Math.min(lines.length, dataLineIdx + 15); j++) {
+                for (let j = Math.max(0, dataLineIdx - 5); j < Math.min(lines.length, dataLineIdx + 25); j++) {
                     if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
+                }
+                if (gen === '4G') {
+                    const rgx = new RegExp(`\\b${rawData}\\s*Go`, 'i');
+                    for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
+                        const t = (el.textContent || '').trim();
+                        if (t.length < 3 || t.length > 100) continue;
+                        if (rgx.test(t) && /\b5g\b/i.test(t)) { gen = '5G'; break; }
+                    }
+                }
+                if (gen === '4G') {
+                    const rgx = new RegExp(`\\b${rawData}\\s*Go`, 'i');
+                    for (const img of Array.from(document.querySelectorAll('img'))) {
+                        const attrs = `${img.getAttribute('alt') || ''} ${img.getAttribute('src') || ''}`;
+                        if (!/5g/i.test(attrs)) continue;
+                        let p: Element | null = img.parentElement;
+                        for (let d = 0; d < 8 && p; d++, p = p.parentElement) {
+                            if ((p.textContent || '').length < 300 && rgx.test(p.textContent || '')) { gen = '5G'; break; }
+                        }
+                        if (gen === '5G') break;
+                    }
+                }
+
+                let euGb = 0;
+                for (let j = dataLineIdx; j < Math.min(lines.length, dataLineIdx + 20); j++) {
+                    const euMatch = lines[j].match(/\+?\s*(\d{1,3})\s*[Gg]o\s*(?:depuis|en|utilisables?)?\s*(?:l')?(?:europ|UE|DOM)/i);
+                    if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                    const euMatch2 = lines[j].match(/(?:europ|UE|DOM)\D*(\d{1,3})\s*[Gg]o/i);
+                    if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
                 }
 
                 const planName = `Forfait Cdiscount Mobile ${rawData} ${unit}`;
 
                 if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                    results.push({ planName, dataGb, price, calls, networkGeneration: gen });
+                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb });
                 }
             }
 
@@ -111,6 +138,7 @@ export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async
                 operator: 'Cdiscount Mobile',
                 network: 'Bouygues',
                 networkGeneration: plan.networkGeneration || '4G',
+                dataEuGb: plan.dataEuGb || undefined,
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Cdiscount Mobile:', error);

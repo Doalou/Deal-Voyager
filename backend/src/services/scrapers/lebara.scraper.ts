@@ -17,7 +17,7 @@ export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) =
         await new Promise(r => setTimeout(r, 3000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
             const bodyText = document.body.innerText || '';
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -66,10 +66,18 @@ export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) =
                     if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
                 }
 
+                let euGb = 0;
+                for (let j = i; j < Math.min(lines.length, i + 20); j++) {
+                    const euMatch = lines[j].match(/\+?\s*(\d{1,3})\s*[Gg]o\s*(?:depuis|en|utilisables?)?\s*(?:l')?(?:europ|UE|DOM)/i);
+                    if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                    const euMatch2 = lines[j].match(/(?:europ|UE|DOM)\D*(\d{1,3})\s*[Gg]o/i);
+                    if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
+                }
+
                 const planName = `Forfait Lebara ${dataMatch[1]} ${dataMatch[2]}`;
 
                 if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                    results.push({ planName, dataGb, price, calls, networkGeneration: gen });
+                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb });
                 }
             }
 
@@ -87,6 +95,7 @@ export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) =
                 operator: 'Lebara',
                 network: 'SFR',
                 networkGeneration: plan.networkGeneration || '4G',
+                dataEuGb: plan.dataEuGb || undefined,
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Lebara:', error);

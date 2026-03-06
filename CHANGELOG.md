@@ -8,6 +8,7 @@ Toutes les modifications notables de ce projet sont documentées ici.
 - **6 nouveaux opérateurs MVNO** — Ajout de La Poste Mobile (Bouygues), NRJ Mobile (Bouygues), Auchan Telecom (Bouygues), Cdiscount Mobile (Bouygues), Syma Mobile (SFR) et Lebara (SFR), portant le nombre total d'opérateurs surveillés à **12**.
 - **Nouvel Opérateur : Coriolis** — Ajout de Coriolis Télécom (MVNO réseau SFR) à la liste des opérateurs scannés.
 - **Détection 4G / 5G** — Chaque forfait scrapé est désormais identifié comme 4G ou 5G grâce à une analyse du contenu des pages opérateurs. Un badge coloré (accent pour 5G, muted pour 4G) est affiché dans les cartes forfait et dans le tableau admin.
+- **Data Europe/DOM** — Chaque forfait affiche désormais l'enveloppe de data utilisable en Europe et DOM (icône globe + "XX Go EU") dans les cartes forfait. Scraping automatique pour les 12 opérateurs.
 - **YouPrice multi-réseau** — Les forfaits YouPrice disponibles sur plusieurs réseaux (Orange, SFR, Bouygues) sont désormais traités comme des offres distinctes au lieu d'écraser les doublons. Le nom du forfait inclut le réseau pour les différencier.
 - **Barre d'opérateurs dans le Hero** — Affichage visuel des 12 opérateurs scannés sous forme de badges néo-brutalistes avec les couleurs de marque de chaque opérateur, rotations alternées et effet hover.
 
@@ -24,6 +25,8 @@ Toutes les modifications notables de ce projet sont documentées ici.
 - **Fix scraping NRJ Mobile & Auchan Telecom** — Les sites EI Telecom rendent les données (`500`) et l'unité (`Go`) sur des lignes séparées dans Puppeteer headless. Ajout d'un pattern multi-ligne pour détecter ce cas.
 - **Fix URL Cdiscount Mobile** — L'ancienne page catalogue retournait 404. Migration vers la page dédiée `cdiscount-mobile/v-164-0.html`.
 - **Fix détection 5G Coriolis** — La fenêtre de recherche "5G" capturait les mentions génériques de la FAQ. Réduction à la ligne du forfait uniquement pour éviter les faux positifs.
+- **Fix détection 5G B&You / RED** — La 5G n'apparaît pas dans les labels radio mais dans un badge visuel séparé. La détection lit désormais la page visible après chaque clic au lieu du texte du label.
+- **Fix détection 5G YouPrice** — La génération réseau ("Réseau 5G") apparaît APRÈS le titre du forfait dans le DOM. Le scraper regarde maintenant en avant (look-ahead) au lieu de conserver un état global qui propageait la valeur du plan précédent.
 
 ### 🎨 Design
 - **Badges Opérateurs** — Couleurs de marque dédiées pour les 12 opérateurs : Sosh (orange), RED (rouge), B&You (bleu), Free (rouge foncé), YouPrice (bleu nuit), Coriolis (violet), La Poste Mobile (jaune), NRJ Mobile (rouge vif), Auchan Telecom (rouge), Cdiscount Mobile (bleu marine), Syma Mobile (vert), Lebara (magenta).

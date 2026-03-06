@@ -13,7 +13,7 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
             }
         } catch (e) { }
 
-        const plans: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+        const plans: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
 
         // RED utilise des labels avec des IDs préfixés "datanat"
         let labels = await page.$$('label[id^="datanat"]');
@@ -54,7 +54,7 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
 
                 // STRATÉGIE : trouver l'élément avec le PLUS GRAND font-size 
                 // qui contient un prix (c'est le prix principal affiché en gros)
-                const price = await page.evaluate(() => {
+                const price = await page.evaluate((selectedDataGb: number) => {
                     let bestPrice = 0;
                     let biggestFontSize = 0;
 
@@ -103,13 +103,39 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
                         if (m) foundCalls = `${m[1]}h`;
                     }
 
-                    return { bestPrice, calls: foundCalls };
-                });
+                    const visibleText = document.body.innerText;
+                    let has5G = false;
+                    const rgx5g = new RegExp(`\\b${selectedDataGb}\\s*Go`, 'i');
+                    for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
+                        const t = (el.textContent || '').trim();
+                        if (t.length < 3 || t.length > 100) continue;
+                        if (rgx5g.test(t) && /\b5g\b/i.test(t)) { has5G = true; break; }
+                    }
+                    if (!has5G) {
+                        for (const img of Array.from(document.querySelectorAll('img'))) {
+                            const attrs = `${img.getAttribute('alt') || ''} ${img.getAttribute('src') || ''}`;
+                            if (!/5g/i.test(attrs)) continue;
+                            let p: Element | null = img.parentElement;
+                            for (let d = 0; d < 8 && p; d++, p = p.parentElement) {
+                                if ((p.textContent || '').length < 300 && rgx5g.test(p.textContent || '')) { has5G = true; break; }
+                            }
+                            if (has5G) break;
+                        }
+                    }
 
-                const gen = /\b5g\b/i.test(labelText) ? '5G' : '4G';
+                    // Extract EU/DOM data
+                    let euGb = 0;
+                    const euMatch = visibleText.match(/(\d{1,3})\s*[Gg]o.*?(?:europ|UE|DOM)/i)
+                        || visibleText.match(/(?:europ|UE|DOM).*?(\d{1,3})\s*[Gg]o/i);
+                    if (euMatch) euGb = parseInt(euMatch[1], 10);
+
+                    return { bestPrice, calls: foundCalls, has5G, euGb };
+                }, dataGb);
+
+                const gen = (price.has5G || /\b5g\b/i.test(labelText)) ? '5G' : '4G';
 
                 if (price.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
-                    plans.push({ planName: `${dataGb} Go`, dataGb, price: price.bestPrice, calls: price.calls, networkGeneration: gen });
+                    plans.push({ planName: `${dataGb} Go`, dataGb, price: price.bestPrice, calls: price.calls, networkGeneration: gen, dataEuGb: price.euGb || 0 });
                 }
             } catch (err) {
                 console.warn('[RED] Erreur:', err);
@@ -125,7 +151,8 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
                 calls: plan.calls,
                 operator: 'RED by SFR',
                 network: 'SFR',
-                networkGeneration: plan.networkGeneration
+                networkGeneration: plan.networkGeneration,
+                dataEuGb: plan.dataEuGb || undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte RED by SFR:', error);

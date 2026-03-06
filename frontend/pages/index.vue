@@ -18,6 +18,7 @@ interface MobilePlan {
   sms: string;
   network: string;
   networkGeneration: string;
+  dataEuGb: number | null;
   score: number;
   url: string;
 }

@@ -14,7 +14,7 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
         await new Promise(r => setTimeout(r, 3000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number }[] = [];
             const bodyText = document.body.innerText || '';
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -89,11 +89,33 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
                 for (let j = dataLineIdx; j < Math.min(lines.length, dataLineIdx + 20); j++) {
                     if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
                 }
+                if (gen === '4G') {
+                    const rgx = new RegExp(`\\b${rawData}\\s*${unit}`, 'i');
+                    for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
+                        const t = (el.textContent || '').trim();
+                        if (t.length < 3 || t.length > 100) continue;
+                        if (rgx.test(t) && /\b5g\b/i.test(t)) { gen = '5G'; break; }
+                    }
+                }
+
+                let simPrice = 1;
+                for (let j = Math.max(0, dataLineIdx - 10); j < dataLineIdx; j++) {
+                    const simMatch = lines[j].match(/carte\s*sim\s*(?:à|a)\s*(\d+)\s*€/i);
+                    if (simMatch) { simPrice = parseInt(simMatch[1], 10); break; }
+                }
+
+                let euGb = 0;
+                for (let j = dataLineIdx; j < Math.min(lines.length, dataLineIdx + 20); j++) {
+                    const euMatch = lines[j].match(/\+?\s*(\d{1,3})\s*[Gg]o\s*(?:depuis|en|utilisables?)?\s*(?:l')?(?:europ|UE|DOM)/i);
+                    if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                    const euMatch2 = lines[j].match(/(?:europ|UE|DOM)\D*(\d{1,3})\s*[Gg]o/i);
+                    if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
+                }
 
                 const planName = `Forfait Auchan Telecom ${rawData} ${unit}`;
 
                 if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                    results.push({ planName, dataGb, price, calls, networkGeneration: gen });
+                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb, simPrice });
                 }
             }
 
@@ -111,6 +133,8 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
                 operator: 'Auchan Telecom',
                 network: 'Bouygues',
                 networkGeneration: plan.networkGeneration || '4G',
+                dataEuGb: plan.dataEuGb || undefined,
+                simPrice: plan.simPrice,
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Auchan Telecom:', error);

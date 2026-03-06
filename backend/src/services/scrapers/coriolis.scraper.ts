@@ -16,9 +16,28 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
             const bodyText = document.body.innerText;
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            const detect5G = (dataGb: number, idx: number): string => {
+                for (let k = Math.max(0, idx - 5); k < Math.min(lines.length, idx + 30); k++) {
+                    if (/\b5g\b/i.test(lines[k])) return '5G';
+                }
+                const rgx = new RegExp(`\\b${dataGb}\\s*Go`, 'i');
+                for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
+                    const t = (el.textContent || '').trim();
+                    if (t.length < 3 || t.length > 100) continue;
+                    if (rgx.test(t) && /\b5g\b/i.test(t)) return '5G';
+                }
+                for (const img of Array.from(document.querySelectorAll('img'))) {
+                    if (!/5g/i.test(`${img.getAttribute('alt') || ''} ${img.getAttribute('src') || ''}`)) continue;
+                    let p: Element | null = img.parentElement;
+                    for (let d = 0; d < 8 && p; d++, p = p.parentElement)
+                        if ((p.textContent || '').length < 300 && rgx.test(p.textContent || '')) return '5G';
+                }
+                return '4G';
+            };
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -32,16 +51,23 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                     const price = parseFloat(`${singleLineMatch[3]}.${singleLineMatch[4]}`);
 
                     if (dataGb > 0 && price > 0 && price < 80 && !results.some(r => r.dataGb === dataGb)) {
-                        // Only check the plan line itself and 1 line after for explicit "5G"
-                        const cardText = lines.slice(i, Math.min(lines.length, i + 2)).join(' ');
-                        const gen = /\b5g\b/i.test(cardText) ? '5G' : '4G';
+                        const gen = detect5G(dataGb, i);
+
+                        let euGb = 0;
+                        for (let j = i; j < Math.min(lines.length, i + 20); j++) {
+                            const euMatch = lines[j].match(/\+?\s*(\d{1,3})\s*[Gg]o\s*(?:depuis|en|utilisables?)?\s*(?:l')?(?:europ|UE|DOM)/i);
+                            if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                            const euMatch2 = lines[j].match(/(?:europ|UE|DOM)\D*(\d{1,3})\s*[Gg]o/i);
+                            if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
+                        }
 
                         results.push({
                             planName: `Coriolis ${planName} ${dataGb} Go`,
                             dataGb,
                             price,
                             calls: 'Illimités',
-                            networkGeneration: gen
+                            networkGeneration: gen,
+                            dataEuGb: euGb
                         });
                     }
                     continue;
@@ -76,16 +102,23 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                     }
 
                     if (price > 0 && price < 80 && !results.some(r => r.dataGb === dataGb)) {
-                        // Only check the plan name and 2 lines around data for explicit "5G"
-                        const cardText = lines.slice(Math.max(0, i - 2), Math.min(lines.length, i + 2)).join(' ');
-                        const gen = /\b5g\b/i.test(cardText) ? '5G' : '4G';
+                        const gen = detect5G(dataGb, i);
+
+                        let euGb = 0;
+                        for (let j = i; j < Math.min(lines.length, i + 20); j++) {
+                            const euMatch = lines[j].match(/\+?\s*(\d{1,3})\s*[Gg]o\s*(?:depuis|en|utilisables?)?\s*(?:l')?(?:europ|UE|DOM)/i);
+                            if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                            const euMatch2 = lines[j].match(/(?:europ|UE|DOM)\D*(\d{1,3})\s*[Gg]o/i);
+                            if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
+                        }
 
                         results.push({
                             planName: planName ? `Coriolis ${planName} ${dataGb} Go` : `Coriolis ${dataGb} Go`,
                             dataGb,
                             price,
                             calls: 'Illimités',
-                            networkGeneration: gen
+                            networkGeneration: gen,
+                            dataEuGb: euGb
                         });
                     }
                 }
@@ -106,7 +139,8 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                 calls: plan.calls,
                 operator: 'Coriolis',
                 network: 'SFR',
-                networkGeneration: plan.networkGeneration
+                networkGeneration: plan.networkGeneration,
+                dataEuGb: plan.dataEuGb || undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Coriolis:', error);

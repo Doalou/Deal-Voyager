@@ -12,6 +12,7 @@ interface MobilePlan {
   sms: string;
   network: string;
   networkGeneration: string;
+  dataEuGb: number | null;
   score: number;
   url: string;
 }
@@ -71,6 +72,10 @@ const formattedScore = (score: number | null) => {
         <span class="bg-secondary border-2 border-border text-secondary-foreground flex items-center gap-1.5 px-2 py-1" title="Data Internet">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z" /></svg>
           {{ deal.dataGb < 1 ? (deal.dataGb * 1000) + ' Mo' : deal.dataGb + ' Go' }}
+        </span>
+        <span v-if="deal.dataEuGb && deal.dataEuGb > 0" class="bg-card border-2 border-border text-card-foreground flex items-center gap-1.5 px-2 py-1" title="Data en Europe/DOM">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
+          {{ deal.dataEuGb }} Go EU
         </span>
         <span v-if="formattedScore(deal.score)" class="bg-muted border-2 border-border text-muted-foreground px-2 py-1">{{ formattedScore(deal.score) }} €/Go</span>
       </div>

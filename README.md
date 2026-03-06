@@ -18,7 +18,7 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 
 ## Fonctionnalites Principales
 
-- **Scraping Automatise & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 6 operateurs. Cron horaire + declenchement manuel. Detection automatique 4G/5G.
+- **Scraping Automatise & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 12 operateurs. Cron horaire + declenchement manuel. Detection automatique 4G/5G et Data Europe/DOM.
 - **Classement Transparent (Cout Reel sur 1 An)** — Tri base sur le cout annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de resiliation. Score euro/Go calcule.
 - **Design Neobrutaliste & Dark Mode** — Interface avec bordures epaisses, contrastes forts, ombres nettes et Dark Mode dynamique.
 - **Filtrage Avance** — Slider interactif (0 a 400 Go) avec saisie directe au Go pres.
@@ -38,6 +38,12 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 | **Free Mobile** | MNO | Free | Oui |
 | **YouPrice** | MVNO | Orange / SFR / Bouygues | Oui (multi-reseau) |
 | **Coriolis** | MVNO | SFR | Oui |
+| **La Poste Mobile** | MVNO | Bouygues Telecom | Oui |
+| **NRJ Mobile** | MVNO | Bouygues Telecom | Oui |
+| **Auchan Telecom** | MVNO | Bouygues Telecom | Oui |
+| **Cdiscount Mobile** | MVNO | Bouygues Telecom | Oui |
+| **Syma Mobile** | MVNO | SFR | Oui |
+| **Lebara** | MVNO | SFR | Oui |
 
 ---
 
@@ -226,7 +232,7 @@ Pensez a :
 - [ ] Historisation des prix et graphiques de tendances
 - [ ] Export CSV/JSON de l'inventaire
 - [ ] CI/CD & tests E2E (Playwright)
-- [ ] Ajout d'operateurs : Prixtel, La Poste Mobile, NRJ Mobile, Syma...
+- [ ] Ajout d'operateurs : Prixtel, Mint Mobile, Réglo Mobile...
 
 ---
 

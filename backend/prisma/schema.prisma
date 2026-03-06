@@ -20,7 +20,9 @@ model MobilePlan {
   sms         String?  // Info sur les SMS (ex: "illimités")
   network           String?  // Opérateur réseau (ex: "Orange", "SFR")
   networkGeneration String?  // Génération réseau (ex: "4G", "5G")
+  dataEuGb          Float?   // Data utilisable en Europe/DOM en Go
   score             Float?   // Notre score €/Go calculé
+  simPrice          Float?   // Prix de la carte SIM (si différent du défaut opérateur)
   url         String?  // Lien vers l'offre
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
