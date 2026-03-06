@@ -4027,7 +4027,7 @@ function _expandFromEnv(value) {
 const _inlineRuntimeConfig = {
   "app": {
     "baseURL": "/",
-    "buildId": "2cee8264-791b-4f8e-9130-8e06fae5d958",
+    "buildId": "e101923d-0759-47bb-a774-41c9b5f41f5d",
     "buildAssetsDir": "/_nuxt/",
     "cdnURL": ""
   },
@@ -4036,6 +4036,12 @@ const _inlineRuntimeConfig = {
     "routeRules": {
       "/__nuxt_error": {
         "cache": false
+      },
+      "/api/v1/**": {
+        "proxy": {
+          "to": "http://localhost:3001/api/v1/**",
+          "_proxyStripBase": "/api/v1"
+        }
       },
       "/_nuxt/builds/meta/**": {
         "headers": {
@@ -4047,6 +4053,11 @@ const _inlineRuntimeConfig = {
           "cache-control": "public, max-age=1, immutable"
         }
       },
+      "/_scripts/**": {
+        "headers": {
+          "cache-control": "public, max-age=31536000, immutable"
+        }
+      },
       "/_nuxt/**": {
         "headers": {
           "cache-control": "public, max-age=31536000, immutable"
@@ -4054,7 +4065,23 @@ const _inlineRuntimeConfig = {
       }
     }
   },
-  "public": {}
+  "public": {
+    "nuxt-scripts": {
+      "version": "",
+      "defaultScriptOptions": {
+        "trigger": "onNuxtReady"
+      }
+    },
+    "scripts": {
+      "matomo": {
+        "matomoUrl": "",
+        "siteId": ""
+      }
+    }
+  },
+  "nuxt-scripts": {
+    "version": "0.13.2"
+  }
 };
 const envOptions = {
   prefix: "NITRO_",
@@ -4476,115 +4503,137 @@ async function errorHandler(error, event) {
   // H3 will handle fallback
 }
 
+const script = "\"use strict\";(()=>{const t=window,e=document.documentElement,c=[\"dark\",\"light\"],n=getStorageValue(\"localStorage\",\"nuxt-color-mode\")||\"system\";let i=n===\"system\"?u():n;const r=e.getAttribute(\"data-color-mode-forced\");r&&(i=r),l(i),t[\"__NUXT_COLOR_MODE__\"]={preference:n,value:i,getColorScheme:u,addColorScheme:l,removeColorScheme:d};function l(o){const s=\"\"+o+\"\",a=\"\";e.classList?e.classList.add(s):e.className+=\" \"+s,a&&e.setAttribute(\"data-\"+a,o)}function d(o){const s=\"\"+o+\"\",a=\"\";e.classList?e.classList.remove(s):e.className=e.className.replace(new RegExp(s,\"g\"),\"\"),a&&e.removeAttribute(\"data-\"+a)}function f(o){return t.matchMedia(\"(prefers-color-scheme\"+o+\")\")}function u(){if(t.matchMedia&&f(\"\").media!==\"not all\"){for(const o of c)if(f(\":\"+o).matches)return o}return\"light\"}})();function getStorageValue(t,e){switch(t){case\"localStorage\":return window.localStorage.getItem(e);case\"sessionStorage\":return window.sessionStorage.getItem(e);case\"cookie\":return getCookie(e);default:return null}}function getCookie(t){const c=(\"; \"+window.document.cookie).split(\"; \"+t+\"=\");if(c.length===2)return c.pop()?.split(\";\").shift()}";
+
+const _9kula7KkkWX6nRzrL3T5kqsnPis4W4SOYIicQv8tCS8 = (function(nitro) {
+  nitro.hooks.hook("render:html", (htmlContext) => {
+    htmlContext.head.push(`<script>${script}<\/script>`);
+  });
+});
+
 const plugins = [
-  
+  _9kula7KkkWX6nRzrL3T5kqsnPis4W4SOYIicQv8tCS8
 ];
 
 const assets = {
-  "/_nuxt/CIxOTjSI.js": {
+  "/_nuxt/BCI8COgV.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"ecf-ldLznZSXUA4fHTZoCJbZf1iglzg\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
+    "etag": "\"ecf-OYrFwosqd1wMs30NSv1oG8RZvTw\"",
+    "mtime": "2026-03-06T13:37:13.439Z",
     "size": 3791,
-    "path": "../public/_nuxt/CIxOTjSI.js"
+    "path": "../public/_nuxt/BCI8COgV.js"
   },
-  "/_nuxt/CG-Lo91B.js": {
+  "/_nuxt/C1p2G9Lp.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"d96-BQol4JYPV1P1LCJ65puyWPPLVS4\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
+    "etag": "\"9e7-MNtCYEzFPU/ZE5cnAc1a7EVY8ZU\"",
+    "mtime": "2026-03-06T13:37:13.449Z",
+    "size": 2535,
+    "path": "../public/_nuxt/C1p2G9Lp.js"
+  },
+  "/_nuxt/CSjxt9Ut.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"250-0yzvYgjCsmzChMtkpE7aAB3rg2Y\"",
+    "mtime": "2026-03-06T13:37:13.449Z",
+    "size": 592,
+    "path": "../public/_nuxt/CSjxt9Ut.js"
+  },
+  "/_nuxt/DIRGIU0t.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"146-xKCkoRnw7n3fy4CzOp5qXxFlSCA\"",
+    "mtime": "2026-03-06T13:37:13.439Z",
+    "size": 326,
+    "path": "../public/_nuxt/DIRGIU0t.js"
+  },
+  "/_nuxt/Dd1mAI9A.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1493-O+UldSKnxIhnVA611soykFQAG/k\"",
+    "mtime": "2026-03-06T13:37:13.439Z",
+    "size": 5267,
+    "path": "../public/_nuxt/Dd1mAI9A.js"
+  },
+  "/_nuxt/DwvaDDPY.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"d96-WIAAgb6bx1fx4BUfvBxh6xgCwgg\"",
+    "mtime": "2026-03-06T13:37:13.439Z",
     "size": 3478,
-    "path": "../public/_nuxt/CG-Lo91B.js"
+    "path": "../public/_nuxt/DwvaDDPY.js"
   },
-  "/_nuxt/CnY32br4.js": {
+  "/_nuxt/BtR4_wb2.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"ba0-S3d3X8nbvRe9GUjbaY9Lz7cc7JI\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
-    "size": 2976,
-    "path": "../public/_nuxt/CnY32br4.js"
-  },
-  "/_nuxt/A-PfyyPc.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"2169-6/TxUJSpryMxtdPeKfx5YaXNSVQ\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
-    "size": 8553,
-    "path": "../public/_nuxt/A-PfyyPc.js"
-  },
-  "/_nuxt/Di90TkwY.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"149b-IONZUYiRDlhFN4N/merKfe0sVmk\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
-    "size": 5275,
-    "path": "../public/_nuxt/Di90TkwY.js"
-  },
-  "/_nuxt/C0Y-nbxw.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"37d9-0gBj7tTPl/dFaPJQjtHOuxxSvOs\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
-    "size": 14297,
-    "path": "../public/_nuxt/C0Y-nbxw.js"
+    "etag": "\"37dd-sB5/Xnke0dQkzqF1t5OCHLAsskM\"",
+    "mtime": "2026-03-06T13:37:13.439Z",
+    "size": 14301,
+    "path": "../public/_nuxt/BtR4_wb2.js"
   },
   "/_nuxt/error-404._yXoGkXB.css": {
     "type": "text/css; charset=utf-8",
     "etag": "\"97e-UvhxUpGzrIO+HDYB4qU9Txgu35A\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
+    "mtime": "2026-03-06T13:37:13.439Z",
     "size": 2430,
     "path": "../public/_nuxt/error-404._yXoGkXB.css"
+  },
+  "/_nuxt/Dy55iApl.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"bb-BWOvGFybvllfRYml9DVmn5RcvRA\"",
+    "mtime": "2026-03-06T13:37:13.449Z",
+    "size": 187,
+    "path": "../public/_nuxt/Dy55iApl.js"
   },
   "/_nuxt/error-500.BENb_mjk.css": {
     "type": "text/css; charset=utf-8",
     "etag": "\"773-BFLUend+w1t3SP3QDB+Z0A0V5pI\"",
-    "mtime": "2026-03-02T11:17:06.348Z",
+    "mtime": "2026-03-06T13:37:13.439Z",
     "size": 1907,
     "path": "../public/_nuxt/error-500.BENb_mjk.css"
   },
-  "/_nuxt/u0xbJOQi.js": {
+  "/_nuxt/DUgWCNQz.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"146-08TtZ8utdm8wv1/DToJOUfDT3S4\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
-    "size": 326,
-    "path": "../public/_nuxt/u0xbJOQi.js"
+    "etag": "\"2a736-wBIg1PyijZuJSsmifUckTvc9oEc\"",
+    "mtime": "2026-03-06T13:37:13.439Z",
+    "size": 173878,
+    "path": "../public/_nuxt/DUgWCNQz.js"
   },
-  "/_nuxt/index.CBklnAyd.css": {
+  "/_nuxt/index.BXy9Zzx_.css": {
     "type": "text/css; charset=utf-8",
-    "etag": "\"25a-m6FcsHeWXbmoa2WOgYOnu12a29I\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
+    "etag": "\"25a-FE8bKvA8W8mrIAjrk1p68wXzrSk\"",
+    "mtime": "2026-03-06T13:37:13.438Z",
     "size": 602,
-    "path": "../public/_nuxt/index.CBklnAyd.css"
+    "path": "../public/_nuxt/index.BXy9Zzx_.css"
   },
   "/_nuxt/builds/latest.json": {
     "type": "application/json",
-    "etag": "\"47-C6Ztg/LjeAWNvEfCybOw8TZArGA\"",
-    "mtime": "2026-03-02T11:17:06.774Z",
+    "etag": "\"47-b9sWySgiPA+Q070dVpJrwhrMfnY\"",
+    "mtime": "2026-03-06T13:37:13.977Z",
     "size": 71,
     "path": "../public/_nuxt/builds/latest.json"
   },
-  "/_nuxt/builds/meta/2cee8264-791b-4f8e-9130-8e06fae5d958.json": {
+  "/_nuxt/builds/meta/e101923d-0759-47bb-a774-41c9b5f41f5d.json": {
     "type": "application/json",
-    "etag": "\"58-ucKDQa1uqxm5XJhFAUhVPvdXQF4\"",
-    "mtime": "2026-03-02T11:17:06.774Z",
+    "etag": "\"58-OZOs8PF29iVZXoR5Zq4aV133fLg\"",
+    "mtime": "2026-03-06T13:37:13.978Z",
     "size": 88,
-    "path": "../public/_nuxt/builds/meta/2cee8264-791b-4f8e-9130-8e06fae5d958.json"
+    "path": "../public/_nuxt/builds/meta/e101923d-0759-47bb-a774-41c9b5f41f5d.json"
   },
-  "/_nuxt/entry.CC0Hgc51.css": {
+  "/_nuxt/PQDIDzcC.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"332c-ZFseEefV7mCuJP2UxZw6r18bsi4\"",
+    "mtime": "2026-03-06T13:37:13.449Z",
+    "size": 13100,
+    "path": "../public/_nuxt/PQDIDzcC.js"
+  },
+  "/_nuxt/DYloEh4m.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"50b3-fStnU8qId2rPtJywrH/LAe2i8qw\"",
+    "mtime": "2026-03-06T13:37:13.449Z",
+    "size": 20659,
+    "path": "../public/_nuxt/DYloEh4m.js"
+  },
+  "/_nuxt/entry.BEbuG8GH.css": {
     "type": "text/css; charset=utf-8",
-    "etag": "\"5830-le39nh1j4eUJs5tCQAe6kUQTjY8\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
-    "size": 22576,
-    "path": "../public/_nuxt/entry.CC0Hgc51.css"
-  },
-  "/_nuxt/DK_1_ipi.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"2778-tDIEDL9z6bxOEPcmQAuWpdOqr2s\"",
-    "mtime": "2026-03-02T11:17:06.349Z",
-    "size": 10104,
-    "path": "../public/_nuxt/DK_1_ipi.js"
-  },
-  "/_nuxt/DPu2Ypx0.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"29e5b-ykUUR15NYVQ3qcgHh0lNmoM66Ww\"",
-    "mtime": "2026-03-02T11:17:06.347Z",
-    "size": 171611,
-    "path": "../public/_nuxt/DPu2Ypx0.js"
+    "etag": "\"55ab-c7KmPQvSAfEBTRJl9R9QMCWus58\"",
+    "mtime": "2026-03-06T13:37:13.439Z",
+    "size": 21931,
+    "path": "../public/_nuxt/entry.BEbuG8GH.css"
   }
 };
 
@@ -4696,7 +4745,7 @@ function readAsset (id) {
   return promises.readFile(resolve(serverDir, assets[id].path))
 }
 
-const publicAssetBases = {"/_nuxt/builds/meta/":{"maxAge":31536000},"/_nuxt/builds/":{"maxAge":1},"/_nuxt/":{"maxAge":31536000}};
+const publicAssetBases = {"/_nuxt/builds/meta/":{"maxAge":31536000},"/_nuxt/builds/":{"maxAge":1},"/_scripts/":{"maxAge":31536000},"/_nuxt/":{"maxAge":31536000}};
 
 function isPublicAssetURL(id = '') {
   if (assets[id]) {
@@ -5215,5 +5264,5 @@ function setupGracefulShutdown(listener, nitroApp) {
   });
 }
 
-export { $fetch as $, parseQuery as A, withTrailingSlash as B, withoutTrailingSlash as C, trapUnhandledNodeErrors as a, useNitroApp as b, getResponseStatus as c, destr as d, defineRenderHandler as e, getQuery as f, getResponseStatusText as g, createError$1 as h, getRouteRules as i, joinRelativeURL as j, joinURL as k, encodePath as l, decodePath as m, hasProtocol as n, isScriptProtocol as o, parseURL as p, sanitizeStatusCode as q, getContext as r, setupGracefulShutdown as s, toNodeListener as t, useRuntimeConfig as u, createHooks as v, withQuery as w, defu as x, executeAsync as y, hash$1 as z };
+export { $fetch as $, sendError as A, setResponseHeader as B, parseQuery as C, withTrailingSlash as D, withoutTrailingSlash as E, trapUnhandledNodeErrors as a, useNitroApp as b, getResponseStatus as c, destr as d, defineRenderHandler as e, getQuery as f, getResponseStatusText as g, createError$1 as h, getRouteRules as i, joinRelativeURL as j, joinURL as k, encodePath as l, decodePath as m, hasProtocol as n, isScriptProtocol as o, parseURL as p, sanitizeStatusCode as q, getContext as r, setupGracefulShutdown as s, toNodeListener as t, useRuntimeConfig as u, createHooks as v, withQuery as w, defu as x, executeAsync as y, hash$1 as z };
 //# sourceMappingURL=nitro.mjs.map

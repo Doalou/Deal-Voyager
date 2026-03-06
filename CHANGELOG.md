@@ -2,6 +2,13 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [0.6.0] — Unreleased
+
+### ✨ Nouvelles fonctionnalités
+- **Support analytique (Matomo)** — Préparation de l'intégration optionnelle de Matomo Analytics via Docker (`matomo` / `matomo_db`) et le module `@nuxt/scripts` côté frontend, respectueux de la vie privée.
+
+---
+
 ## [0.5.0] — 2026-03-05
 
 ### ✨ Nouvelles fonctionnalités

@@ -5,8 +5,15 @@ export default defineNuxtConfig({
     devtools: { enabled: false },
     modules: [
         '@nuxtjs/tailwindcss',
-        '@nuxtjs/color-mode'
+        '@nuxtjs/color-mode',
+        '@nuxt/scripts'
     ],
+    runtimeConfig: {
+        public: {
+            matomoUrl: '',
+            matomoSiteId: ''
+        }
+    },
     routeRules: {
         '/api/v1/**': { proxy: `${apiInternalUrl}/api/v1/**` }
     },

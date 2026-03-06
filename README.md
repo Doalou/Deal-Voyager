@@ -59,11 +59,11 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
                     │   Frontend Nuxt (SSR)    │
                     │   Proxy /api/v1/** ──────┼──► Backend Express:3001
                     │   Auth HTTP Basic        │        │
-                    └─────────────────────────┘        │
-                                                       ▼
-                                              ┌────────────────┐
-                                              │ PostgreSQL:5432 │
-                                              └────────────────┘
+                    └────────────┬────────────┘        │
+                                 │                     ▼
+┌────────────────┐  ┌────────────▼────────────┐  ┌────────────────┐
+│ matomo_db:3306 ◄──┼        matomo:80         │  │ PostgreSQL:5432 │
+└────────────────┘  └─────────────────────────┘  └────────────────┘
 ```
 
 Seul le port du frontend est expose. Le backend et PostgreSQL communiquent exclusivement via le reseau Docker interne.
@@ -108,6 +108,12 @@ POSTGRES_DB=deal_voyager
 
 # Port public (optionnel, defaut: 3000)
 # APP_PORT=3000
+
+# Analytique Matomo (Optionnel pour v0.6.0)
+MATOMO_DB_PASSWORD=votre_mot_de_passe_matomo_db
+# MATOMO_PORT=8080
+# MATOMO_URL=http://localhost:8080
+# MATOMO_SITE_ID=1
 ```
 
 > **Important :** Le deploiement refuse de demarrer si les variables obligatoires ne sont pas definies.
@@ -135,6 +141,26 @@ L'API n'est pas exposee directement — toutes les requetes `/api/v1/*` passent 
 2. Cliquez sur **Lancer l'extraction maintenant**.
 3. Patientez 1 a 2 minutes — la page suit la progression automatiquement.
 4. Les offres apparaissent sur l'accueil une fois le scraping termine.
+
+### 5. Configuration de Matomo (Optionnel)
+
+L'analytique est desactivee par defaut pour respecter la vie privee. Pour l'activer via les conteneurs Docker inclus :
+1. Accedez a l'interface d'installation sur `http://localhost:8080` (port modifiable via `MATOMO_PORT`).
+2. Lors de l'etape "Configuration de la base de donnees" de l'installateur Matomo, utilisez ces valeurs :
+   - Serveur de base de donnees : `matomo_db`
+   - Identifiant : `matomo`
+   - Mot de passe : *La valeur de MATOMO_DB_PASSWORD definie dans votre .env*
+   - Nom de la base de donnees : `matomo`
+3. Finalisez l'installation, creez votre premier site web et notez son **ID de site** (ex: `1`).
+4. Decommentez et renseignez les variables dans votre fichier `.env` :
+   ```env
+   MATOMO_URL=http://localhost:8080
+   MATOMO_SITE_ID=1
+   ```
+5. Appliquez les changements en reconstruisant le frontend :
+   ```bash
+   docker compose up -d --build frontend
+   ```
 
 ---
 
