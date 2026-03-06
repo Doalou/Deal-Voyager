@@ -151,8 +151,8 @@ L'analytique est desactivee par defaut pour respecter la vie privee. Pour l'acti
    - Identifiant : `matomo`
    - Mot de passe : *La valeur de MATOMO_DB_PASSWORD definie dans votre .env*
    - Nom de la base de donnees : `matomo`
-3. Finalisez l'installation, creez votre premier site web et notez son **ID de site** (ex: `1`).
-4. Decommentez et renseignez les variables dans votre fichier `.env` :
+3. Lors de la creation du site, utilisez `http://frontend:3000` comme URL du site (c'est l'adresse Docker interne qui permet a Matomo de verifier le script de suivi).
+4. Renseignez les variables dans votre fichier `.env` :
    ```env
    MATOMO_URL=http://localhost:8080
    MATOMO_SITE_ID=1

@@ -5,8 +5,7 @@ export default defineNuxtConfig({
     devtools: { enabled: false },
     modules: [
         '@nuxtjs/tailwindcss',
-        '@nuxtjs/color-mode',
-        '@nuxt/scripts'
+        '@nuxtjs/color-mode'
     ],
     runtimeConfig: {
         public: {
