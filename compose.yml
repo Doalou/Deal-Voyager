@@ -40,14 +40,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - API_INTERNAL_URL=http://backend:3001
     restart: unless-stopped
     ports:
       - '${APP_PORT:-3000}:3000'
     environment:
       - NUXT_HOST=0.0.0.0
       - NUXT_PORT=3000
+      - NUXT_API_INTERNAL_URL=http://backend:3001
       - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - NUXT_PUBLIC_MATOMO_URL=${MATOMO_URL:-}
