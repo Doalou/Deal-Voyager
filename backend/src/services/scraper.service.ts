@@ -26,7 +26,6 @@ puppeteer.use(StealthPlugin());
 const launchBrowser = () => {
   return puppeteer.launch({
     headless: true,
-    ignoreHTTPSErrors: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -35,6 +34,7 @@ const launchBrowser = () => {
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
+      '--ignore-certificate-errors',
     ],
   });
 };
