@@ -86,6 +86,7 @@ out
 
 # Nuxt.js build output
 .nuxt
+.output
 dist
 
 # Svelte specific
