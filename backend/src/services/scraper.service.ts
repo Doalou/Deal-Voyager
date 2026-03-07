@@ -26,6 +26,7 @@ puppeteer.use(StealthPlugin());
 const launchBrowser = () => {
   return puppeteer.launch({
     headless: true,
+    ignoreHTTPSErrors: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -83,7 +84,15 @@ export const scrapeOffers = async () => {
         );
         await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8' });
 
-        await page.goto(config.url, { waitUntil: 'networkidle2', timeout: 60000 });
+        try {
+          await page.goto(config.url, { waitUntil: 'networkidle2', timeout: 60000 });
+        } catch (navError: any) {
+          if (navError?.name === 'TimeoutError') {
+            console.warn(`[${config.name}] Timeout de navigation, tentative avec la page partiellement chargée...`);
+          } else {
+            throw navError;
+          }
+        }
 
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));

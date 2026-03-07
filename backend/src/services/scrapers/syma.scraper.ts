@@ -22,75 +22,55 @@ export const symaMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             const seenDataGb = new Set<number>();
 
+            const planNames = ['lesept', 'leneuf', 'ledouze', 'lecinq', 'lequinze', 'levingt'];
+            const processedPlans = new Set<string>();
+
             for (let i = 0; i < lines.length; i++) {
+                const lineLower = lines[i].toLowerCase();
+                if (!planNames.includes(lineLower) || processedPlans.has(lineLower)) continue;
+
+                const planLabel = lines[i];
                 let price = 0;
-
-                const priceMatch = lines[i].match(/^(\d{1,3})\s*€(\d{2})\s*\/?\s*mois/i);
-                if (priceMatch) {
-                    price = parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
-                } else if (/^\d{1,2}$/.test(lines[i])) {
-                    const next = (lines[i + 1] || '').trim();
-                    const splitMatch = next.match(/^€(\d{2})\s*\/?\s*mois/i);
-                    if (splitMatch) {
-                        price = parseInt(lines[i], 10) + parseInt(splitMatch[1], 10) / 100;
-                    }
-                }
-
-                if (price <= 0 || price > 50) continue;
-
                 let dataGb = 0;
-                for (let j = Math.max(0, i - 5); j < Math.min(lines.length, i + 5); j++) {
-                    if (j === i) continue;
-                    const dm = lines[j].match(/^(\d{2,4})\s*Go\s+\d{2,4}\s*Go\s*$/i);
-                    if (dm) { dataGb = parseInt(dm[1], 10); break; }
-                    const dm2 = lines[j].match(/^(\d{2,4})\s*Go\s*$/i);
-                    if (dm2 && parseInt(dm2[1], 10) >= 50) { dataGb = parseInt(dm2[1], 10); break; }
-                }
-
-                if (dataGb <= 0 || seenDataGb.has(dataGb)) continue;
-                seenDataGb.add(dataGb);
-
-                let planLabel = '';
-                for (let j = Math.max(0, i - 5); j < i; j++) {
-                    if (/^(lesept|leneuf|ledouze|lecinq|lequinze|levingt)$/i.test(lines[j])) {
-                        planLabel = lines[j]; break;
-                    }
-                }
-
-                let gen = '4G';
-                for (let j = Math.max(0, i - 5); j < Math.min(lines.length, i + 10); j++) {
-                    if (/\b5g\b/i.test(lines[j])) { gen = '5G'; break; }
-                }
-
                 let euGb = 0;
-                if (planLabel) {
-                    const planId = planLabel.toLowerCase();
-                    for (let j = i + 10; j < lines.length; j++) {
-                        if (lines[j].toLowerCase() === planId) {
-                            for (let k = j; k < Math.min(lines.length, j + 15); k++) {
-                                const euMatch = lines[k].match(/(\d{1,3})\s*Go.*?(?:UE|DOM|union|europ)/i);
-                                if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
-                                const euMatch2 = lines[k].match(/(?:UE|DOM|union|europ).*?(\d{1,3})\s*Go/i);
-                                if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
-                            }
-                            break;
+                let gen = '4G';
+
+                for (let j = Math.max(0, i - 5); j < Math.min(lines.length, i + 10); j++) {
+                    if (price === 0) {
+                        const priceMatch = lines[j].match(/(\d{1,3})\s*€\s*(\d{2})/);
+                        if (priceMatch) {
+                            price = parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
                         }
                     }
+
+                    if (dataGb === 0) {
+                        const dataMatch = lines[j].match(/(\d{2,4})\s*Go/i);
+                        if (dataMatch && parseInt(dataMatch[1], 10) >= 50) {
+                            dataGb = parseInt(dataMatch[1], 10);
+                        }
+                    }
+
+                    if (/\b5g\b/i.test(lines[j])) gen = '5G';
                 }
-                if (euGb === 0) {
-                    for (let j = i; j < Math.min(lines.length, i + 30); j++) {
-                        const euMatch = lines[j].match(/(\d{1,3})\s*Go.*?(?:UE|DOM|union|europ)/i);
-                        if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
-                        if (j > i + 5 && /^\d{1,3}\s*€\d{2}\s*\/?\s*mois/i.test(lines[j])) break;
+
+                if (price <= 0 || price > 50 || dataGb <= 0 || seenDataGb.has(dataGb)) continue;
+                seenDataGb.add(dataGb);
+                processedPlans.add(lineLower);
+
+                for (let j = i + 15; j < lines.length; j++) {
+                    if (lines[j].toLowerCase() === planLabel.toLowerCase()) {
+                        for (let k = j; k < Math.min(lines.length, j + 20); k++) {
+                            const euMatch = lines[k].match(/(\d{1,3})\s*Go.*?(?:UE|DOM|union|europ)/i);
+                            if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
+                            const euMatch2 = lines[k].match(/(?:UE|DOM|union|europ).*?(\d{1,3})\s*Go/i);
+                            if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
+                        }
+                        break;
                     }
                 }
 
-                const name = planLabel
-                    ? `Forfait Syma Mobile ${planLabel} ${dataGb} Go`
-                    : `Forfait Syma Mobile ${dataGb} Go`;
-
                 results.push({
-                    planName: name,
+                    planName: `Forfait Syma Mobile ${planLabel} ${dataGb} Go`,
                     dataGb,
                     price,
                     calls: 'Illimités',
