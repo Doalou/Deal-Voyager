@@ -14,9 +14,34 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
         await new Promise(r => setTimeout(r, 3000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
             const bodyText = document.body.innerText || '';
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            let activationPrice: number | null = null;
+            const fullText = bodyText.toLowerCase();
+            const actPats = [
+                /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            ];
+            for (const p of actPats) {
+                const m = fullText.match(p);
+                if (m) { activationPrice = parseFloat(m[1].replace(',', '.')); break; }
+            }
+
+            let cancellationPrice: number | null = null;
+            const cancelPats = [
+                /frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /r[ée]siliation\s*gratuit/i,
+            ];
+            for (const cp of cancelPats) {
+                if (cp.source.includes('gratuit') && cp.test(fullText)) {
+                    cancellationPrice = 0; break;
+                }
+                const m = fullText.match(cp);
+                if (m && m[1]) { cancellationPrice = parseFloat(m[1].replace(',', '.')); break; }
+            }
 
             for (let i = 0; i < lines.length; i++) {
                 let rawData = 0;
@@ -98,10 +123,15 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
                     }
                 }
 
-                let simPrice = 1;
-                for (let j = Math.max(0, dataLineIdx - 10); j < dataLineIdx; j++) {
-                    const simMatch = lines[j].match(/carte\s*sim\s*(?:à|a)\s*(\d+)\s*€/i);
+                let simPrice: number | null = null;
+                for (let j = Math.max(0, dataLineIdx - 10); j < Math.min(lines.length, dataLineIdx + 15); j++) {
+                    const simMatch = lines[j].match(/carte\s*sim\s*(?:à|a|:)?\s*(\d+)\s*€/i);
                     if (simMatch) { simPrice = parseInt(simMatch[1], 10); break; }
+                    const simMatch2 = lines[j].match(/(\d+)\s*€.*?carte\s*sim/i);
+                    if (simMatch2) { simPrice = parseInt(simMatch2[1], 10); break; }
+                    const livrMatch = lines[j].match(/frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|à)?\s*(\d+(?:[,.]\d{2})?)\s*€/i);
+                    if (livrMatch) { simPrice = parseFloat(livrMatch[1].replace(',', '.')); break; }
+                    if (/sim\s*gratuit|sim\s*offert/i.test(lines[j])) { simPrice = 0; break; }
                 }
 
                 let euGb = 0;
@@ -115,7 +145,7 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
                 const planName = `Forfait Auchan Telecom ${rawData} ${unit}`;
 
                 if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb, simPrice });
+                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb, simPrice, activationPrice, cancellationPrice });
                 }
             }
 
@@ -134,7 +164,9 @@ export const auchanTelecomScrapeLogic: ScraperConfig['scrapeFunction'] = async (
                 network: 'Bouygues',
                 networkGeneration: plan.networkGeneration || '4G',
                 dataEuGb: plan.dataEuGb || undefined,
-                simPrice: plan.simPrice,
+                simPrice: plan.simPrice ?? undefined,
+                activationPrice: plan.activationPrice ?? undefined,
+                cancellationPrice: plan.cancellationPrice ?? undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Auchan Telecom:', error);

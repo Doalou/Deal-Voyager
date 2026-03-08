@@ -16,9 +16,47 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
             const bodyText = document.body.innerText;
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            let simPrice: number | null = null;
+            const lower = bodyText.toLowerCase();
+            const simPats = [
+                /carte\s*sim\s*(?:\/?\s*e?\s*sim\s*)?(?:est\s*)?(?:factur[ée]e?|co[uû]te?)\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+                /carte\s*sim\s*(?:à|a|:)\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+                /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim)/i,
+                /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            ];
+            for (const pat of simPats) {
+                const m = lower.match(pat);
+                if (m) {
+                    const v = parseFloat(m[1].replace(',', '.'));
+                    if (v > 0 && v <= 50) { simPrice = v; break; }
+                }
+            }
+            if (simPrice === null) {
+                if (/carte\s*sim[^.]{0,10}gratuit/i.test(lower) || /sim\s*offert/i.test(lower)) {
+                    simPrice = 0;
+                }
+            }
+
+            let activationPrice: number | null = null;
+            const actPats = [
+                /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            ];
+            for (const p of actPats) {
+                const m = lower.match(p);
+                if (m) { activationPrice = parseFloat(m[1].replace(',', '.')); break; }
+            }
+
+            let cancellationPrice: number | null = 0;
+            if (/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i.test(lower)) {
+                const m = lower.match(/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i);
+                if (m) cancellationPrice = parseFloat(m[1].replace(',', '.'));
+            }
 
             const detect5G = (dataGb: number, idx: number): string => {
                 for (let k = Math.max(0, idx - 5); k < Math.min(lines.length, idx + 30); k++) {
@@ -67,7 +105,10 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                             price,
                             calls: 'Illimités',
                             networkGeneration: gen,
-                            dataEuGb: euGb
+                            dataEuGb: euGb,
+                            simPrice,
+                            activationPrice,
+                            cancellationPrice
                         });
                     }
                     continue;
@@ -118,7 +159,10 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                             price,
                             calls: 'Illimités',
                             networkGeneration: gen,
-                            dataEuGb: euGb
+                            dataEuGb: euGb,
+                            simPrice,
+                            activationPrice,
+                            cancellationPrice
                         });
                     }
                 }
@@ -140,7 +184,10 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                 operator: 'Coriolis',
                 network: 'SFR',
                 networkGeneration: plan.networkGeneration,
-                dataEuGb: plan.dataEuGb || undefined
+                dataEuGb: plan.dataEuGb || undefined,
+                simPrice: plan.simPrice ?? undefined,
+                activationPrice: plan.activationPrice ?? undefined,
+                cancellationPrice: plan.cancellationPrice ?? undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Coriolis:', error);

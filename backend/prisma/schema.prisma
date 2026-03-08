@@ -23,6 +23,8 @@ model MobilePlan {
   dataEuGb          Float?   // Data utilisable en Europe/DOM en Go
   score             Float?   // Notre score €/Go calculé
   simPrice          Float?   // Prix de la carte SIM (si différent du défaut opérateur)
+  activationPrice   Float?   // Frais d'activation / livraison
+  cancellationPrice Float?   // Frais de résiliation (0 si sans engagement)
   url         String?  // Lien vers l'offre
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

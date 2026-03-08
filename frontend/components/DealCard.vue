@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import OperatorBadge from './OperatorBadge.vue'
 
 interface MobilePlan {
@@ -21,10 +22,12 @@ const props = defineProps<{
   deal: MobilePlan;
   isFairplay: boolean;
   isStarOffer?: boolean;
-  simPrice: number;
   activationPrice: number;
   cancellationPrice: number;
 }>()
+
+// Use deal.simPrice if scraped, otherwise default to 10€
+const simPrice = computed(() => props.deal.simPrice ?? 10)
 
 const formattedScore = (score: number | null) => {
   if (!score || score <= 0) return null

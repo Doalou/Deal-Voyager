@@ -3,10 +3,12 @@ import { ref, computed, watch } from 'vue'
 
 const props = defineProps<{
   modelValue: number
+  networks: string[]
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: number): void
+  (e: 'update:networks', value: string[]): void
 }>()
 
 const isEditing = ref(false)
@@ -17,6 +19,26 @@ const value = computed({
   set: (val) => emit('update:modelValue', val)
 })
 
+const availableNetworks = [
+  { id: 'Orange', label: 'Orange', activeClass: 'bg-orange-500 text-white', dotClass: 'bg-orange-500' },
+  { id: 'Bouygues', label: 'Bouygues', activeClass: 'bg-blue-500 text-white', dotClass: 'bg-blue-500' },
+  { id: 'SFR', label: 'SFR', activeClass: 'bg-red-500 text-white', dotClass: 'bg-red-500' },
+  { id: 'Free', label: 'Free', activeClass: 'bg-red-700 text-white', dotClass: 'bg-red-700' }
+]
+
+const toggleNetwork = (id: string) => {
+  const current = [...props.networks]
+  const index = current.indexOf(id)
+  if (index === -1) {
+    current.push(id)
+  } else {
+    current.splice(index, 1)
+  }
+  emit('update:networks', current)
+}
+
+const isNetworkSelected = (id: string) => props.networks.includes(id)
+
 const startEditing = () => {
   editValue.value = value.value.toString()
   isEditing.value = true
@@ -24,7 +46,7 @@ const startEditing = () => {
 
 const finishEditing = () => {
   const parsed = parseInt(editValue.value, 10)
-  if (!isNaN(parsed) && parsed >= 0 && parsed <= 400) {
+  if (!isNaN(parsed) && parsed >= 0 && parsed <= 500) {
     value.value = parsed
   }
   isEditing.value = false
@@ -32,7 +54,7 @@ const finishEditing = () => {
 </script>
 
 <template>
-  <div class="w-full max-w-2xl mx-auto bg-card text-card-foreground border-4 border-border shadow-neo-lg p-6 md:p-10 mb-16 z-20 relative">
+  <div class="w-full max-w-4xl mx-auto bg-card text-card-foreground border-4 border-border shadow-neo-lg p-6 md:p-10 mb-16 z-20 relative">
     
     <div class="flex items-end justify-between mb-8 border-b-4 border-border pb-4">
       <h2 class="text-xl md:text-2xl font-black uppercase tracking-wider text-card-foreground">Vos Besoins en Data</h2>
@@ -53,7 +75,7 @@ const finishEditing = () => {
           v-model="editValue"
           type="number"
           min="0"
-          max="400"
+          max="500"
           autofocus
           class="w-24 text-4xl font-black bg-transparent text-center text-primary-foreground outline-none border-b-4 border-border"
           @keyup.enter="finishEditing"
@@ -64,16 +86,41 @@ const finishEditing = () => {
       </div>
     </div>
     
-    <div class="relative py-4">
-      <input 
-        type="range" 
-        v-model.number="value" 
-        min="0" max="400" step="5"
-        class="w-full appearance-none bg-muted border-4 border-border h-8 rounded-full outline-none slider-thumb-neo"
-      />
-      <div class="flex justify-between text-sm font-bold uppercase mt-4 px-1 text-card-foreground">
-        <span class="bg-card border-2 border-border px-2 py-1 shadow-neo-hover">0 Go</span>
-        <span class="bg-card border-2 border-border px-2 py-1 shadow-neo-hover">400 Go</span>
+    <div class="flex flex-col md:flex-row gap-8 items-center mt-8 relative py-4">
+      <div class="flex-1 w-full relative">
+        <input 
+          type="range" 
+          v-model.number="value" 
+          min="0" max="500" step="5"
+          class="w-full appearance-none bg-muted border-4 border-border h-8 rounded-full outline-none slider-thumb-neo"
+        />
+        <div class="flex justify-between text-sm font-bold uppercase mt-4 px-1 text-card-foreground">
+          <span class="bg-card border-2 border-border px-2 py-1 shadow-neo-hover">0 Go</span>
+          <span class="bg-card border-2 border-border px-2 py-1 shadow-neo-hover">500 Go</span>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3 w-full md:w-auto mt-4 md:mt-0 pl-0 md:pl-8 md:border-l-4 md:border-border">
+        <label class="block text-sm font-black uppercase text-card-foreground text-center md:text-left">Réseaux ciblés</label>
+        <div class="flex flex-wrap md:flex-col gap-2 justify-center md:justify-start">
+          <button
+            v-for="net in availableNetworks"
+            :key="net.id"
+            @click="toggleNetwork(net.id)"
+            class="px-4 py-2 border-2 border-border font-bold uppercase text-xs transition-all flex items-center gap-2"
+            :class="[
+              isNetworkSelected(net.id) 
+                ? net.activeClass + ' shadow-[2px_2px_0_0_#000] translate-y-0 translate-x-0' 
+                : 'bg-card text-muted-foreground hover:bg-muted shadow-none opacity-50 hover:opacity-100'
+            ]"
+          >
+            <div 
+              class="w-3 h-3 border-2 border-border" 
+              :class="isNetworkSelected(net.id) ? 'bg-white' : net.dotClass"
+            ></div>
+            {{ net.label }}
+          </button>
+        </div>
       </div>
     </div>
   </div>

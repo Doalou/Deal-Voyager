@@ -36,26 +36,21 @@ const { data: operators } = useFetch<OperatorSettings[]>('/api/v1/operators', { 
 
 // State
 const targetDataGb = ref(20)
+const targetNetworks = ref<string[]>(['Orange', 'Bouygues', 'SFR', 'Free'])
 
 // Helper: check if operator is flagged
 const isFairplay = (operatorName: string) => {
-  const op = operators.value?.find(o => o.operatorName === operatorName)
+  const op = operators.value?.find((o: OperatorSettings) => o.operatorName === operatorName)
   return op ? op.isFairplay : true // True by default
 }
 
-// Helper: get operator sim price
-const getSimPrice = (operatorName: string): number => {
-  const op = operators.value?.find(o => o.operatorName === operatorName)
-  return op?.simPrice ?? 10 // 10€ by default
-}
-
 const getActivationPrice = (operatorName: string): number => {
-  const op = operators.value?.find(o => o.operatorName === operatorName)
+  const op = operators.value?.find((o: OperatorSettings) => o.operatorName === operatorName)
   return op?.activationPrice ?? 0
 }
 
 const getCancellationPrice = (operatorName: string): number => {
-  const op = operators.value?.find(o => o.operatorName === operatorName)
+  const op = operators.value?.find((o: OperatorSettings) => o.operatorName === operatorName)
   return op?.cancellationPrice ?? 0
 }
 
@@ -67,10 +62,13 @@ const filteredDeals = computed(() => {
     return [...deals.value].sort((a, b) => a.price - b.price)
   }
   return deals.value
-    .filter(d => d.dataGb >= targetDataGb.value)
-    .sort((a, b) => {
-      const costA = (a.price * 12) + getSimPrice(a.operator) + getActivationPrice(a.operator) + getCancellationPrice(a.operator);
-      const costB = (b.price * 12) + getSimPrice(b.operator) + getActivationPrice(b.operator) + getCancellationPrice(b.operator);
+    .filter((d: MobilePlan) => d.dataGb >= targetDataGb.value)
+    .filter((d: MobilePlan) => targetNetworks.value.length > 0 && targetNetworks.value.some(net => d.network?.toLowerCase().includes(net.toLowerCase())))
+    .sort((a: MobilePlan, b: MobilePlan) => {
+      const simA = a.simPrice ?? 10;
+      const simB = b.simPrice ?? 10;
+      const costA = (a.price * 12) + simA + getActivationPrice(a.operator) + getCancellationPrice(a.operator);
+      const costB = (b.price * 12) + simB + getActivationPrice(b.operator) + getCancellationPrice(b.operator);
       if (costA === costB) return b.dataGb - a.dataGb;
       return costA - costB;
     })
@@ -93,7 +91,7 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
 
     <main class="container mx-auto px-4 relative z-10 flex flex-col items-center">
       
-      <DataSlider v-model="targetDataGb" />
+      <DataSlider v-model="targetDataGb" v-model:networks="targetNetworks" />
 
       <!-- Dynamic Data Section (Client-only to prevent hydration mismatch) -->
       <ClientOnly>
@@ -113,7 +111,6 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
               :deal="starOffer" 
               :is-fairplay="isFairplay(starOffer.operator)" 
               :is-star-offer="true"
-              :sim-price="getSimPrice(starOffer.operator)"
               :activation-price="getActivationPrice(starOffer.operator)"
               :cancellation-price="getCancellationPrice(starOffer.operator)"
             />
@@ -132,7 +129,6 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
                 :deal="deal" 
                 :is-fairplay="isFairplay(deal.operator)" 
                 :is-star-offer="false"
-                :sim-price="getSimPrice(deal.operator)"
                 :activation-price="getActivationPrice(deal.operator)"
                 :cancellation-price="getCancellationPrice(deal.operator)"
               />
@@ -159,7 +155,7 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
           </div>
           <h3 class="text-3xl font-black uppercase mb-4 text-card-foreground">Aïe, c'est désert !</h3>
           <p class="text-xl font-medium border-l-4 border-border pl-4 text-left inline-block text-card-foreground">
-            Il n'y a actuellement aucune offre qui correspond à <span class="bg-secondary px-1 font-bold border-2 border-border text-secondary-foreground">{{ targetDataGb }} Go</span>. Essayez de baisser vos critères ou relancez un scraping.
+            Il n'y a actuellement aucune offre qui correspond à <span class="bg-secondary px-1 font-bold border-2 border-border text-secondary-foreground">{{ targetDataGb }} Go</span><span v-if="targetNetworks.length < 4"> sur les réseaux sélectionnés</span>. Essayez de baisser vos critères, d'activer plus de réseaux, ou contactez un administrateur.
           </p>
         </div>
       </ClientOnly>

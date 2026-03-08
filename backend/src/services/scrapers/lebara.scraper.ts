@@ -17,9 +17,46 @@ export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) =
         await new Promise(r => setTimeout(r, 3000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
             const bodyText = document.body.innerText || '';
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            // Détecter si la carte SIM est gratuite (global à la page)
+            let simPrice: number | null = null;
+            const fullText = bodyText.toLowerCase();
+            if (/sim\s*gratuit/i.test(fullText) || /carte\s*sim.*?0[,.]?0{0,2}\s*€/i.test(fullText) || /0[,.]00\s*€.*?sim/i.test(fullText) || /sim.*?offert/i.test(fullText)) {
+                simPrice = 0;
+            } else {
+                const simPats = [
+                    /carte\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+                    /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim)/i,
+                    /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                ];
+                for (const pat of simPats) {
+                    const m = fullText.match(pat);
+                    if (m) {
+                        const v = parseFloat(m[1].replace(',', '.'));
+                        if (v > 0 && v <= 50) { simPrice = v; break; }
+                    }
+                }
+            }
+
+            let activationPrice: number | null = null;
+            const actPats = [
+                /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            ];
+            for (const p of actPats) {
+                const m = fullText.match(p);
+                if (m) { activationPrice = parseFloat(m[1].replace(',', '.')); break; }
+            }
+
+            let cancellationPrice: number | null = 0;
+            if (/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i.test(fullText)) {
+                const m = fullText.match(/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i);
+                if (m) cancellationPrice = parseFloat(m[1].replace(',', '.'));
+            }
 
             for (let i = 0; i < lines.length; i++) {
                 const dataMatch = lines[i].match(/(\d{1,4})\s*(Go|Mo)/i);
@@ -77,7 +114,7 @@ export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) =
                 const planName = `Forfait Lebara ${dataMatch[1]} ${dataMatch[2]}`;
 
                 if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb });
+                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb, simPrice, activationPrice, cancellationPrice });
                 }
             }
 
@@ -96,6 +133,9 @@ export const lebaraScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) =
                 network: 'SFR',
                 networkGeneration: plan.networkGeneration || '4G',
                 dataEuGb: plan.dataEuGb || undefined,
+                simPrice: plan.simPrice ?? undefined,
+                activationPrice: plan.activationPrice ?? undefined,
+                cancellationPrice: plan.cancellationPrice ?? undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Lebara:', error);

@@ -17,9 +17,36 @@ export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
             const bodyText = document.body.innerText || '';
             const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            const lower = bodyText.toLowerCase();
+
+            let simPrice: number | null = null;
+
+            let activationPrice: number | null = null;
+            const actPats = [
+                /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            ];
+            for (const p of actPats) {
+                const m = lower.match(p);
+                if (m) { activationPrice = parseFloat(m[1].replace(',', '.')); break; }
+            }
+
+            let cancellationPrice: number | null = null;
+            const cancelPats = [
+                /frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /r[ée]siliation\s*gratuit/i,
+            ];
+            for (const cp of cancelPats) {
+                if (cp.source.includes('gratuit') && cp.test(lower)) {
+                    cancellationPrice = 0; break;
+                }
+                const m = lower.match(cp);
+                if (m && m[1]) { cancellationPrice = parseFloat(m[1].replace(',', '.')); break; }
+            }
 
             for (let i = 0; i < lines.length; i++) {
                 let rawData = 0;
@@ -117,10 +144,22 @@ export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async
                     if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
                 }
 
+                let localSimPrice: number | null = null;
+                const localBlock = lines.slice(Math.max(0, dataLineIdx - 1), Math.min(lines.length, dataLineIdx + 20)).join('\n').toLowerCase();
+                if (/sim\s*gratuit/i.test(localBlock) || /sim\s*offert/i.test(localBlock)) {
+                    localSimPrice = 0;
+                } else {
+                    const simMatch = localBlock.match(/carte\s*sim\s*(?:(?:[àa]|est)\s*)?(?:seulement\s*)?(\d+(?:[,.]\d{2})?)\s*€/i)
+                        || localBlock.match(/sim\s*à\s*(\d+(?:[,.]\d{2})?)\s*€/i);
+                    if (simMatch) {
+                        localSimPrice = parseFloat(simMatch[1].replace(',', '.'));
+                    }
+                }
+
                 const planName = `Forfait Cdiscount Mobile ${rawData} ${unit}`;
 
                 if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb });
+                    results.push({ planName, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb, simPrice: localSimPrice, activationPrice, cancellationPrice });
                 }
             }
 
@@ -139,6 +178,9 @@ export const cdiscountMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async
                 network: 'Bouygues',
                 networkGeneration: plan.networkGeneration || '4G',
                 dataEuGb: plan.dataEuGb || undefined,
+                simPrice: plan.simPrice ?? undefined,
+                activationPrice: plan.activationPrice ?? undefined,
+                cancellationPrice: plan.cancellationPrice ?? undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte Cdiscount Mobile:', error);

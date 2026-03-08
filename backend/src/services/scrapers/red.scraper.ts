@@ -13,7 +13,7 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
             }
         } catch (e) { }
 
-        const plans: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number }[] = [];
+        const plans: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
 
         // RED utilise des labels avec des IDs préfixés "datanat"
         let labels = await page.$$('label[id^="datanat"]');
@@ -105,6 +105,24 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
 
                     const visibleText = document.body.innerText;
                     let has5G = false;
+
+                    // Détection du prix SIM
+                    let simPrice: number | null = null;
+                    const lowerVis = visibleText.toLowerCase();
+                    if (/sim\s*gratuit/i.test(lowerVis) || /sim\s*offert/i.test(lowerVis)) {
+                        simPrice = 0;
+                    } else {
+                        const sp = [
+                            /carte\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+                            /activation\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+                            /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim|activation\s*sim)/i,
+                            /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                        ];
+                        for (const pat of sp) {
+                            const sm = lowerVis.match(pat);
+                            if (sm) { simPrice = parseFloat(sm[1].replace(',', '.')); break; }
+                        }
+                    }
                     const rgx5g = new RegExp(`\\b${selectedDataGb}\\s*Go`, 'i');
                     for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
                         const t = (el.textContent || '').trim();
@@ -129,13 +147,32 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
                         || visibleText.match(/(?:europ|UE|DOM).*?(\d{1,3})\s*[Gg]o/i);
                     if (euMatch) euGb = parseInt(euMatch[1], 10);
 
-                    return { bestPrice, calls: foundCalls, has5G, euGb };
+                    // Détection frais d'activation
+                    let activationPrice: number | null = null;
+                    const actPats = [
+                        /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                        /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                        /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                    ];
+                    for (const pat of actPats) {
+                        const m = lowerVis.match(pat);
+                        if (m) { activationPrice = parseFloat(m[1].replace(',', '.')); break; }
+                    }
+
+                    // Détection frais de résiliation
+                    let cancellationPrice: number | null = 0;
+                    if (/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i.test(lowerVis)) {
+                        const m = lowerVis.match(/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i);
+                        if (m) cancellationPrice = parseFloat(m[1].replace(',', '.'));
+                    }
+
+                    return { bestPrice, calls: foundCalls, has5G, euGb, simPrice, activationPrice, cancellationPrice };
                 }, dataGb);
 
                 const gen = (price.has5G || /\b5g\b/i.test(labelText)) ? '5G' : '4G';
 
                 if (price.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
-                    plans.push({ planName: `${dataGb} Go`, dataGb, price: price.bestPrice, calls: price.calls, networkGeneration: gen, dataEuGb: price.euGb || 0 });
+                    plans.push({ planName: `${dataGb} Go`, dataGb, price: price.bestPrice, calls: price.calls, networkGeneration: gen, dataEuGb: price.euGb || 0, simPrice: price.simPrice, activationPrice: price.activationPrice, cancellationPrice: price.cancellationPrice });
                 }
             } catch (err) {
                 console.warn('[RED] Erreur:', err);
@@ -152,7 +189,10 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
                 operator: 'RED by SFR',
                 network: 'SFR',
                 networkGeneration: plan.networkGeneration,
-                dataEuGb: plan.dataEuGb || undefined
+                dataEuGb: plan.dataEuGb || undefined,
+                simPrice: plan.simPrice ?? undefined,
+                activationPrice: plan.activationPrice ?? undefined,
+                cancellationPrice: plan.cancellationPrice ?? undefined
             }));
     } catch (error) {
         console.error('Erreur dans la collecte RED by SFR:', error);

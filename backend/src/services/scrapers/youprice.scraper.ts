@@ -7,10 +7,45 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
         await new Promise(r => setTimeout(r, 2000));
 
         const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; network: string; networkGeneration: string; dataEuGb: number }[] = [];
+            const results: { planName: string; dataGb: number; price: number; calls: string; network: string; networkGeneration: string; dataEuGb: number; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
 
             const allText = document.body.innerText;
             const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            // Détection globale du prix SIM
+            let simPrice: number | null = null;
+            const lower = allText.toLowerCase();
+            if (/sim\s*gratuit/i.test(lower) || /sim\s*offert/i.test(lower)) {
+                simPrice = 0;
+            } else {
+                const sp = [
+                    /carte\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+                    /activation\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+                    /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim|activation\s*sim)/i,
+                    /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                ];
+                for (const pat of sp) {
+                    const m = lower.match(pat);
+                    if (m) { simPrice = parseFloat(m[1].replace(',', '.')); break; }
+                }
+            }
+
+            let activationPrice: number | null = null;
+            const actPats = [
+                /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            ];
+            for (const p of actPats) {
+                const m = lower.match(p);
+                if (m) { activationPrice = parseFloat(m[1].replace(',', '.')); break; }
+            }
+
+            let cancellationPrice: number | null = 0;
+            if (/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i.test(lower)) {
+                const m = lower.match(/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i);
+                if (m) cancellationPrice = parseFloat(m[1].replace(',', '.'));
+            }
 
             let currentNetwork = 'Orange / SFR';
 
@@ -76,7 +111,10 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                     calls: 'Illimités',
                     network: currentNetwork,
                     networkGeneration: gen,
-                    dataEuGb: euGb
+                    dataEuGb: euGb,
+                    simPrice,
+                    activationPrice,
+                    cancellationPrice
                 });
             }
 
@@ -99,7 +137,10 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                     operator: 'YouPrice',
                     network: plan.network || 'Orange / SFR',
                     networkGeneration: plan.networkGeneration || '4G',
-                    dataEuGb: plan.dataEuGb || undefined
+                    dataEuGb: plan.dataEuGb || undefined,
+                    simPrice: plan.simPrice ?? undefined,
+                    activationPrice: plan.activationPrice ?? undefined,
+                    cancellationPrice: plan.cancellationPrice ?? undefined
                 });
             }
         }

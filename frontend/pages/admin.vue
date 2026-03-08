@@ -77,16 +77,10 @@ watch(() => stats.value?.isScraping, (isScraping) => {
 
 onUnmounted(() => stopPolling())
 
-// Track which operator's sim price is being edited
-const editingSimPrice = ref<Record<string, string>>({})
+// Track which operator's fees are being edited
 const editingActivationPrice = ref<Record<string, string>>({})
 const editingCancellationPrice = ref<Record<string, string>>({})
 
-// Helper to get operator sim price
-const getOperatorSimPrice = (operatorName: string): number | null => {
-  const op = operators.value?.find(o => o.operatorName === operatorName)
-  return op?.simPrice ?? null
-}
 
 const getOperatorActivationPrice = (operatorName: string): number | null => {
   const op = operators.value?.find(o => o.operatorName === operatorName)
@@ -159,14 +153,12 @@ const toggleFairplay = async (operatorName: string, currentState: boolean) => {
   }
 }
 
-const startEditSimPrice = (operatorName: string) => {
-  editingSimPrice.value[operatorName] = (getOperatorSimPrice(operatorName) ?? 10).toString()
+const startEditFees = (operatorName: string) => {
   editingActivationPrice.value[operatorName] = (getOperatorActivationPrice(operatorName) ?? 0).toString()
   editingCancellationPrice.value[operatorName] = (getOperatorCancellationPrice(operatorName) ?? 0).toString()
 }
 
-const saveSimPrice = async (operatorName: string) => {
-  const sim = editingSimPrice.value[operatorName]
+const saveFees = async (operatorName: string) => {
   const act = editingActivationPrice.value[operatorName]
   const canc = editingCancellationPrice.value[operatorName]
   
@@ -175,13 +167,11 @@ const saveSimPrice = async (operatorName: string) => {
       method: 'PUT',
       headers: authHeaders.value,
       body: { 
-        simPrice: sim ? parseFloat(sim) : null,
         activationPrice: act ? parseFloat(act) : null,
         cancellationPrice: canc ? parseFloat(canc) : null
       }
     })
     showNotification(`Frais ${operatorName} mis à jour!`, 'success')
-    delete editingSimPrice.value[operatorName]
     delete editingActivationPrice.value[operatorName]
     delete editingCancellationPrice.value[operatorName]
     refreshOperators()
@@ -190,8 +180,7 @@ const saveSimPrice = async (operatorName: string) => {
   }
 }
 
-const cancelEditSimPrice = (operatorName: string) => {
-  delete editingSimPrice.value[operatorName]
+const cancelEditFees = (operatorName: string) => {
   delete editingActivationPrice.value[operatorName]
   delete editingCancellationPrice.value[operatorName]
 }
@@ -329,45 +318,37 @@ const dealsByOperator = computed(() => {
             <div class="flex items-center gap-4 flex-wrap mt-4 md:mt-0">
               <!-- Frais per operator -->
               <div class="flex flex-col gap-2 bg-card p-3 border-2 border-border">
-                <span class="font-black text-sm uppercase mb-1 border-b-2 border-border pb-1">Frais Opérateur (SIM, Act, Résil)</span>
+                <span class="font-black text-sm uppercase mb-1 border-b-2 border-border pb-1">Frais Opérateur (Act, Résil)</span>
                 
-                <div v-if="editingSimPrice[operatorName as string] === undefined" class="flex items-center justify-between gap-4">
+                <div v-if="editingActivationPrice[operatorName as string] === undefined" class="flex items-center justify-between gap-4">
                   <div class="flex gap-3 text-sm">
-                    <span><strong>SIM:</strong> {{ getOperatorSimPrice(operatorName as string) !== null ? getOperatorSimPrice(operatorName as string) + '€' : '10€ (défaut)' }}</span>
                     <span><strong>Act:</strong> {{ getOperatorActivationPrice(operatorName as string) !== null ? getOperatorActivationPrice(operatorName as string) + '€' : '0€' }}</span>
                     <span><strong>Résil:</strong> {{ getOperatorCancellationPrice(operatorName as string) !== null ? getOperatorCancellationPrice(operatorName as string) + '€' : '0€' }}</span>
                   </div>
                   <button 
-                    @click="startEditSimPrice(operatorName as string)" 
+                    @click="startEditFees(operatorName as string)" 
                     class="bg-card border-2 border-border px-2 py-1 text-xs font-bold uppercase shadow-neo-hover hover:bg-primary transition-colors text-card-foreground hover:text-primary-foreground"
                   >✏️ Editer</button>
                 </div>
                 
                 <div v-else class="flex flex-col gap-2 relative z-50">
                   <div class="flex items-center gap-2 text-sm justify-between">
-                    <label class="font-bold w-12">SIM:</label>
-                    <div class="flex items-center">
-                      <input v-model="editingSimPrice[operatorName as string]" type="number" step="0.01" min="0" class="w-16 px-1 py-0.5 border-2 border-border text-center font-bold bg-card text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary h-7" @keyup.enter="saveSimPrice(operatorName as string)" @keyup.escape="cancelEditSimPrice(operatorName as string)" />
-                      <span class="font-bold ml-1">€</span>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2 text-sm justify-between">
                     <label class="font-bold w-12">Act:</label>
                     <div class="flex items-center">
-                      <input v-model="editingActivationPrice[operatorName as string]" type="number" step="0.01" min="0" class="w-16 px-1 py-0.5 border-2 border-border text-center font-bold bg-card text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary h-7" @keyup.enter="saveSimPrice(operatorName as string)" @keyup.escape="cancelEditSimPrice(operatorName as string)" />
+                      <input v-model="editingActivationPrice[operatorName as string]" type="number" step="0.01" min="0" class="w-16 px-1 py-0.5 border-2 border-border text-center font-bold bg-card text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary h-7" @keyup.enter="saveFees(operatorName as string)" @keyup.escape="cancelEditFees(operatorName as string)" />
                       <span class="font-bold ml-1">€</span>
                     </div>
                   </div>
                   <div class="flex items-center gap-2 text-sm justify-between">
                     <label class="font-bold w-12">Résil:</label>
                     <div class="flex items-center">
-                      <input v-model="editingCancellationPrice[operatorName as string]" type="number" step="0.01" min="0" class="w-16 px-1 py-0.5 border-2 border-border text-center font-bold bg-card text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary h-7" @keyup.enter="saveSimPrice(operatorName as string)" @keyup.escape="cancelEditSimPrice(operatorName as string)" />
+                      <input v-model="editingCancellationPrice[operatorName as string]" type="number" step="0.01" min="0" class="w-16 px-1 py-0.5 border-2 border-border text-center font-bold bg-card text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary h-7" @keyup.enter="saveFees(operatorName as string)" @keyup.escape="cancelEditFees(operatorName as string)" />
                       <span class="font-bold ml-1">€</span>
                     </div>
                   </div>
                   <div class="flex items-center justify-end gap-2 mt-1 z-50">
-                    <button @click="saveSimPrice(operatorName as string)" class="bg-primary text-primary-foreground border-2 border-border px-3 py-1 text-xs font-bold shadow-neo-hover">Sauvegarder</button>
-                    <button @click="cancelEditSimPrice(operatorName as string)" class="bg-card text-card-foreground border-2 border-border px-3 py-1 text-xs font-bold shadow-neo-hover hover:bg-destructive hover:text-white">Annuler</button>
+                    <button @click="saveFees(operatorName as string)" class="bg-primary text-primary-foreground border-2 border-border px-3 py-1 text-xs font-bold shadow-neo-hover">Sauvegarder</button>
+                    <button @click="cancelEditFees(operatorName as string)" class="bg-card text-card-foreground border-2 border-border px-3 py-1 text-xs font-bold shadow-neo-hover hover:bg-destructive hover:text-white">Annuler</button>
                   </div>
                 </div>
               </div>
@@ -390,6 +371,7 @@ const dealsByOperator = computed(() => {
                 <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Data</th>
                 <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Réseau</th>
                 <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Prix/mois</th>
+                <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">SIM</th>
                 <th class="p-3 md:p-4 font-black text-center">€/Go</th>
               </tr>
             </thead>
@@ -406,6 +388,10 @@ const dealsByOperator = computed(() => {
                   ]">{{ deal.networkGeneration || '—' }}</span>
                 </td>
                 <td class="p-3 md:p-4 text-center font-black text-xl border-r-2 border-border">{{ deal.price.toFixed(2) }}€</td>
+                <td class="p-3 md:p-4 text-center border-r-2 border-border">
+                  <span v-if="deal.simPrice !== null && deal.simPrice !== undefined" class="px-2 py-0.5 text-xs font-black border-2 border-border" :class="deal.simPrice === 0 ? 'bg-green-100 text-green-800' : 'bg-card text-card-foreground'">{{ deal.simPrice }}€</span>
+                  <span v-else class="text-muted-foreground text-xs">—</span>
+                </td>
                 <td class="p-3 md:p-4 text-center font-mono text-sm">
                   {{ deal.score ? deal.score.toFixed(3) : '—' }}
                 </td>

@@ -11,7 +11,7 @@ const operators = [
   { name: 'Auchan', color: '#E30613', text: 'white' },
   { name: 'Cdiscount', color: '#00528A', text: 'white' },
   { name: 'Syma', color: '#00A651', text: 'white' },
-  { name: 'Lebara', color: '#E6007E', text: 'white' },
+  { name: 'Lebara', color: '#E6007E', text: 'white' }
 ]
 
 const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1.5', '-2']

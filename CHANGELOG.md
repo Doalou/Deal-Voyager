@@ -2,10 +2,44 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
-## [0.6.0] — Unreleased
+## [0.6.0] — 2026-03-08
 
 ### ✨ Nouvelles fonctionnalités
 - **Support analytique (Matomo)** — Préparation de l'intégration optionnelle de Matomo Analytics via Docker (`matomo` / `matomo_db`) et le module `@nuxt/scripts` côté frontend, respectueux de la vie privée.
+- **Forfaits illimités NRJ Mobile** — Le scraper détecte désormais les forfaits « Illimité » (stockés avec `dataGb: 9999`) en plus des forfaits classiques à enveloppe fixe.
+- **Prix SIM dynamique par plan** — NRJ Mobile, Auchan, Lebara, Sosh, RED by SFR, Free, B&You, YouPrice, Coriolis, La Poste Mobile, Cdiscount et Syma détectent automatiquement le prix de la carte SIM depuis la page catalogue. Plus besoin de le saisir manuellement, y compris pour les promos Lebara à 0€.
+- **Frais d'Activation et Résiliation Dynamiques** — Les 12 scrapers parcourent dynamiquement les pages forfaits pour extraire automatiquement les prix de carte SIM, les éventuels frais d'activation ou de mise en service, et les frais de résiliation trouvés dans les mentions légales ou textes de description.
+- **Fallback PDF pour les frais opérateurs** — Quand les frais de résiliation, d'activation ou le prix SIM ne sont pas trouvés sur la page web, le système télécharge et analyse dynamiquement les CGS/guides tarifaires PDF des opérateurs (NRJ Mobile, Cdiscount Mobile, Auchan Telecom, B&You, Free Mobile, La Poste Mobile). Extraction par regex multi-patterns sur le texte brut du PDF avec détection intelligente du prix en ligne vs en boutique.
+- **Détection SIM et activation via checkout** — En l'absence du prix SIM ou des frais d'activation sur la page catalogue, le scraper tente automatiquement de naviguer vers le panier/checkout de l'opérateur pour y détecter les deux (prix SIM et frais d'activation/souscription) avant de se rabattre sur le PDF. Particulièrement utile pour B&You où le checkout affiche des prix promos différents du guide tarifaire PDF.
+- **Prix SIM par défaut configurable** — Nouveau champ `defaultSimPrice` dans la config scraper permettant de définir un prix SIM de dernier recours lorsqu'il n'est trouvé ni sur le site, ni au checkout, ni dans le PDF (utilisé pour Sosh et RED by SFR à 10€).
+- **Curseur de Data étendu** — Le slider de Data en frontend permet désormais de sélectionner jusqu'à 500 Go pour tenir compte des nouveaux grands forfaits MVNO.
+- **Filtre par Réseau** — Ajout d'une option directement dans le composant des Besoins en Data permettant de cibler un réseau spécifique (Orange, SFR, Bouygues, Free) ou de garder tous les réseaux actifs. Le message d'erreur d'aucun forfait s'adapte dynamiquement si aucun forfait n'est disponible sur ce réseau.
+- **Suppression édition manuelle SIM** — Le champ « simPrice » n'est plus éditable dans l'admin. Il est auto-détecté par les scrapers et affiché par plan dans le tableau. Les frais d'activation et de résiliation restent éditables manuellement.
+
+### 🔧 Corrections
+- **Fix Free Mobile SIM à 0€ au lieu de 10€** — Le regex `sim offert` matchait le texte promo « SIM offerte pour les abonnés Freebox » et mettait le prix à 0€. Corrigé : les patterns numériques sont maintenant testés en premier, et `offert/gratuit` ne s'applique que si ce n'est pas conditionnel (exclusion de « Freebox », « abonnés »).
+- **Fix faux positifs activation (tous scrapers)** — Le pattern `frais de livraison` était classé comme frais d'activation dans les 12 scrapers, causant des faux positifs systématiques (ex: B&You affichait activation: 6/6 avec le prix de livraison). Remplacé par `frais de souscription` qui est un vrai synonyme d'activation.
+- **Fix B&You checkout inaccessible** — Implémentation d'un flux en deux clics (« Continuer » puis « Étape suivante ») pour traverser la page d'options et atteindre le panier réel, permettant d'extraire les frais de la SIM et de l'activation à 1€.
+- **Fix Coriolis SIM** — Ajout du mot-clé « j'en profite » en priorité absolue dans le checkout pour forcer le clic sur le bon bouton du forfait au lieu d'un lien générique du header, permettant de récupérer les frais d'activation de 10€.
+- **Fix La Poste Mobile prix SIM** — Ajout du récapitulatif contractuel PDF. L'extraction multi-ligne fusionne les paragraphes découpés pour détecter le prix en ligne (9,90€) distinct du prix en bureau de poste (14,90€) et du prix conditionnel Bbox (0€).
+- **Fix Cdiscount SIM faux positif** — L'extraction du prix de la carte SIM se fait désormais de manière ciblée par bloc de variante de forfait (prix locaux) au lieu d'une regex globale, corrigeant l'attribution fautive des cartes SIM à 5€ et 1€.
+- **Fix NRJ Mobile (500 Go manquant et URLs erronées)** — Le forfait 500 Go manquait, et l'URL du catalogue a été corrigée (`/forfait-se` au lieu de `/forfait-mobile`).
+- **Fix Sosh (timeout systématique)** — Le site a migré de `sosh.fr` vers `shop.sosh.fr`. URL corrigée et parsing adapté au nouveau layout (3 forfaits actuels).
+- **Fix Syma Mobile SIM** — Le scraper ignore désormais les longs textes SEO présents dans le footer (« Carte SIM gratuite ») qui provoquaient un faux positif à 0€, forçant ainsi le système à interroger correctement le PDF du guide tarifaire.
+- **Retrait Réglo Mobile** — L'opérateur a été retiré de l'interface frontend (Hero, Badges) et son scraper a été désactivé côté backend.
+- **Fix Free Mobile (timeouts intermittents)** — Ajout d'un mécanisme de retry avec délai de 10s en cas d'erreur réseau `ERR_TIMED_OUT`, appliqué à tous les scrapers.
+- **Fix NRJ Mobile (plan manquant)** — Le forfait Illimité 5G n'était pas détecté car le regex ne matchait que `\d+ Go`.
+- **Fix frais de résiliation non détectés** — NRJ Mobile, Cdiscount Mobile, Auchan Telecom et B&You initialisaient les frais de résiliation à 0€ par défaut au lieu de `null`, empêchant le fallback PDF de se déclencher quand l'info n'était pas présente sur la page.
+
+### 🛠️ Technique
+- **Retry réseau global** — Tous les scrapers bénéficient d'un retry automatique en cas de timeout réseau (2 tentatives max, 10s entre chaque).
+- **User-Agent mis à jour** — Passage à Chrome 131 pour une meilleure compatibilité avec les protections anti-bot.
+- **Détection SIM gratuite Lebara** — Patterns reconnus : « SIM gratuite », « carte SIM 0€ », « SIM offerte ».
+- **Parsing PDF via `pdf-parse` v2** — Utilisation de l'API `PDFParse` pour télécharger et extraire le texte brut des PDF de CGS. Les frais sont recherchés dynamiquement via des patterns regex multi-variantes (résiliation, activation, mise en service, fermeture, souscription, carte SIM).
+- **Architecture fallback à 4 niveaux** — Pour chaque donnée manquante (SIM, activation, résiliation), le système suit la chaîne : page web → checkout/panier → PDF des CGS → `defaultSimPrice` configurable. La logique est centralisée dans `scraper.service.ts` et s'applique à tous les opérateurs.
+- **Checkout intelligent** — La détection du bouton CTA utilise 10 keywords conjugués (`je choisis`, `je commande`, `commander`, `souscrire`…), exclut automatiquement les éléments de footer/nav/header, et log l'URL de destination pour faciliter le debug.
+- **Extraction SIM PDF améliorée** — Nouvelle stratégie en 2 phases : d'abord une extraction directe (« Carte SIM facturée X€ »), puis une analyse par paragraphes fusionnés avec priorisation du prix en ligne (`.fr`, `en ligne`) sur le prix en boutique/bureau de poste.
+- **Détection SIM site robustifiée** — Les patterns numériques sont testés AVANT les patterns « offert/gratuit » pour éviter les faux positifs promotionnels (ex: « SIM offerte pour les abonnés Freebox »). Appliqué à Free Mobile, Coriolis et potentiellement tous les scrapers touchés.
 
 ---
 
