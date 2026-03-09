@@ -122,7 +122,7 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
               Alternatives Solides
             </div>
             
-            <div class="grid md:grid-cols-3 gap-8">
+            <div class="grid md:grid-cols-3 gap-6 md:gap-8">
               <DealCard 
                 v-for="deal in otherOffers" 
                 :key="deal.id" 

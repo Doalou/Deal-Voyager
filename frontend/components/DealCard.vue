@@ -59,7 +59,7 @@ const formattedScore = (score: number | null) => {
     <div class="flex-1">
       <OperatorBadge :name="deal.operator" :network="deal.network || 'Inconnu'" :network-generation="deal.networkGeneration" class="mb-6"/>
       
-      <h3 :class="['font-black mb-4 leading-tight', isStarOffer ? 'text-4xl md:text-5xl text-primary-foreground' : 'text-2xl text-card-foreground']">
+      <h3 :class="['font-black mb-4 leading-tight', isStarOffer ? 'text-3xl md:text-5xl text-primary-foreground' : 'text-xl md:text-2xl text-card-foreground']">
         {{ deal.planName }}
       </h3>
       
@@ -84,25 +84,25 @@ const formattedScore = (score: number | null) => {
       </div>
     </div>
     
-    <div :class="['mt-auto pt-6 border-t-4 border-border flex items-end justify-between', isStarOffer ? 'flex-col sm:flex-row sm:items-end gap-4' : 'flex-row']">
+    <div :class="['mt-auto pt-6 border-t-4 border-border flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-0']">
       
       <div>
         <div :class="['text-sm font-bold uppercase mb-1', isStarOffer ? 'text-primary-foreground' : 'text-card-foreground']">Prix mensuel</div>
         <div class="flex items-baseline font-black leading-none">
-          <span :class="isStarOffer ? 'text-6xl md:text-7xl text-primary-foreground' : 'text-4xl text-card-foreground'">{{ deal.price.toString().split('.')[0] }}</span>
-          <span :class="isStarOffer ? 'text-4xl text-primary-foreground' : 'text-2xl text-card-foreground'">,{{ deal.price.toFixed(2).split('.')[1] || '00' }}</span>
+          <span :class="isStarOffer ? 'text-5xl md:text-7xl text-primary-foreground' : 'text-3xl md:text-4xl text-card-foreground'">{{ deal.price.toString().split('.')[0] }}</span>
+          <span :class="isStarOffer ? 'text-3xl md:text-4xl text-primary-foreground' : 'text-xl md:text-2xl text-card-foreground'">,{{ deal.price.toFixed(2).split('.')[1] || '00' }}</span>
           <span :class="['text-xl ml-1 block mt-2', isStarOffer ? 'text-primary-foreground' : 'text-card-foreground']">€</span>
         </div>
       </div>
 
-      <div class="text-right flex flex-col items-end gap-1">
-        <div class="bg-card border-2 border-border px-3 py-1 font-bold text-xs uppercase shadow-neo-hover flex flex-col items-end leading-tight text-card-foreground">
+      <div class="text-left sm:text-right flex flex-col items-start sm:items-end gap-1 w-full sm:w-auto">
+        <div class="bg-card border-2 border-border px-3 py-1 font-bold text-xs uppercase shadow-neo-hover flex flex-col items-start sm:items-end leading-tight text-card-foreground w-full sm:w-auto">
           <span>Carte SIM: <span class="text-primary text-base">{{ simPrice }}€</span></span>
           <span v-if="activationPrice > 0" class="text-[10px] text-muted-foreground">Activation: {{ activationPrice }}€</span>
           <span v-if="cancellationPrice > 0" class="text-[10px] text-muted-foreground">Résiliation: {{ cancellationPrice }}€</span>
         </div>
         <div :class="[
-          'px-3 py-1 font-bold text-xs uppercase', 
+          'px-3 py-1 font-bold text-xs uppercase w-full sm:w-auto text-center sm:text-right', 
           isStarOffer ? 'bg-foreground text-background' : 'bg-muted border-2 border-border text-muted-foreground'
         ]">
           1 an: {{ (deal.price * 12 + simPrice + activationPrice + cancellationPrice).toFixed(2) }}€

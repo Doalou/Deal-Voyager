@@ -30,7 +30,7 @@ const badgeClass = computed(() => getOperatorStyle(props.name))
 </script>
 
 <template>
-  <div class="flex items-center gap-3">
+  <div class="flex flex-wrap items-center gap-2 md:gap-3">
     <div :class="['px-4 py-1.5 font-black uppercase text-sm border-2 border-border shadow-neo-hover transform -rotate-2', badgeClass]">
       {{ name }}
     </div>

@@ -56,17 +56,17 @@ const finishEditing = () => {
 <template>
   <div class="w-full max-w-4xl mx-auto bg-card text-card-foreground border-4 border-border shadow-neo-lg p-6 md:p-10 mb-16 z-20 relative">
     
-    <div class="flex items-end justify-between mb-8 border-b-4 border-border pb-4">
-      <h2 class="text-xl md:text-2xl font-black uppercase tracking-wider text-card-foreground">Vos Besoins en Data</h2>
+    <div class="flex flex-col md:flex-row items-center justify-between mb-8 border-b-4 border-border pb-6 gap-6 md:gap-0">
+      <h2 class="text-xl md:text-2xl font-black uppercase tracking-wider text-card-foreground text-center md:text-left">Vos Besoins en Data</h2>
       
       <!-- Editable value display -->
       <div 
-        class="bg-primary text-primary-foreground border-4 border-border px-6 py-2 shadow-neo font-black text-4xl transform rotate-2 cursor-pointer hover:shadow-neo-hover transition-all"
+        class="bg-primary text-primary-foreground border-4 border-border px-6 py-2 shadow-neo font-black text-3xl md:text-4xl transform rotate-2 cursor-pointer hover:shadow-neo-hover transition-all"
         @click="startEditing"
         v-if="!isEditing"
         title="Cliquez pour saisir une valeur"
       >
-        {{ value }} <span class="text-xl">Go</span>
+        {{ value }} <span class="text-lg md:text-xl">Go</span>
       </div>
       
       <!-- Input mode -->
@@ -77,12 +77,12 @@ const finishEditing = () => {
           min="0"
           max="500"
           autofocus
-          class="w-24 text-4xl font-black bg-transparent text-center text-primary-foreground outline-none border-b-4 border-border"
+          class="w-20 md:w-24 text-3xl md:text-4xl font-black bg-transparent text-center text-primary-foreground outline-none border-b-4 border-border"
           @keyup.enter="finishEditing"
           @keyup.escape="isEditing = false"
           @blur="finishEditing"
         />
-        <span class="text-xl font-black">Go</span>
+        <span class="text-lg md:text-xl font-black">Go</span>
       </div>
     </div>
     

@@ -29,12 +29,12 @@ const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1
         <span class="font-bold text-xl uppercase tracking-wider text-card-foreground">📡 Deal-Voyager</span>
       </div>
       
-      <h1 class="text-5xl md:text-7xl font-black tracking-tight mb-8 leading-tight text-foreground">
+      <h1 class="text-4xl md:text-7xl font-black tracking-tight mb-8 leading-tight text-foreground">
         Trouvez votre forfait <br/> 
         <span class="inline-block bg-primary text-primary-foreground px-4 py-1 border-4 border-border mt-2 transform rotate-1">IDÉAL</span>
       </h1>
       
-      <p class="text-xl md:text-2xl font-medium text-card-foreground max-w-2xl mx-auto bg-card border-2 border-border p-4 shadow-neo">
+      <p class="text-lg md:text-2xl font-medium text-card-foreground max-w-2xl mx-auto bg-card border-2 border-border p-4 shadow-neo">
         Ajustez le curseur, on vous trouve <span class="font-black bg-secondary text-secondary-foreground px-1">le forfait le moins cher</span> au centime près.
       </p>
 
