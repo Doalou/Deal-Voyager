@@ -51,13 +51,15 @@ const formattedScore = (score: number | null) => {
       </div>
     </div>
 
-    <!-- Alert not fairplay -->
-    <div v-if="!isFairplay" class="absolute -top-3 left-4 bg-destructive text-destructive-foreground px-3 py-1 text-xs font-bold uppercase border-2 border-border shadow-neo transform -rotate-2 z-10">
-      ⚠️ Augmentation probable
-    </div>
-
     <div class="flex-1">
-      <OperatorBadge :name="deal.operator" :network="deal.network || 'Inconnu'" :network-generation="deal.networkGeneration" class="mb-6"/>
+      <div class="flex flex-col gap-4 mb-6 relative z-10">
+        <OperatorBadge :name="deal.operator" :network="deal.network || 'Inconnu'" :network-generation="deal.networkGeneration" />
+        
+        <!-- Alert not fairplay -->
+        <div v-if="!isFairplay" class="self-start inline-flex bg-destructive text-destructive-foreground px-3 py-1 text-xs font-bold uppercase border-2 border-border shadow-neo transform -rotate-2">
+          ⚠️ Augmentation probable
+        </div>
+      </div>
       
       <h3 :class="['font-black mb-4 leading-tight', isStarOffer ? 'text-3xl md:text-5xl text-primary-foreground' : 'text-xl md:text-2xl text-card-foreground']">
         {{ deal.planName }}
