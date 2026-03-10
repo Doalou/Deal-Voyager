@@ -19,10 +19,9 @@ export const bAndYouScrapeLogic: ScraperConfig["scrapeFunction"] = async (
 
     // Scroller tout en bas pour charger les mentions légales et tout le contenu
     await page.evaluate(async () => {
-      const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
       for (let i = 0; i < 5; i++) {
         window.scrollTo(0, document.body.scrollHeight);
-        await delay(800);
+        await new Promise((r) => setTimeout(r, 800));
       }
     });
     await new Promise((r) => setTimeout(r, 3000));

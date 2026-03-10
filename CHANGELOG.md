@@ -2,6 +2,16 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [1.1.1] — 2026-03-10
+
+### 🔧 Corrections
+- **Fix crash scrapers B&You et Coriolis en production (`__name is not defined`)** — Les scrapers B&You et Coriolis crashaient systématiquement en environnement Docker/production avec l'erreur `ReferenceError: __name is not defined`. Cause : `tsx` (via `esbuild`) injecte un helper `__name(fn, "name")` autour des fonctions nommées pour préserver leur propriété `.name`. Lorsqu'une fonction nommée est déclarée à l'intérieur d'un callback `page.evaluate()`, Puppeteer sérialise ce callback et l'envoie au navigateur Chromium — où `__name` n'existe pas. Deux occurrences corrigées :
+  - **B&You** : `const delay = (ms) => ...` dans le scroll progressif → remplacé par `await new Promise(r => setTimeout(r, 800))` inline.
+  - **Coriolis** : `const detect5G = (dataGb, idx) => {...}` pour la détection 5G → logique inlinée directement aux deux sites d'appel.
+
+### 🛠️ Technique
+- **Règle de dev : ne jamais déclarer de fonctions nommées dans `page.evaluate()`** — Les déclarations `const fn = () => {}` ou `function fn() {}` à l'intérieur d'un `page.evaluate()` sont transformées par esbuild en `const fn = __name(() => {}, "fn")`, ce qui casse l'exécution dans le contexte navigateur. Utiliser uniquement des expressions inline ou des variables simples.
+
 ## [1.1.0] — 2026-03-10
 
 ### 🔧 Corrections
