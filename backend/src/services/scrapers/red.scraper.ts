@@ -172,7 +172,7 @@ export const redScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
                 const gen = (price.has5G || /\b5g\b/i.test(labelText)) ? '5G' : '4G';
 
                 if (price.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
-                    plans.push({ planName: `${dataGb} Go`, dataGb, price: price.bestPrice, calls: price.calls, networkGeneration: gen, dataEuGb: price.euGb || 0, simPrice: price.simPrice, activationPrice: price.activationPrice, cancellationPrice: price.cancellationPrice });
+                    plans.push({ planName: `${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`, dataGb, price: price.bestPrice, calls: price.calls, networkGeneration: gen, dataEuGb: price.euGb || 0, simPrice: price.simPrice, activationPrice: price.activationPrice, cancellationPrice: price.cancellationPrice });
                 }
             } catch (err) {
                 console.warn('[RED] Erreur:', err);

@@ -162,6 +162,23 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
 
     </main>
 
+    <!-- Section Promotion Discord -->
+    <section class="container mx-auto px-4 mt-24 relative z-10 flex justify-center">
+      <div class="neo-box bg-[#5865F2] text-white p-8 md:p-12 w-full max-w-5xl flex flex-col items-center justify-center text-center transform -rotate-1 hover:rotate-0 transition-transform duration-300">
+        <h2 class="text-3xl md:text-5xl font-black uppercase mb-4 tracking-tight drop-shadow-md">
+          Ne Ratez Plus Aucun Deal 🚀
+        </h2>
+        <p class="text-lg md:text-xl font-medium max-w-2xl mb-8 border-l-4 border-wht pl-4 inline-block text-left bg-black shadow-neo px-4 py-2 border-2">
+          Le monde des opérateurs évolue vite. Ajoutez notre <span class="font-bold underline text-accent">Bot Discord Deal Voyager</span> sur vos serveurs ou rejoignez la communauté pour recevoir une notification <strong>en temps réel</strong> dès qu'un forfait baisse de prix ou qu'une offre cachée apparaît sur le marché !
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="#" class="inline-block bg-white text-[#5865F2] font-black text-xl uppercase px-8 py-4 border-4 border-black shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-neo-hover transition-all">
+            🤖 Inviter le Bot
+          </a>
+        </div>
+      </div>
+    </section>
+
     <!-- Section Méthodologie -->
     <section class="container mx-auto px-4 mt-24 mb-16 relative z-10">
       <div class="neo-box bg-card p-8 md:p-12 border-4 border-border text-card-foreground">

@@ -266,8 +266,8 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
 
         const keywords = [
             'j\'en profite', 'choisir ce forfait', 'je choisis', 'je commande', 'je souscris',
-            'étape suivante', 'aller au panier', 'continuer', 'souscrire', 'commander',
-            'ajouter au panier', 'acheter', 'sélectionner', 'choisir'
+            'etape suivante', 'aller au panier', 'continuer', 'souscrire', 'commander',
+            'ajouter au panier', 'acheter', 'selectionner', 'choisir'
         ];
 
         let clicked = await page.evaluate((kws) => {
@@ -279,8 +279,9 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
 
             for (const kw of kws) {
                 for (const el of buttons) {
-                    const text = (el.textContent || '').toLowerCase().trim();
-                    if (text.length > 60) continue;
+                    const originalText = (el.textContent || '').trim();
+                    const text = originalText.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                    if (originalText.length > 60) continue;
 
                     const href = (el.getAttribute('href') || '').toLowerCase();
                     if (excludeUrlKeywords.some(excludeKw => href.includes(excludeKw))) {
@@ -311,8 +312,9 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
                 const excludeUrlKeywords = ['guide', 'faq', 'assistance', 'blog', 'forum', 'actualite', 'news'];
                 for (const kw of kws) {
                     for (const el of buttons) {
-                        const text = (el.textContent || '').toLowerCase().trim();
-                        if (text.length > 60) continue;
+                        const originalText = (el.textContent || '').trim();
+                        const text = originalText.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                        if (originalText.length > 60) continue;
                         const href = (el.getAttribute('href') || '').toLowerCase();
                         if (excludeUrlKeywords.some(excludeKw => href.includes(excludeKw))) continue;
                         if (kw === 'choisir' && !(text === 'choisir' || text.startsWith('choisir '))) continue;
@@ -341,8 +343,9 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
 
                 for (const kw of kws) {
                     for (const el of links) {
-                        const text = (el.textContent || '').toLowerCase().trim();
-                        if (text.length > 60) continue;
+                        const originalText = (el.textContent || '').trim();
+                        const text = originalText.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                        if (originalText.length > 60) continue;
                         const href = (el.getAttribute('href') || '').toLowerCase();
 
                         if (excludeUrlKeywords.some(excludeKw => href.includes(excludeKw))) {
@@ -427,7 +430,9 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
                             continue;
                         }
                         const price = parseFloat(m[1].replace(',', '.'));
-                        if (price >= 0 && price <= 100) { activationPrice = price; break; }
+                        // Maximum reasonable activation fee for a French mobile plan is around 10-15€. 
+                        // If it's 48€, it's a Bbox/Fiber cross-sell.
+                        if (price >= 0 && price <= 20) { activationPrice = price; break; }
                     }
                 }
             }

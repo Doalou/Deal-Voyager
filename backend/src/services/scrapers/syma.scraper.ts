@@ -145,7 +145,7 @@ export const symaMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
             }
 
             return finalPlans.map((p: any) => ({
-                planName: `Forfait Syma Mobile ` + (p.name ? `le ${p.name}` : `${p.dataGb} Go`),
+                planName: `Forfait Syma Mobile ` + (p.name ? `le ${p.name}` : `${p.dataGb >= 1 ? p.dataGb + ' Go' : (p.dataGb * 1000) + ' Mo'}`),
                 dataGb: p.dataGb,
                 price: p.price,
                 calls: 'Illimités',

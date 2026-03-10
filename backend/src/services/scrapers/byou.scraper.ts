@@ -187,7 +187,10 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                     ];
                     for (const pat of actPats) {
                         const m = lowerVis.match(pat);
-                        if (m) { activationPrice = parseFloat(m[1].replace(',', '.')); break; }
+                        if (m) {
+                            const val = parseFloat(m[1].replace(',', '.'));
+                            if (val <= 20) { activationPrice = val; break; }
+                        }
                     }
 
                     let cancellationPrice: number | null = null;

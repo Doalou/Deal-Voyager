@@ -14,7 +14,9 @@
   "description": "",
   "dependencies": {
     "@prisma/client": "6.19.0",
+    "axios": "^1.13.6",
     "cors": "^2.8.6",
+    "discord.js": "^14.25.1",
     "express": "^5.1.0",
     "node-schedule": "^2.1.1",
     "pdf-parse": "^2.4.5",

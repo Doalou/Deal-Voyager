@@ -100,7 +100,7 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                         }
 
                         results.push({
-                            planName: `Coriolis ${planName} ${dataGb} Go`,
+                            planName: `Coriolis ${planName} ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`,
                             dataGb,
                             price,
                             calls: 'Illimités',
@@ -154,7 +154,7 @@ export const coriolisScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                         }
 
                         results.push({
-                            planName: planName ? `Coriolis ${planName} ${dataGb} Go` : `Coriolis ${dataGb} Go`,
+                            planName: planName ? `Coriolis ${planName} ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}` : `Coriolis ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`,
                             dataGb,
                             price,
                             calls: 'Illimités',

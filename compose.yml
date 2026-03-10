@@ -34,6 +34,8 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - CORS_ORIGIN=http://frontend:3000
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
 
   frontend:
     container_name: deal_voyager_frontend

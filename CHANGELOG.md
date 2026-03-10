@@ -2,10 +2,27 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [0.7.0] — 2026-03-10
+
+### ✨ Nouvelles fonctionnalités
+- **Page 404 Néo-Brutaliste** — Création d'une page d'erreur 404 sur-mesure respectant l'identité visuelle du projet. Design en CSS pur (sans images), typographie massive, blocs colorés (`primary`/`secondary`) et ombres portées (`shadow-neo`). Support complet du mode sombre avec accessibilité renforcée (texte contrasté sur fond jaune).
+
+### 🔧 Corrections
+- **Fix "0 Mo" (Migration Prisma Float)** — Le champ `dataGb` en base de données est passé du type `Int` au type `Float`. Auparavant, les forfaits < 1 Go (ex: 100 Mo -> 0.1 Go) étaient tronqués à 0 par PostgreSQL. Ils s'affichent désormais correctement sur le site et dans le bot en Mo. 
+- **Fix Formatage Bot Discord (Mo)** — Le bot Discord adapte désormais automatiquement l'unité (Go/Mo) pour les forfaits de moins de 1 Go, garantissant une cohérence visuelle avec le site web. 
+- **Fix Robustesse B&You (Normalisation)** — Correction d'un bug intermittent (1/2 échec) lors du checkout B&You. Le scraper normalise désormais les accents des boutons (ex: "é" -> "e"), permettant de cliquer sur "Étape suivante" sans erreur d'encodage. 
+- **Fix Accessibilité Dark Mode (404)** — Correction du mauvais contraste (blanc sur jaune) sur la page 404 en mode sombre en forçant l'utilisation de `text-primary-foreground` (noir) sur les éléments `primary`. 
+
+### 🛠️ Technique
+- **Migration Schema DB** — Exécution de `npx prisma db push` pour le passage au type `Float` de la colonne `dataGb`. 
+- **Cleanup Scrapers** — Suppression des scripts de débogage temporaires (`test-byou.ts`) pour garder un environnement backend propre. 
+
 ## [0.6.0] — 2026-03-08
 
 ### ✨ Nouvelles fonctionnalités
 - **Support analytique (Matomo)** — Préparation de l'intégration optionnelle de Matomo Analytics via Docker (`matomo` / `matomo_db`) et le module `@nuxt/scripts` côté frontend, respectueux de la vie privée.
+- **Bot Discord Néo-Brutaliste** — Intégration d'un véritable Bot Discord (`discord.js`) qui notifie passivement les utilisateurs. Une commande `/deal-setup` permet aux administrateurs de serveurs d'enregistrer leur salon pour recevoir automatiquement de sublimes alertes Format Embed avec les couleurs de l'opérateur.
+- **Bannière Automatique Discord** — Création d'un très grand encart `#5865F2` (bleu Discord) en bas de page pour inciter la communauté à rejoindre le serveur et à installer le bot.
 - **Forfaits illimités NRJ Mobile** — Le scraper détecte désormais les forfaits « Illimité » (stockés avec `dataGb: 9999`) en plus des forfaits classiques à enveloppe fixe.
 - **Prix SIM dynamique par plan** — NRJ Mobile, Auchan, Lebara, Sosh, RED by SFR, Free, B&You, YouPrice, Coriolis, La Poste Mobile, Cdiscount et Syma détectent automatiquement le prix de la carte SIM depuis la page catalogue. Plus besoin de le saisir manuellement, y compris pour les promos Lebara à 0€.
 - **Frais d'Activation et Résiliation Dynamiques** — Les 12 scrapers parcourent dynamiquement les pages forfaits pour extraire automatiquement les prix de carte SIM, les éventuels frais d'activation ou de mise en service, et les frais de résiliation trouvés dans les mentions légales ou textes de description.
@@ -31,6 +48,14 @@ Toutes les modifications notables de ce projet sont documentées ici.
 - **Fix Free Mobile (timeouts intermittents)** — Ajout d'un mécanisme de retry avec délai de 10s en cas d'erreur réseau `ERR_TIMED_OUT`, appliqué à tous les scrapers.
 - **Fix NRJ Mobile (plan manquant)** — Le forfait Illimité 5G n'était pas détecté car le regex ne matchait que `\d+ Go`.
 - **Fix frais de résiliation non détectés** — NRJ Mobile, Cdiscount Mobile, Auchan Telecom et B&You initialisaient les frais de résiliation à 0€ par défaut au lieu de `null`, empêchant le fallback PDF de se déclencher quand l'info n'était pas présente sur la page.
+- **Fix faux frais d'activation B&You (48€)** — Le scraper B&You interceptait parfois les "Frais de mise en service de 48€" liés à une offre Fibre Bbox affichée en cross-sell (vente croisée) ou dans le panier. Les frais d'activation mobiles sont désormais formellement plafonnés à 20€ dans l'algorithme d'extraction (`utils.ts`) pour ignorer le matériel fixe.
+
+### 🎨 Design
+- **Responsive Mobile-First** — Refonte complète des composants de l'interface (`HeroSection`, `DataSlider`, `DealCard`, `OperatorBadge`) pour garantir un affichage fluide sur smartphone sans débordement horizontal ni texte écrasé :
+  - **Titres fluides** : Utilisation d'échelles de classes (`text-4xl md:text-7xl`) pour adapter la typographie Néo-Brutaliste aux petits écrans.
+  - **Empilement (Stacking)** : Les rangées (`flex-row`) de la barre de Data ("Go") et du récapitulatif des prix (`DealCard`) se transforment désormais en colonnes (`flex-col`) sur mobile pour préserver la lisibilité de chaque bloc.
+  - **Badges fluides** : Les étiquettes de réseau, de 5G et d'alerte (`Augmentation probable`) utilisent désormais le retour à la ligne (`flex-wrap`) ou s'intègrent au flux naturel (`DealCard`) pour éviter de chevaucher le texte ou le ruban de la carte Star sur mobile.
+  - **Grille adaptative** : Espacement de grille `gap-6` sur mobile (`md:gap-8`) sur la grille des forfaits pour optimiser l'espace écran.
 
 ### 🛠️ Technique
 - **Retry réseau global** — Tous les scrapers bénéficient d'un retry automatique en cas de timeout réseau (2 tentatives max, 10s entre chaque).
@@ -73,6 +98,7 @@ Toutes les modifications notables de ce projet sont documentées ici.
 ### 🎨 Design
 - **Badges Opérateurs** — Couleurs de marque dédiées pour les 12 opérateurs : Sosh (orange), RED (rouge), B&You (bleu), Free (rouge foncé), YouPrice (bleu nuit), Coriolis (violet), La Poste Mobile (jaune), NRJ Mobile (rouge vif), Auchan Telecom (rouge), Cdiscount Mobile (bleu marine), Syma Mobile (vert), Lebara (magenta).
 - **Encart Coût 1 an** — Taille réduite et alignement sur l'encart des frais opérateur pour une lecture plus cohérente des cartes forfait.
+- **Bannière Automatique Discord** — Création d'un très grand encart `#5865F2` (bleu Discord) en bas de page pour inciter la communauté à rejoindre le serveur et à installer le bot.
 
 ### 🛠️ Technique
 - **Proxy Nitro** — Les appels API frontend passent maintenant par un proxy Nuxt (`routeRules`) au lieu d'appeler `http://localhost:3001` en dur. Seul le port du frontend est exposé.
@@ -80,6 +106,12 @@ Toutes les modifications notables de ce projet sont documentées ici.
 - **Unicité DB renforcée** — La recherche de doublons en base inclut maintenant le champ `network` pour éviter d'écraser des forfaits sur des réseaux différents.
 - **Scrapers résilients** — Les 6 nouveaux scrapers gèrent le rendering multi-ligne (BTBD, ex. EI Telecom), les prix split, les promos (La Poste Mobile prend le prix hors promo), et retournent `[]` en cas d'échec sans bloquer les autres.
 - **README restructuré** — Documentation mise à jour avec le schéma d'architecture, la section sécurité, les instructions de déploiement serveur et la table des 12 opérateurs.
+
+### 🔒 Sécurité
+- **Bouton d'administration masqué** — Retrait du bouton d'accès au panel admin (`⚙️ Admin`) présent en dur dans le pied de page (`footer`). Le panel reste exclusivement accessible en se rendant manuellement sur la route `/admin`.
+- **CORS restreint (Nuxt)** — Les requêtes vers l'API sont bloquées si elles ne proviennent pas du domaine défini dans `.env` (`CORS_ORIGIN`).
+- **Isolation réseau Docker** — Le frontend communique en direct avec le backend via le réseau Docker privé (`http://backend:3001`). Seul le frontend est exposé sur le port public `3000`.
+- **Basic Auth (Proxy Caddy)** — Le panel `deal.doalo.fr/admin` est protégé par un rempart d'authentification HTTP intégré au reverse-proxy (limite les bruteforces sur l'API Node).
 
 ---
 

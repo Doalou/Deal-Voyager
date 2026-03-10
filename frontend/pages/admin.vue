@@ -379,7 +379,7 @@ const dealsByOperator = computed(() => {
               <tr v-for="deal in operatorDeals" :key="deal.id" class="border-b-2 border-border last:border-0 hover:bg-primary/10 transition-colors">
                 <td class="p-3 md:p-4 font-bold text-lg border-r-2 border-border">{{ deal.planName }}</td>
                 <td class="p-3 md:p-4 text-center font-bold border-r-2 border-border">
-                  <span class="bg-secondary text-secondary-foreground border-2 border-border px-2 py-0.5 text-sm">{{ deal.dataGb }} Go</span>
+                  <span class="bg-secondary text-secondary-foreground border-2 border-border px-2 py-0.5 text-sm">{{ deal.dataGb < 1 ? (deal.dataGb * 1000) + ' Mo' : deal.dataGb + ' Go' }}</span>
                 </td>
                 <td class="p-3 md:p-4 text-center border-r-2 border-border">
                   <span :class="[

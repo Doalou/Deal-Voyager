@@ -16,8 +16,8 @@ import { nrjMobileScrapeLogic } from './scrapers/nrj.scraper';
 import { cdiscountMobileScrapeLogic } from './scrapers/cdiscount.scraper';
 import { symaMobileScrapeLogic } from './scrapers/syma.scraper';
 import { lebaraScrapeLogic } from './scrapers/lebara.scraper';
-import { regloMobileScrapeLogic } from './scrapers/reglo.scraper';
 import { fetchFeesFromPdf, detectFeesFromCheckout } from './scrapers/utils';
+import { broadcastDeal } from './discord.service';
 
 puppeteer.use(StealthPlugin());
 
@@ -254,7 +254,13 @@ export const scrapeOffers = async () => {
               });
 
               if (existing) {
-                await prisma.mobilePlan.update({
+                const hasChanged =
+                  existing.price !== plan.price ||
+                  existing.dataGb !== plan.dataGb ||
+                  existing.simPrice !== (plan.simPrice ?? null) ||
+                  existing.activationPrice !== (plan.activationPrice ?? null);
+
+                const updatedPlan = await prisma.mobilePlan.update({
                   where: { id: existing.id },
                   data: {
                     price: plan.price,
@@ -270,8 +276,12 @@ export const scrapeOffers = async () => {
                     score: score,
                   },
                 });
+
+                if (hasChanged) {
+                  await broadcastDeal(updatedPlan, 'UPDATE');
+                }
               } else {
-                await prisma.mobilePlan.create({
+                const newPlan = await prisma.mobilePlan.create({
                   data: {
                     operator: plan.operator,
                     planName: plan.planName,
@@ -289,6 +299,8 @@ export const scrapeOffers = async () => {
                     score: score,
                   },
                 });
+
+                await broadcastDeal(newPlan, 'NEW');
               }
             } catch (dbError) {
               console.error(`Erreur lors de la sauvegarde de l'offre "${plan.planName}" de ${plan.operator}:`, dbError);

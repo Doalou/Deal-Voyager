@@ -15,7 +15,7 @@ model MobilePlan {
   operator    String   // Nom de l'opérateur (ex: "Sosh")
   planName    String   // Nom du forfait (ex: "Le 100Go")
   price       Float    // Prix en euros par mois
-  dataGb      Int      // Quantité de data en Go
+  dataGb      Float    // Quantité de data en Go
   calls       String?  // Info sur les appels (ex: "illimités")
   sms         String?  // Info sur les SMS (ex: "illimités")
   network           String?  // Opérateur réseau (ex: "Orange", "SFR")
@@ -40,4 +40,13 @@ model OperatorSettings {
   activationPrice   Float?   // Frais d'activation supplémentaires (si existants)
   cancellationPrice Float?   // Frais de résiliation
   updatedAt         DateTime @updatedAt
+}
+
+model DiscordSubscription {
+  id        Int      @id @default(autoincrement())
+  guildId   String   // The Discord Server ID
+  channelId String   // The Discord Channel ID to post in
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, channelId])
 }

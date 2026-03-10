@@ -3,6 +3,7 @@ import cors from 'cors';
 import scrapeRouter from './routes/scrape.router';
 
 import { scrapeOffers } from './services/scraper.service';
+import { initDiscordBot } from './discord';
 import schedule from 'node-schedule';
 
 const app = express();
@@ -39,6 +40,7 @@ schedule.scheduleJob('0 * * * *', () => {
   scrapeOffers();
 });
 
-app.listen(Number(port), '0.0.0.0', () => {
+app.listen(Number(port), '0.0.0.0', async () => {
   console.log(`Server is running on http://0.0.0.0:${port}`);
-}); 
+  await initDiscordBot();
+});

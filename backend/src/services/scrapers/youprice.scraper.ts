@@ -105,7 +105,7 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
                 }
 
                 results.push({
-                    planName: `Forfait YouPrice ${dataGb} Go (${currentNetwork})`,
+                    planName: `Forfait YouPrice ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'} (${currentNetwork})`,
                     dataGb,
                     price,
                     calls: 'Illimités',
