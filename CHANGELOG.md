@@ -6,16 +6,19 @@ Toutes les modifications notables de ce projet sont documentées ici.
 
 ### ✨ Nouvelles fonctionnalités
 - **Page 404 Néo-Brutaliste** — Création d'une page d'erreur 404 sur-mesure respectant l'identité visuelle du projet. Design en CSS pur (sans images), typographie massive, blocs colorés (`primary`/`secondary`) et ombres portées (`shadow-neo`). Support complet du mode sombre avec accessibilité renforcée (texte contrasté sur fond jaune).
+- **Bannière Promotionnelle Discord** — Ajout d'une section massive et colorée sur la page d'accueil incitant les utilisateurs à rejoindre le bot Discord pour suivre l'évolution des forfaits.
+- **Sécurité par l'obscurité (Admin)** — Retrait du bouton "Admin" visible dans le footer public pour plus de discrétion. L'accès au panneau de contrôle se fait désormais uniquement via l'URL directe `/admin`.
 
 ### 🔧 Corrections
-- **Fix "0 Mo" (Migration Prisma Float)** — Le champ `dataGb` en base de données est passé du type `Int` au type `Float`. Auparavant, les forfaits < 1 Go (ex: 100 Mo -> 0.1 Go) étaient tronqués à 0 par PostgreSQL. Ils s'affichent désormais correctement sur le site et dans le bot en Mo. 
-- **Fix Formatage Bot Discord (Mo)** — Le bot Discord adapte désormais automatiquement l'unité (Go/Mo) pour les forfaits de moins de 1 Go, garantissant une cohérence visuelle avec le site web. 
-- **Fix Robustesse B&You (Normalisation)** — Correction d'un bug intermittent (1/2 échec) lors du checkout B&You. Le scraper normalise désormais les accents des boutons (ex: "é" -> "e"), permettant de cliquer sur "Étape suivante" sans erreur d'encodage. 
-- **Fix Accessibilité Dark Mode (404)** — Correction du mauvais contraste (blanc sur jaune) sur la page 404 en mode sombre en forçant l'utilisation de `text-primary-foreground` (noir) sur les éléments `primary`. 
+- **Fix "0 Mo" (Migration Prisma Float)** — Le champ `dataGb` en base de données est passé du type `Int` au type `Float`. Cela corrige le bug où les forfaits < 1 Go (ex: 100 Mo -> 0.1 Go) étaient arrondis à 0 par PostgreSQL. Ils s'affichent désormais parfaitement en Mo partout.
+- **Fix Formatage Bot Discord (Mo)** — Le bot Discord adapte désormais son unité (Go/Mo) pour les forfaits de moins de 1 Go, assurant une cohérence visuelle parfaite avec le site web.
+- **Fix Formatage Syma (Mo)** — Mise à jour du scraper Syma pour formater correctement les noms de forfaits en "Mo" au lieu de "Go" pour les petites enveloppes data.
+- **Fix Robustesse B&You (Normalisation)** — Résolution du problème de checkout intermittent (échec 1 fois sur 2). Le scraper normalise maintenant les accents des boutons (é -> e), permettant de cliquer sur "Étape suivante" sans erreur d'encodage.
+- **Fix Accessibilité Dark Mode (404)** — Correction du contraste sur la page 404 en mode sombre en forçant le texte noir sur fond jaune.
 
 ### 🛠️ Technique
-- **Migration Schema DB** — Exécution de `npx prisma db push` pour le passage au type `Float` de la colonne `dataGb`. 
-- **Cleanup Scrapers** — Suppression des scripts de débogage temporaires (`test-byou.ts`) pour garder un environnement backend propre. 
+- **Migration Schema DB** — Exécution de `npx prisma db push` pour le passage au type `Float`.
+- **Nettoyage Environnement** — Suppression des scripts de débogage temporaires (`test-byou.ts`) et des captures d'écran de test.
 
 ## [0.6.0] — 2026-03-08
 

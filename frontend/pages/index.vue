@@ -81,6 +81,14 @@ const otherOffers = computed(() => {
   return showAllDeals.value ? rest : rest.slice(0, 3)
 })
 const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
+
+const config = useRuntimeConfig()
+const discordInviteUrl = computed(() => {
+  const clientId = config.public.discordClientId
+  return clientId 
+    ? `https://discord.com/oauth2/authorize?client_id=${clientId}` 
+    : '#'
+})
 </script>
 
 <template>
@@ -172,7 +180,7 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
           Le monde des opérateurs évolue vite. Ajoutez notre <span class="font-bold underline text-accent">Bot Discord Deal Voyager</span> sur vos serveurs ou rejoignez la communauté pour recevoir une notification <strong>en temps réel</strong> dès qu'un forfait baisse de prix ou qu'une offre cachée apparaît sur le marché !
         </p>
         <div class="flex flex-col sm:flex-row gap-4">
-          <a href="#" class="inline-block bg-white text-[#5865F2] font-black text-xl uppercase px-8 py-4 border-4 border-black shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-neo-hover transition-all">
+          <a :href="discordInviteUrl" target="_blank" rel="noopener noreferrer" class="inline-block bg-white text-[#5865F2] font-black text-xl uppercase px-8 py-4 border-4 border-black shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-neo-hover transition-all">
             🤖 Inviter le Bot
           </a>
         </div>

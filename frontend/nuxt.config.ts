@@ -9,7 +9,8 @@ export default defineNuxtConfig({
         apiInternalUrl: 'http://localhost:3001',
         public: {
             matomoUrl: '',
-            matomoSiteId: ''
+            matomoSiteId: '',
+            discordClientId: process.env.DISCORD_CLIENT_ID || ''
         }
     },
     colorMode: {

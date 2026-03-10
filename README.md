@@ -18,13 +18,14 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 
 ## Fonctionnalites Principales
 
-- **Scraping Automatise & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 12 operateurs. Cron horaire + declenchement manuel. Detection automatique 4G/5G et Data Europe/DOM.
-- **Classement Transparent (Cout Reel sur 1 An)** — Tri base sur le cout annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de resiliation. Score euro/Go calcule.
-- **Design Neobrutaliste & Dark Mode** — Interface avec bordures epaisses, contrastes forts, ombres nettes et Dark Mode dynamique.
-- **Filtrage Avance** — Slider interactif (0 a 400 Go) avec saisie directe au Go pres.
-- **Liens Directs Sans Affiliation** — Acces en un clic aux pages operateurs, zero tracking.
-- **Control Room** — Panneau d'administration sur `/admin` avec suivi du scraping en temps reel, gestion des frais par operateur, label "Fairplay", et bouton de purge de la base.
-- **Deploiement Docker Securise** — Stack complete (Frontend, Backend, BDD) avec credentials configurables via `.env`, proxy interne Nitro, et zero port expose inutilement.
+- **Scraping Automatisé & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 12 opérateurs. Cron horaire + déclenchement manuel. Détection automatique 4G/5G et Data Europe/DOM.
+- **Classement Transparent (Coût Réel sur 1 An)** — Tri basé sur le coût annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de résiliation. Score euro/Go calculé.
+- **Design Néobrutaliste & Dark Mode** — Interface avec bordures épaisses, contrastes forts, ombres nettes et Dark Mode dynamique. Inclut une page 404 sur-mesure.
+- **Filtrage Avancé** — Slider interactif (0 à 500 Go) avec saisie directe au Go près et filtre exclusif par réseau (Orange, SFR, Bouygues, Free).
+- **Bot Discord Dédié** — Bot Discord formatant les alertes de nouveaux forfaits en temps réel pour vos serveurs.
+- **Liens Directs Sans Affiliation** — Accès en un clic aux pages opérateurs, zéro tracking.
+- **Control Room** — Panneau d'administration hybride (accessible uniquement via `/admin` et protégé par Basic Auth) avec suivi du scraping en temps réel, gestion des frais par opérateur, label "Fairplay", et bouton de purge de la base.
+- **Déploiement Docker Sécurisé** — Stack complète (Frontend, Backend, BDD) avec credentials configurables via `.env`, proxy interne Nitro, et zéro port exposé inutilement.
 
 ---
 
@@ -51,30 +52,30 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 
 ```text
                     ┌─────────────────────────┐
-                    │     Navigateur (port     │
-                    │     configurable)        │
+                    │     Navigateur (port    │
+                    │     configurable)       │
                     └────────────┬────────────┘
                                  │
-                    ┌────────────▼────────────┐
-                    │   Frontend Nuxt (SSR)    │
-                    │   Proxy /api/v1/** ──────┼──► Backend Express:3001
-                    │   Auth HTTP Basic        │        │
-                    └────────────┬────────────┘        │
+                    ┌────────────▼────────────┐                  ┌───────────────┐
+                    │   Frontend Nuxt (SSR)   │                  │  API Discord  │
+                    │   Proxy /api/v1/** ─────┼──► Backend ──────► (Bot alerts & │
+                    │   Auth HTTP Basic       │    Express:3001  │  Webhooks)    │
+                    └────────────┬────────────┘        │         └───────────────┘
                                  │                     ▼
 ┌────────────────┐  ┌────────────▼────────────┐  ┌────────────────┐
-│ matomo_db:3306 ◄──┼        matomo:80         │  │ PostgreSQL:5432 │
+│ matomo_db:3306 ◄──┼        matomo:80        │  │ PostgreSQL:5432│
 └────────────────┘  └─────────────────────────┘  └────────────────┘
 ```
 
-Seul le port du frontend est expose. Le backend et PostgreSQL communiquent exclusivement via le reseau Docker interne.
+Seul le port du frontend est exposé. Le backend et PostgreSQL communiquent exclusivement via le réseau Docker interne. Le Backend effectue lui-même ses requêtes sortantes vers l'API de Discord.
 
-| Couche | Technologie | Role |
+| Couche | Technologie | Rôle |
 |--------|-------------|------|
 | **Frontend** | Nuxt 4 (Vue 3) + Tailwind CSS | Interface utilisateur, SSR, proxy API via Nitro `routeRules` |
-| **Backend** | Node.js + Express 5 | API REST, orchestration du scraping, auth Basic avec rate limiting |
-| **Scrapers** | Puppeteer + Stealth Plugin | Extraction DOM + analyse textuelle heuristique par operateur |
-| **BDD** | PostgreSQL 15 + Prisma ORM | Stockage des forfaits (`MobilePlan`) et config operateurs (`OperatorSettings`) |
-| **Infra** | Docker Compose | Conteneurisation, reseau interne, healthchecks |
+| **Backend** | Node.js + Express 5 + discord.js | API REST, orchestration du scraping, alertes via Discord Bot, rate limiting |
+| **Scrapers** | Puppeteer + Stealth Plugin | Extraction DOM + analyse textuelle heuristique par opérateur |
+| **BDD** | PostgreSQL 15 + Prisma ORM | Stockage des forfaits (`MobilePlan`), paramétrage (`OperatorSettings`) et serveurs Discord cibles (`DiscordSubscription`) |
+| **Infra** | Docker Compose | Conteneurisation, réseau interne, healthchecks |
 
 ---
 
@@ -96,27 +97,30 @@ cp .env.example .env
 Editez le fichier `.env` avec vos propres credentials :
 
 ```env
-# Identifiants admin (OBLIGATOIRE)
-# /!\ Si le mot de passe contient un $, doublez-le : Pa$$word
+# Admin credentials (OBLIGATOIRE)
 ADMIN_USERNAME=votre_identifiant
 ADMIN_PASSWORD=votre_mot_de_passe
 
-# Base de donnees PostgreSQL (OBLIGATOIRE pour le mot de passe)
+# Base de données PostgreSQL (OBLIGATOIRE)
 POSTGRES_USER=dealvoyager
 POSTGRES_PASSWORD=votre_mdp_postgres
 POSTGRES_DB=deal_voyager
 
-# Port public (optionnel, defaut: 3000)
+# Configuration Discord Bot (Requis pour /deal-setup et les alertes automatiques)
+DISCORD_CLIENT_ID=votre_client_id_discord
+DISCORD_BOT_TOKEN=votre_token_bot_discord
+
+# Port public (optionnel, défaut: 3000)
 # APP_PORT=3000
 
-# Analytique Matomo (Optionnel pour v0.6.0)
+# Analytique Matomo (Optionnel)
 MATOMO_DB_PASSWORD=votre_mot_de_passe_matomo_db
 # MATOMO_PORT=8080
 # MATOMO_URL=http://localhost:8080
 # MATOMO_SITE_ID=1
 ```
 
-> **Important :** Le deploiement refuse de demarrer si les variables obligatoires ne sont pas definies.
+> **Important :** Le déploiement refuse de démarrer si les variables obligatoires ne sont pas définies.
 
 ### 2. Lancement
 
@@ -162,19 +166,33 @@ L'analytique est desactivee par defaut pour respecter la vie privee. Pour l'acti
    docker compose up -d --build frontend
    ```
 
+### 6. Configuration du Bot Discord (Optionnel)
+
+Pour permettre à votre communauté de recevoir des alertes automatiques lors de changements de prix :
+1. Créez une application sur le [Discord Developer Portal](https://discord.com/developers/applications).
+2. Ajoutez un Bot à l'application et récupérez son Token.
+3. Renseignez les variables correspondantes dans votre `.env` :
+   ```env
+   DISCORD_CLIENT_ID=votre_client_id
+   DISCORD_BOT_TOKEN=votre_token_app
+   ```
+4. Redémarrez vos conteneurs (`docker compose up -d --build`). Le bouton "Inviter le Bot" de l'accueil utilisera désormais votre Client ID.
+5. Une fois le bot invité sur un serveur Discord, un administrateur doit taper la commande `/deal-setup` dans le salon souhaité pour activer l'envoi des notifications automatiques (Format Embed Néo-Brutaliste).
+
 ---
 
-## Securite
+## Securité & Privacy
 
-| Mesure | Detail |
+| Mesure | Détail |
 |--------|--------|
-| **Pas de credentials par defaut** | Aucun fallback `admin/secret`. Variables d'environnement obligatoires. |
-| **Comparaison timing-safe** | Mots de passe compares via XOR constant-time (backend + frontend). |
+| **Pas de credentials par défaut** | Aucun fallback `admin/secret`. Variables d'environnement obligatoires. |
+| **Comparaison timing-safe** | Mots de passe comparés via XOR constant-time (backend + frontend). |
+| **Sécurité par l'obscurité** | Le bouton `/admin` n'est pas affiché publiquement dans l'interface. |
 | **Rate limiting** | 10 tentatives max par IP sur 15 min (backend). |
-| **Proxy interne** | Le backend n'est pas expose — tout passe par le proxy Nitro du frontend. |
-| **PostgreSQL isole** | Port 5432 non expose, accessible uniquement via le reseau Docker. |
+| **Proxy interne** | Le backend n'est pas exposé — tout passe par le proxy Nitro du frontend. |
+| **PostgreSQL isolé** | Port 5432 non exposé, accessible uniquement via le réseau Docker. |
 | **CORS restreint** | Whitelist configurable au lieu de `origin: *`. |
-| **Auth header transmis** | Le header HTTP Basic du navigateur est stocke cote serveur (`useState`) et reutilise pour les appels API — jamais code en dur. |
+| **Auth header transmis** | Le header HTTP Basic du navigateur est stocké côté serveur (`useState`) et réutilisé pour les appels API. |
 
 ---
 
