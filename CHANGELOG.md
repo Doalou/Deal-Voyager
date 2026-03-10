@@ -2,6 +2,18 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [1.1.0] — 2026-03-10
+
+### 🔧 Corrections
+- **Fix Lien d'invitation Discord** — Le bouton "Inviter le Bot" sur la page d'accueil renvoyait vers `#` au lieu de l'URL OAuth2 Discord. Correction de l'encodage du scope (`bot%20applications.commands` au lieu de `bot+applications.commands`) et ajout d'un indicateur visuel "Bot non configuré" quand `DISCORD_CLIENT_ID` n'est pas défini dans l'environnement.
+- **Fix Crash Loop Bot Discord (`Unknown interaction`)** — Le bot crashait en boucle lorsqu'un utilisateur exécutait `/deal-setup` et que l'opération Prisma prenait plus de 3 secondes (timeout Discord). Ajout de `deferReply()` immédiat avant l'accès DB, wrapping exhaustif de tous les `reply`/`editReply` dans des `try/catch`, et ajout d'un handler `discordClient.on('error')` pour intercepter les erreurs non gérées. Remplacement de l'option dépréciée `ephemeral: true` par `flags: MessageFlags.Ephemeral`.
+- **Fix Détection Frais B&You (SIM / Activation / Résiliation)** — Le scraper B&You utilisait le fallback (prix SIM par défaut à 10€) car les frais n'étaient plus détectables via le checkout (changement de flow côté Bouygues). Ajout d'une pré-extraction des frais depuis les mentions légales en bas de page (`Carte SIM à 1€. Frais d'activation à 1€. Frais de résiliation : 5€`), avec normalisation des caractères spéciaux (apostrophes typographiques, espaces insécables, symbole €). Les frais sont extraits une seule fois puis appliqués en cascade à tous les forfaits. Filtre intelligent pour ignorer les montants fibre (48€ mise en service, 69€ résiliation).
+- **Fix Détection Frais Syma Mobile (Activation / SIM)** — Le scraper Syma calculait correctement les frais d'activation globaux (`10€`) et le prix SIM depuis la page, mais ne les injectait jamais dans les forfaits retournés (toujours `null`). Les variables `globalActivation` et `globalSim` sont maintenant utilisées dans le `return` avec priorité au prix par forfait (`p.activationPrice`) si disponible.
+
+### 🛠️ Technique
+- **Scroll renforcé B&You** — Le scraper B&You effectue maintenant 5 scrolls progressifs (au lieu d'un seul) pour garantir le chargement complet des mentions légales en bas de page.
+- **Logs enrichis scrapers** — Ajout de logs explicites pour les frais extraits des mentions légales B&You (`[B&You] Frais extraits des mentions légales — SIM: X€, activation: X€, résiliation: X€`) et warning console quand le Discord Client ID est absent.
+
 ## [1.0.0] — 2026-03-10
 
 ### ✨ Nouvelles fonctionnalités

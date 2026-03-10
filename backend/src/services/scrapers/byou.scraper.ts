@@ -1,322 +1,560 @@
-import type { ScraperConfig, ScrapedPlan } from './types';
+import type { ScraperConfig, ScrapedPlan } from "./types";
 
-export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
+export const bAndYouScrapeLogic: ScraperConfig["scrapeFunction"] = async (
+  page,
+) => {
+  try {
+    await new Promise((r) => setTimeout(r, 5000));
+
+    // Fermer bannière cookies
     try {
-        await new Promise(r => setTimeout(r, 5000));
+      const acceptBtn = await page.$(
+        '#popin_tc_privacy_button_2, #didomi-notice-agree-button, button[id*="accept"]',
+      );
+      if (acceptBtn) {
+        await acceptBtn.click();
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    } catch (e) {}
 
-        // Fermer bannière cookies
-        try {
-            const acceptBtn = await page.$('#popin_tc_privacy_button_2, #didomi-notice-agree-button, button[id*="accept"]');
-            if (acceptBtn) {
-                await acceptBtn.click();
-                await new Promise(r => setTimeout(r, 1000));
-            }
-        } catch (e) { }
+    // Scroller tout en bas pour charger les mentions légales et tout le contenu
+    await page.evaluate(async () => {
+      const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      for (let i = 0; i < 5; i++) {
+        window.scrollTo(0, document.body.scrollHeight);
+        await delay(800);
+      }
+    });
+    await new Promise((r) => setTimeout(r, 3000));
 
-        // Scroller pour charger tout le contenu
-        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await new Promise(r => setTimeout(r, 3000));
+    // ──────────────────────────────────────────────────────────────────
+    // Pré-extraction des frais depuis les mentions légales B&You
+    // Le site affiche systématiquement en bas de page des blocs du type :
+    //   "Carte SIM à 1€. Frais d'activation à 1€ [...]. Frais de résiliation : 5€."
+    //   ou "SIM à 1€. Frais d'activation à 1€ [...]. Frais de résiliation : 5€"
+    // On les extrait une seule fois et on les appliquera à tous les forfaits.
+    // ──────────────────────────────────────────────────────────────────
+    const legalFees = await page.evaluate(() => {
+      let simPrice: number | null = null;
+      let activationPrice: number | null = null;
+      let cancellationPrice: number | null = null;
 
-        const plans: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
+      // Grab the full page text, normalise whitespace & special chars
+      const raw = document.body.innerText || "";
+      const text = raw
+        .replace(/\u00a0/g, " ") // non-breaking space
+        .replace(/\u2019/g, "'") // right single quote → apostrophe
+        .replace(/\u2018/g, "'") // left single quote → apostrophe
+        .replace(/\u20ac/g, "€"); // euro sign normalisation
 
-        // Stratégie B&You : la page utilise un configurateur dynamique avec des .radio-label
-        // Il faut cliquer sur chaque option et lire le prix dans le bandeau "Votre sélection" en bas de page
-
-        // 1. Récupérer tous les labels cliquables contenant un volume de data
-        const radioLabels = await page.$$('label.radio-label, label[class*="radio"]');
-
-        // Si pas de labels radio, essayer une approche plus large
-        let labels = radioLabels;
-        if (labels.length === 0) {
-            const allLabels = await page.$$('label');
-            for (const l of allLabels) {
-                const text = await l.evaluate((e: Element) => (e.textContent || '').trim());
-                if (/\d+\s*(Go|Mo)/i.test(text) && text.length < 50) {
-                    labels.push(l);
-                }
-            }
+      // --- SIM price ---
+      // Matches: "Carte SIM à 1€"  /  "SIM à 1€"  /  "SIM : 1€"  /  "Carte SIM à 1,00€"
+      const simPatterns = [
+        /(?:carte\s*)?sim\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+      ];
+      for (const pat of simPatterns) {
+        let m;
+        while ((m = pat.exec(text)) !== null) {
+          const val = parseFloat(m[1].replace(",", "."));
+          if (val >= 0 && val <= 20) {
+            simPrice = val;
+            break;
+          }
         }
+        if (simPrice !== null) break;
+      }
+      // "SIM gratuite / SIM offerte"
+      if (
+        simPrice === null &&
+        /(?:carte\s*)?sim\s*(?:gratuit|offert)/i.test(text)
+      ) {
+        simPrice = 0;
+      }
 
-        // Extraire les textes de chaque label pour pouvoir les re-sélectionner
-        const labelInfos: { text: string; index: number }[] = [];
-        for (let i = 0; i < labels.length; i++) {
-            try {
-                const text = await labels[i].evaluate((e: Element) => (e.textContent || '').trim());
-                if (/\d+\s*(Go|Mo)/i.test(text)) {
-                    labelInfos.push({ text, index: i });
-                }
-            } catch (e) { }
+      // --- Activation price ---
+      // Matches: "Frais d'activation à 1€"  /  "Frais d'activation : 1€"
+      //          "Frais de mise en service : 1€"  /  "Frais de souscription à 1€"
+      const actPatterns = [
+        /frais\s*d[''e]\s*activation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+        /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+        /frais\s*(?:de\s*)?souscription\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+        /activation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+      ];
+      for (const pat of actPatterns) {
+        let m;
+        while ((m = pat.exec(text)) !== null) {
+          const val = parseFloat(m[1].replace(",", "."));
+          // B&You mobile activation is usually 1€; skip anything ≥ 20€ (likely Fiber)
+          if (val >= 0 && val <= 15) {
+            activationPrice = val;
+            break;
+          }
         }
+        if (activationPrice !== null) break;
+      }
+      if (
+        activationPrice === null &&
+        /activation\s*(?:gratuit|offert)/i.test(text)
+      ) {
+        activationPrice = 0;
+      }
 
-
-        for (const info of labelInfos) {
-            try {
-                // Re-récupérer les labels à chaque itération (le DOM peut changer)
-                const currentLabels = await page.$$('label.radio-label, label[class*="radio"], label');
-
-                // Trouver le bon label
-                let targetLabel = null;
-                for (const l of currentLabels) {
-                    const text = await l.evaluate((e: Element) => (e.textContent || '').trim());
-                    if (text === info.text) {
-                        targetLabel = l;
-                        break;
-                    }
-                }
-
-                if (!targetLabel) continue;
-
-                // Extraire le volume de data du label
-                const dataMatch = info.text.match(/(\d{1,4})\s*(Go|Mo)/i);
-                if (!dataMatch) continue;
-                const rawData = parseInt(dataMatch[1], 10);
-                const unit = dataMatch[2].toLowerCase();
-                const dataGb = unit === 'mo' ? rawData / 1000 : rawData;
-
-                let specificCalls = "Illimités";
-                const explicitCallMatch = info.text.match(/(\d+)h/i);
-                if (explicitCallMatch) {
-                    specificCalls = `${explicitCallMatch[1]}h`;
-                }
-
-                // Cliquer sur le label pour sélectionner ce forfait
-                await targetLabel.evaluate((el: any) => el.click()).catch(async (e: any) => {
-                    await targetLabel.click();
-                });
-                await new Promise(r => setTimeout(r, 2000));
-
-                // Lire le prix depuis le bandeau "Votre sélection" en bas OU depuis le DOM
-                const priceData = await page.evaluate((selectedDataGb: number) => {
-                    // Stratégie 1 : bandeau de sélection en bas de page
-                    const bottomBar = document.querySelector('[class*="sticky"], [class*="bottom"], [class*="selection"], [class*="recap"], [class*="footer"]');
-                    if (bottomBar) {
-                        const text = (bottomBar.textContent || '').replace(/\u00a0/g, ' ');
-                        const priceMatch = text.match(/(\d{1,3})[,.](\d{2})\s*€\s*\/?\s*mois/i);
-                        if (priceMatch) {
-                            return { bestPrice: parseFloat(`${priceMatch[1]}.${priceMatch[2]}`), calls: "Illimités" };
-                        }
-                    }
-
-                    // Stratégie 2 : chercher le plus gros prix affiché (font-size le plus élevé)
-                    let bestPrice = 0;
-                    let biggestFontSize = 0;
-                    const allEls = document.querySelectorAll('*');
-                    for (const el of Array.from(allEls)) {
-                        const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-                        if (text.length > 30) continue;
-                        const priceMatch = text.match(/^(\d{1,3})[,.](\d{2})\s*€?$/);
-                        if (!priceMatch) continue;
-                        const fs = parseFloat(window.getComputedStyle(el).fontSize);
-                        if (fs > biggestFontSize) {
-                            biggestFontSize = fs;
-                            bestPrice = parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
-                        }
-                    }
-
-                    // Stratégie 3 : chercher le premier "X,XX€/mois" visible sur la page
-                    if (bestPrice === 0) {
-                        const bodyText = document.body.innerText;
-                        const allPrices = bodyText.match(/(\d{1,3})[,.](\d{2})\s*€\s*\/?\s*mois/gi);
-                        if (allPrices && allPrices.length > 0) {
-                            // Prendre le dernier prix trouvé (souvent le prix actuel sélectionné)
-                            const last = allPrices[allPrices.length - 1];
-                            const m = last.match(/(\d{1,3})[,.](\d{2})/);
-                            if (m) {
-                                bestPrice = parseFloat(`${m[1]}.${m[2]}`);
-                            }
-                        }
-                    }
-
-                    // Extraire les appels s'il y a une limite spécifique affichée
-                    let foundCalls = "Illimités";
-                    const pageText = document.body.innerText.toLowerCase();
-                    if (pageText.match(/(\d+)h\s*d*['’]*appels/i)) {
-                        const m = pageText.match(/(\d+)h\s*d*['’]*appels/i);
-                        if (m) foundCalls = `${m[1]}h`;
-                    }
-
-                    const visibleText = document.body.innerText;
-                    let has5G = false;
-                    const rgx5g = new RegExp(`\\b${selectedDataGb}\\s*Go`, 'i');
-                    for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
-                        const t = (el.textContent || '').trim();
-                        if (t.length < 3 || t.length > 100) continue;
-                        if (rgx5g.test(t) && /\b5g\b/i.test(t)) { has5G = true; break; }
-                    }
-                    if (!has5G) {
-                        for (const img of Array.from(document.querySelectorAll('img'))) {
-                            const attrs = `${img.getAttribute('alt') || ''} ${img.getAttribute('src') || ''}`;
-                            if (!/5g/i.test(attrs)) continue;
-                            let p: Element | null = img.parentElement;
-                            for (let d = 0; d < 8 && p; d++, p = p.parentElement) {
-                                if ((p.textContent || '').length < 300 && rgx5g.test(p.textContent || '')) { has5G = true; break; }
-                            }
-                            if (has5G) break;
-                        }
-                    }
-
-                    // Extract EU/DOM data: "XX Go utilisables en Europe"
-                    let euGb = 0;
-                    const euMatch = visibleText.match(/(\d{1,3})\s*[Gg]o\s*utilisables?\s*en\s*[Ee]urop/);
-                    if (euMatch) euGb = parseInt(euMatch[1], 10);
-
-                    // Détection du prix SIM
-                    let simPrice: number | null = null;
-                    const lowerVis = visibleText.toLowerCase();
-                    if (/sim\s*gratuit/i.test(lowerVis) || /sim\s*offert/i.test(lowerVis)) {
-                        simPrice = 0;
-                    } else {
-                        const sp = [
-                            /carte\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
-                            /activation\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
-                            /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim|activation\s*sim)/i,
-                            /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-                        ];
-                        for (const pat of sp) {
-                            const sm = lowerVis.match(pat);
-                            if (sm) { simPrice = parseFloat(sm[1].replace(',', '.')); break; }
-                        }
-                    }
-
-                    // Détection frais d'activation
-                    let activationPrice: number | null = null;
-                    const actPats = [
-                        /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-                        /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-                        /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-                    ];
-                    for (const pat of actPats) {
-                        const m = lowerVis.match(pat);
-                        if (m) {
-                            const val = parseFloat(m[1].replace(',', '.'));
-                            if (val <= 20) { activationPrice = val; break; }
-                        }
-                    }
-
-                    let cancellationPrice: number | null = null;
-                    const cancelPats = [
-                        /frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-                        /r[ée]siliation\s*gratuit/i,
-                    ];
-                    for (const cp of cancelPats) {
-                        if (cp.source.includes('gratuit') && cp.test(lowerVis)) {
-                            cancellationPrice = 0; break;
-                        }
-                        const m = lowerVis.match(cp);
-                        if (m && m[1]) { cancellationPrice = parseFloat(m[1].replace(',', '.')); break; }
-                    }
-
-                    return { bestPrice, calls: foundCalls, has5G, euGb, simPrice, activationPrice, cancellationPrice };
-                }, dataGb);
-
-                let finalCalls = "Illimités";
-                if (specificCalls !== "Illimités") {
-                    finalCalls = specificCalls;
-                } else if (priceData && priceData.calls !== "Illimités") {
-                    finalCalls = priceData.calls;
-                }
-
-                const gen = (priceData?.has5G || /\b5g\b/i.test(info.text)) ? '5G' : '4G';
-                const euGb = priceData?.euGb || 0;
-
-                if (priceData && typeof priceData === 'object' && 'bestPrice' in priceData && priceData.bestPrice > 0 && !plans.some(p => p.dataGb === dataGb)) {
-                    const planName = `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`;
-                    plans.push({ planName, dataGb, price: priceData.bestPrice, calls: finalCalls, networkGeneration: gen, dataEuGb: euGb, simPrice: priceData.simPrice ?? null, activationPrice: priceData.activationPrice ?? null, cancellationPrice: priceData.cancellationPrice ?? null });
-                }
-            } catch (err) {
-                console.warn('[B&You] Erreur sur une option:', err);
-            }
+      // --- Cancellation price ---
+      // Matches: "Frais de résiliation : 5€"  /  "Frais de résiliation: 5€"
+      const cancelPatterns = [
+        /frais\s*(?:de\s*)?r[ée]siliation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+      ];
+      for (const pat of cancelPatterns) {
+        let m;
+        while ((m = pat.exec(text)) !== null) {
+          const val = parseFloat(m[1].replace(",", "."));
+          // Mobile cancellation is usually 5€; skip fiber amounts (69€)
+          if (val >= 0 && val <= 15) {
+            cancellationPrice = val;
+            break;
+          }
         }
+        if (cancellationPrice !== null) break;
+      }
+      if (
+        cancellationPrice === null &&
+        /r[ée]siliation\s*(?:gratuit|offert)/i.test(text)
+      ) {
+        cancellationPrice = 0;
+      }
 
-        // Fallback global si rien n'a été trouvé via les clics
-        if (plans.length === 0) {
-            const fallbackPlans = await page.evaluate(() => {
-                const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
-                const bodyText = document.body.innerText;
-                const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      return { simPrice, activationPrice, cancellationPrice };
+    });
 
-                for (let i = 0; i < lines.length; i++) {
-                    const dataMatch = lines[i].match(/^(?:(\d+)h\s*)?(\d{1,4})\s*(Go|Mo)\s*$/i);
-                    if (!dataMatch) continue;
-                    const hoursRaw = dataMatch[1];
-                    const rawData = parseInt(dataMatch[2], 10);
-                    const unit = dataMatch[3].toLowerCase();
-                    const dataGb = unit === 'mo' ? rawData / 1000 : rawData;
-                    if (dataGb <= 0) continue;
+    console.log(
+      `[B&You] Frais extraits des mentions légales — SIM: ${legalFees.simPrice}€, activation: ${legalFees.activationPrice}€, résiliation: ${legalFees.cancellationPrice}€`,
+    );
 
-                    let fallbackExplicitCalls = "Illimités";
-                    if (hoursRaw) {
-                        fallbackExplicitCalls = `${hoursRaw}h`;
-                    }
+    const plans: {
+      planName: string;
+      dataGb: number;
+      price: number;
+      calls: string;
+      networkGeneration: string;
+      dataEuGb: number;
+      simPrice: number | null;
+      activationPrice: number | null;
+      cancellationPrice: number | null;
+    }[] = [];
 
-                    // Chercher un prix dans les 15 lignes autour
-                    for (let j = Math.max(0, i - 15); j < Math.min(lines.length, i + 15); j++) {
-                        const cleanLine = lines[j].replace(/\u00a0/g, ' ').trim();
-                        const priceMatch = cleanLine.match(/(\d{1,3})[,.](\d{2})\s*€/);
-                        if (priceMatch) {
-                            const price = parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
-                            if (price > 0 && price < 80 && !results.some(r => r.dataGb === dataGb)) {
+    // Stratégie B&You : la page utilise un configurateur dynamique avec des .radio-label
+    // Il faut cliquer sur chaque option et lire le prix dans le bandeau "Votre sélection" en bas de page
 
-                                // Scan pour les appels sur ces lignes
-                                let calls = fallbackExplicitCalls;
-                                if (calls === "Illimités") {
-                                    for (let k = Math.max(0, i - 5); k < Math.min(lines.length, i + 10); k++) {
-                                        const m = lines[k].match(/(\d+)h\s*d*['’]*appels/i);
-                                        if (m) calls = `${m[1]}h`;
-                                    }
-                                }
+    // 1. Récupérer tous les labels cliquables contenant un volume de data
+    const radioLabels = await page.$$(
+      'label.radio-label, label[class*="radio"]',
+    );
 
-                                const nearbyText = lines.slice(Math.max(0, i - 5), i + 15).join(' ');
-                                let fbGen = /\b5g\b/i.test(nearbyText) ? '5G' : '4G';
-                                if (fbGen === '4G') {
-                                    const rgx = new RegExp(`\\b${dataGb}\\s*Go`, 'i');
-                                    for (const el of Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b'))) {
-                                        const t = (el.textContent || '').trim();
-                                        if (t.length < 3 || t.length > 100) continue;
-                                        if (rgx.test(t) && /\b5g\b/i.test(t)) { fbGen = '5G'; break; }
-                                    }
-                                }
-
-                                results.push({
-                                    planName: `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo'}`,
-                                    dataGb,
-                                    price,
-                                    calls,
-                                    networkGeneration: fbGen,
-                                    simPrice: null,
-                                    activationPrice: null,
-                                    cancellationPrice: null
-                                });
-                            }
-                            break;
-                        }
-                    }
-                }
-                return results;
-            });
-
-            for (const p of fallbackPlans) {
-                plans.push({ ...p, networkGeneration: p.networkGeneration || '4G', dataEuGb: 0, simPrice: p.simPrice, activationPrice: p.activationPrice, cancellationPrice: p.cancellationPrice });
-            }
+    // Si pas de labels radio, essayer une approche plus large
+    let labels = radioLabels;
+    if (labels.length === 0) {
+      const allLabels = await page.$$("label");
+      for (const l of allLabels) {
+        const text = await l.evaluate((e: Element) =>
+          (e.textContent || "").trim(),
+        );
+        if (/\d+\s*(Go|Mo)/i.test(text) && text.length < 50) {
+          labels.push(l);
         }
-
-        return plans
-            .filter(p => p.price > 0 && p.dataGb > 0)
-            .map(plan => ({
-                planName: plan.planName,
-                dataGb: plan.dataGb,
-                price: plan.price,
-                calls: plan.calls,
-                operator: 'B&You',
-                network: 'Bouygues Telecom',
-                networkGeneration: plan.networkGeneration,
-                dataEuGb: plan.dataEuGb || undefined,
-                simPrice: plan.simPrice ?? undefined,
-                activationPrice: plan.activationPrice ?? undefined,
-                cancellationPrice: plan.cancellationPrice ?? undefined
-            }));
-    } catch (error) {
-        console.error('Erreur dans la collecte B&You:', error);
-        return [];
+      }
     }
+
+    // Extraire les textes de chaque label pour pouvoir les re-sélectionner
+    const labelInfos: { text: string; index: number }[] = [];
+    for (let i = 0; i < labels.length; i++) {
+      try {
+        const text = await labels[i].evaluate((e: Element) =>
+          (e.textContent || "").trim(),
+        );
+        if (/\d+\s*(Go|Mo)/i.test(text)) {
+          labelInfos.push({ text, index: i });
+        }
+      } catch (e) {}
+    }
+
+    for (const info of labelInfos) {
+      try {
+        // Re-récupérer les labels à chaque itération (le DOM peut changer)
+        const currentLabels = await page.$$(
+          'label.radio-label, label[class*="radio"], label',
+        );
+
+        // Trouver le bon label
+        let targetLabel = null;
+        for (const l of currentLabels) {
+          const text = await l.evaluate((e: Element) =>
+            (e.textContent || "").trim(),
+          );
+          if (text === info.text) {
+            targetLabel = l;
+            break;
+          }
+        }
+
+        if (!targetLabel) continue;
+
+        // Extraire le volume de data du label
+        const dataMatch = info.text.match(/(\d{1,4})\s*(Go|Mo)/i);
+        if (!dataMatch) continue;
+        const rawData = parseInt(dataMatch[1], 10);
+        const unit = dataMatch[2].toLowerCase();
+        const dataGb = unit === "mo" ? rawData / 1000 : rawData;
+
+        let specificCalls = "Illimités";
+        const explicitCallMatch = info.text.match(/(\d+)h/i);
+        if (explicitCallMatch) {
+          specificCalls = `${explicitCallMatch[1]}h`;
+        }
+
+        // Cliquer sur le label pour sélectionner ce forfait
+        await targetLabel
+          .evaluate((el: any) => el.click())
+          .catch(async (e: any) => {
+            await targetLabel.click();
+          });
+        await new Promise((r) => setTimeout(r, 2000));
+
+        // Lire le prix depuis le bandeau "Votre sélection" en bas OU depuis le DOM
+        const priceData = await page.evaluate((selectedDataGb: number) => {
+          // Stratégie 1 : bandeau de sélection en bas de page
+          const bottomBar = document.querySelector(
+            '[class*="sticky"], [class*="bottom"], [class*="selection"], [class*="recap"], [class*="footer"]',
+          );
+          if (bottomBar) {
+            const text = (bottomBar.textContent || "").replace(/\u00a0/g, " ");
+            const priceMatch = text.match(
+              /(\d{1,3})[,.](\d{2})\s*€\s*\/?\s*mois/i,
+            );
+            if (priceMatch) {
+              return {
+                bestPrice: parseFloat(`${priceMatch[1]}.${priceMatch[2]}`),
+                calls: "Illimités",
+              };
+            }
+          }
+
+          // Stratégie 2 : chercher le plus gros prix affiché (font-size le plus élevé)
+          let bestPrice = 0;
+          let biggestFontSize = 0;
+          const allEls = document.querySelectorAll("*");
+          for (const el of Array.from(allEls)) {
+            const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+            if (text.length > 30) continue;
+            const priceMatch = text.match(/^(\d{1,3})[,.](\d{2})\s*€?$/);
+            if (!priceMatch) continue;
+            const fs = parseFloat(window.getComputedStyle(el).fontSize);
+            if (fs > biggestFontSize) {
+              biggestFontSize = fs;
+              bestPrice = parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
+            }
+          }
+
+          // Stratégie 3 : chercher le premier "X,XX€/mois" visible sur la page
+          if (bestPrice === 0) {
+            const bodyText = document.body.innerText;
+            const allPrices = bodyText.match(
+              /(\d{1,3})[,.](\d{2})\s*€\s*\/?\s*mois/gi,
+            );
+            if (allPrices && allPrices.length > 0) {
+              // Prendre le dernier prix trouvé (souvent le prix actuel sélectionné)
+              const last = allPrices[allPrices.length - 1];
+              const m = last.match(/(\d{1,3})[,.](\d{2})/);
+              if (m) {
+                bestPrice = parseFloat(`${m[1]}.${m[2]}`);
+              }
+            }
+          }
+
+          // Extraire les appels s'il y a une limite spécifique affichée
+          let foundCalls = "Illimités";
+          const pageText = document.body.innerText.toLowerCase();
+          if (pageText.match(/(\d+)h\s*d*['’]*appels/i)) {
+            const m = pageText.match(/(\d+)h\s*d*['’]*appels/i);
+            if (m) foundCalls = `${m[1]}h`;
+          }
+
+          const visibleText = document.body.innerText;
+          let has5G = false;
+          const rgx5g = new RegExp(`\\b${selectedDataGb}\\s*Go`, "i");
+          for (const el of Array.from(
+            document.querySelectorAll(
+              "h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b",
+            ),
+          )) {
+            const t = (el.textContent || "").trim();
+            if (t.length < 3 || t.length > 100) continue;
+            if (rgx5g.test(t) && /\b5g\b/i.test(t)) {
+              has5G = true;
+              break;
+            }
+          }
+          if (!has5G) {
+            for (const img of Array.from(document.querySelectorAll("img"))) {
+              const attrs = `${img.getAttribute("alt") || ""} ${img.getAttribute("src") || ""}`;
+              if (!/5g/i.test(attrs)) continue;
+              let p: Element | null = img.parentElement;
+              for (let d = 0; d < 8 && p; d++, p = p.parentElement) {
+                if (
+                  (p.textContent || "").length < 300 &&
+                  rgx5g.test(p.textContent || "")
+                ) {
+                  has5G = true;
+                  break;
+                }
+              }
+              if (has5G) break;
+            }
+          }
+
+          // Extract EU/DOM data: "XX Go utilisables en Europe"
+          let euGb = 0;
+          const euMatch = visibleText.match(
+            /(\d{1,3})\s*[Gg]o\s*utilisables?\s*en\s*[Ee]urop/,
+          );
+          if (euMatch) euGb = parseInt(euMatch[1], 10);
+
+          // Détection du prix SIM
+          let simPrice: number | null = null;
+          const lowerVis = visibleText.toLowerCase();
+          if (
+            /sim\s*gratuit/i.test(lowerVis) ||
+            /sim\s*offert/i.test(lowerVis)
+          ) {
+            simPrice = 0;
+          } else {
+            const sp = [
+              /carte\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+              /activation\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
+              /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim|activation\s*sim)/i,
+              /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            ];
+            for (const pat of sp) {
+              const sm = lowerVis.match(pat);
+              if (sm) {
+                simPrice = parseFloat(sm[1].replace(",", "."));
+                break;
+              }
+            }
+          }
+
+          // Détection frais d'activation
+          let activationPrice: number | null = null;
+          const actPats = [
+            /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+          ];
+          for (const pat of actPats) {
+            const m = lowerVis.match(pat);
+            if (m) {
+              const val = parseFloat(m[1].replace(",", "."));
+              if (val <= 20) {
+                activationPrice = val;
+                break;
+              }
+            }
+          }
+
+          let cancellationPrice: number | null = null;
+          const cancelPats = [
+            /frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+            /r[ée]siliation\s*gratuit/i,
+          ];
+          for (const cp of cancelPats) {
+            if (cp.source.includes("gratuit") && cp.test(lowerVis)) {
+              cancellationPrice = 0;
+              break;
+            }
+            const m = lowerVis.match(cp);
+            if (m && m[1]) {
+              cancellationPrice = parseFloat(m[1].replace(",", "."));
+              break;
+            }
+          }
+
+          return {
+            bestPrice,
+            calls: foundCalls,
+            has5G,
+            euGb,
+            simPrice,
+            activationPrice,
+            cancellationPrice,
+          };
+        }, dataGb);
+
+        let finalCalls = "Illimités";
+        if (specificCalls !== "Illimités") {
+          finalCalls = specificCalls;
+        } else if (priceData && priceData.calls !== "Illimités") {
+          finalCalls = priceData.calls;
+        }
+
+        const gen = priceData?.has5G || /\b5g\b/i.test(info.text) ? "5G" : "4G";
+        const euGb = priceData?.euGb || 0;
+
+        if (
+          priceData &&
+          typeof priceData === "object" &&
+          "bestPrice" in priceData &&
+          priceData.bestPrice > 0 &&
+          !plans.some((p) => p.dataGb === dataGb)
+        ) {
+          const planName = `Forfait B&You ${dataGb >= 1 ? dataGb + " Go" : dataGb * 1000 + " Mo"}`;
+          plans.push({
+            planName,
+            dataGb,
+            price: priceData.bestPrice,
+            calls: finalCalls,
+            networkGeneration: gen,
+            dataEuGb: euGb,
+            simPrice: priceData.simPrice ?? legalFees.simPrice,
+            activationPrice:
+              priceData.activationPrice ?? legalFees.activationPrice,
+            cancellationPrice:
+              priceData.cancellationPrice ?? legalFees.cancellationPrice,
+          });
+        }
+      } catch (err) {
+        console.warn("[B&You] Erreur sur une option:", err);
+      }
+    }
+
+    // Fallback global si rien n'a été trouvé via les clics
+    if (plans.length === 0) {
+      const fallbackPlans = await page.evaluate(() => {
+        const results: {
+          planName: string;
+          dataGb: number;
+          price: number;
+          calls: string;
+          networkGeneration: string;
+          simPrice: number | null;
+          activationPrice: number | null;
+          cancellationPrice: number | null;
+        }[] = [];
+        const bodyText = document.body.innerText;
+        const lines = bodyText
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+
+        for (let i = 0; i < lines.length; i++) {
+          const dataMatch = lines[i].match(
+            /^(?:(\d+)h\s*)?(\d{1,4})\s*(Go|Mo)\s*$/i,
+          );
+          if (!dataMatch) continue;
+          const hoursRaw = dataMatch[1];
+          const rawData = parseInt(dataMatch[2], 10);
+          const unit = dataMatch[3].toLowerCase();
+          const dataGb = unit === "mo" ? rawData / 1000 : rawData;
+          if (dataGb <= 0) continue;
+
+          let fallbackExplicitCalls = "Illimités";
+          if (hoursRaw) {
+            fallbackExplicitCalls = `${hoursRaw}h`;
+          }
+
+          // Chercher un prix dans les 15 lignes autour
+          for (
+            let j = Math.max(0, i - 15);
+            j < Math.min(lines.length, i + 15);
+            j++
+          ) {
+            const cleanLine = lines[j].replace(/\u00a0/g, " ").trim();
+            const priceMatch = cleanLine.match(/(\d{1,3})[,.](\d{2})\s*€/);
+            if (priceMatch) {
+              const price = parseFloat(`${priceMatch[1]}.${priceMatch[2]}`);
+              if (
+                price > 0 &&
+                price < 80 &&
+                !results.some((r) => r.dataGb === dataGb)
+              ) {
+                // Scan pour les appels sur ces lignes
+                let calls = fallbackExplicitCalls;
+                if (calls === "Illimités") {
+                  for (
+                    let k = Math.max(0, i - 5);
+                    k < Math.min(lines.length, i + 10);
+                    k++
+                  ) {
+                    const m = lines[k].match(/(\d+)h\s*d*['’]*appels/i);
+                    if (m) calls = `${m[1]}h`;
+                  }
+                }
+
+                const nearbyText = lines
+                  .slice(Math.max(0, i - 5), i + 15)
+                  .join(" ");
+                let fbGen = /\b5g\b/i.test(nearbyText) ? "5G" : "4G";
+                if (fbGen === "4G") {
+                  const rgx = new RegExp(`\\b${dataGb}\\s*Go`, "i");
+                  for (const el of Array.from(
+                    document.querySelectorAll(
+                      "h1,h2,h3,h4,h5,span,p,div,label,a,li,strong,b",
+                    ),
+                  )) {
+                    const t = (el.textContent || "").trim();
+                    if (t.length < 3 || t.length > 100) continue;
+                    if (rgx.test(t) && /\b5g\b/i.test(t)) {
+                      fbGen = "5G";
+                      break;
+                    }
+                  }
+                }
+
+                results.push({
+                  planName: `Forfait B&You ${dataGb >= 1 ? dataGb + " Go" : dataGb * 1000 + " Mo"}`,
+                  dataGb,
+                  price,
+                  calls,
+                  networkGeneration: fbGen,
+                  simPrice: null as number | null,
+                  activationPrice: null as number | null,
+                  cancellationPrice: null as number | null,
+                });
+              }
+              break;
+            }
+          }
+        }
+        return results;
+      });
+
+      for (const p of fallbackPlans) {
+        plans.push({
+          ...p,
+          networkGeneration: p.networkGeneration || "4G",
+          dataEuGb: 0,
+          simPrice: p.simPrice ?? legalFees.simPrice,
+          activationPrice: p.activationPrice ?? legalFees.activationPrice,
+          cancellationPrice: p.cancellationPrice ?? legalFees.cancellationPrice,
+        });
+      }
+    }
+
+    return plans
+      .filter((p) => p.price > 0 && p.dataGb > 0)
+      .map((plan) => ({
+        planName: plan.planName,
+        dataGb: plan.dataGb,
+        price: plan.price,
+        calls: plan.calls,
+        operator: "B&You",
+        network: "Bouygues Telecom",
+        networkGeneration: plan.networkGeneration,
+        dataEuGb: plan.dataEuGb || undefined,
+        simPrice: plan.simPrice ?? undefined,
+        activationPrice: plan.activationPrice ?? undefined,
+        cancellationPrice: plan.cancellationPrice ?? undefined,
+      }));
+  } catch (error) {
+    console.error("Erreur dans la collecte B&You:", error);
+    return [];
+  }
 };
