@@ -16,6 +16,12 @@ import DarkModeSwitch from '../components/DarkModeSwitch.vue'
         <p class="font-bold text-sm uppercase tracking-wider">
           © {{ new Date().getFullYear() }} Deal-Voyager — Le comparateur qui ne vous ment pas.
         </p>
+        <NuxtLink
+          to="/mentions-legales"
+          class="font-bold text-xs uppercase tracking-widest border-2 border-border px-3 py-1 shadow-neo hover:shadow-neo-hover hover:translate-x-[2px] hover:translate-y-[2px] bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-100"
+        >
+          📜 Mentions Légales
+        </NuxtLink>
       </div>
     </footer>
   </div>

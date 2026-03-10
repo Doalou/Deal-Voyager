@@ -14,9 +14,6 @@ RUN npm install
 COPY --chown=pptruser:pptruser . .
 
 # Générer le client Prisma
-RUN npx prisma generate
-
-# Compiler TypeScript
 RUN npm run build
 
 # Rendre le script d'entrée exécutable

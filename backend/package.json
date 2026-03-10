@@ -1,11 +1,14 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "dist/index.js",
+  "type": "module",
+  "main": "src/index.ts",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "build": "prisma generate",
+    "start": "tsx src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,25 +16,28 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "6.19.0",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "7.4.2",
     "axios": "^1.13.6",
     "cors": "^2.8.6",
     "discord.js": "^14.25.1",
-    "express": "^5.1.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "node-schedule": "^2.1.1",
     "pdf-parse": "^2.4.5",
-    "puppeteer": "^24.10.2",
+    "puppeteer": "^24.39.0",
     "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "tsx": "^4.21.0",
+    "undici": "^7.22.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.0.3",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.4.0",
     "@types/node-schedule": "^2.1.8",
     "@types/pdf-parse": "^1.1.5",
-    "prisma": "6.19.0",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.8.3"
+    "prisma": "7.4.2",
+    "typescript": "^5.9.3"
   }
 }

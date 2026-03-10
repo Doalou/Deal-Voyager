@@ -2,7 +2,7 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
-## [0.7.0] — 2026-03-10
+## [1.0.0] — 2026-03-10
 
 ### ✨ Nouvelles fonctionnalités
 - **Page 404 Néo-Brutaliste** — Création d'une page d'erreur 404 sur-mesure respectant l'identité visuelle du projet. Design en CSS pur (sans images), typographie massive, blocs colorés (`primary`/`secondary`) et ombres portées (`shadow-neo`). Support complet du mode sombre avec accessibilité renforcée (texte contrasté sur fond jaune).
@@ -16,9 +16,27 @@ Toutes les modifications notables de ce projet sont documentées ici.
 - **Fix Robustesse B&You (Normalisation)** — Résolution du problème de checkout intermittent (échec 1 fois sur 2). Le scraper normalise maintenant les accents des boutons (é -> e), permettant de cliquer sur "Étape suivante" sans erreur d'encodage.
 - **Fix Accessibilité Dark Mode (404)** — Correction du contraste sur la page 404 en mode sombre en forçant le texte noir sur fond jaune.
 
+### 🎨 Design
+- **Page Mentions Légales** — Création d'une page `/mentions-legales` complète intégrée au design néobrutaliste du site. 10 sections numérotées (Éditeur, Hébergement, Présentation, Fonctionnement, Responsabilité, Affiliation, Propriété intellectuelle, Mesure d'audience, Données personnelles, Droit applicable) avec blocs `neo-box`, numéros colorés alternés et support complet du mode sombre.
+- **Lien Footer "Mentions Légales"** — Ajout d'un bouton `📜 Mentions Légales` stylisé dans le footer du layout par défaut, visible sur toutes les pages.
+
+### 🛠️ Technique — Migration Prisma v6 → v7
+- **Nouveau client Prisma (Rust-free)** — Passage du provider `prisma-client-js` à `prisma-client` avec un `output` explicite vers `src/generated/prisma`. Le nouveau client est plus léger et ne nécessite plus de moteur binaire Rust.
+- **Driver Adapter PostgreSQL** — Ajout de `@prisma/adapter-pg` (`PrismaPg`) pour la connexion directe TCP à la base de données, remplaçant l'ancien moteur de requêtes intégré.
+- **Prisma Config centralisé** — Création de `prisma.config.ts` à la racine du backend pour centraliser la configuration CLI (schéma, migrations, URL de la base). Utilisation de `process.env.DATABASE_URL` avec placeholder fallback pour permettre `prisma generate` au build Docker sans variable d'environnement.
+- **Passage en ESM** — Ajout de `"type": "module"` dans `package.json`. Configuration `tsconfig.json` mise à jour (`module: ESNext`, `moduleResolution: bundler`, `target: ES2023`).
+- **Runtime `tsx`** — Remplacement de `ts-node-dev` par `tsx` pour le développement et la production. Résout les problèmes de résolution d'imports sans extension `.js` inhérents à ESM, sans nécessiter de modifier chaque fichier source.
+- **Chargement explicite des variables d'environnement** — Ajout de `import "dotenv/config"` dans le point d'entrée (`src/index.ts`) et dans `prisma.config.ts`, les variables d'environnement n'étant plus chargées automatiquement en Prisma v7.
+- **Simplification du Dockerfile** — Suppression du `RUN npx prisma generate` redondant (géré par `npm run build`). Le script `build` exécute désormais uniquement `prisma generate`.
+- **Nettoyage de l'entrypoint Docker** — Suppression du `prisma generate` au runtime (inutile puisque `tsx` lit directement les sources `.ts`). Seul `prisma db push` est conservé pour synchroniser le schéma au démarrage.
+- **CI : Node ≥ 20** — Suppression de Node 18.x de la matrice de test GitHub Actions (incompatible avec Prisma v7, minimum requis : 20.19).
+
 ### 🛠️ Technique
 - **Migration Schema DB** — Exécution de `npx prisma db push` pour le passage au type `Float`.
 - **Nettoyage Environnement** — Suppression des scripts de débogage temporaires (`test-byou.ts`) et des captures d'écran de test.
+
+### 🔒 Sécurité
+- **Mise à jour des Dépendances (Backend/Frontend)** — Mise à jour des paquets vers leurs dernières versions stables (`discord.js`, `undici`, `nuxt`, `puppeteer`, etc.) pour patcher les vulnérabilités les plus critiques. Choix délibéré de ne pas utiliser de `overrides` pour préserver un arbre de dépendances standard et stable. Le backend est désormais à jour sur ses briques principales.
 
 ## [0.6.0] — 2026-03-08
 
