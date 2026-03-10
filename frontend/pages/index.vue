@@ -83,12 +83,21 @@ const otherOffers = computed(() => {
 const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
 
 const config = useRuntimeConfig()
+
+if (import.meta.dev) {
+  console.log('[DEBUG Discord] discordClientId from runtimeConfig:', config.public.discordClientId)
+}
+
 const discordInviteUrl = computed(() => {
   const clientId = config.public.discordClientId
-  return clientId
-    ? `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot+applications.commands&permissions=19456`
-    : '#'
+  if (!clientId) {
+    console.warn('[Deal-Voyager] NUXT_PUBLIC_DISCORD_CLIENT_ID is not set — Discord invite link disabled.')
+    return ''
+  }
+  const scope = encodeURIComponent('bot applications.commands')
+  return `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=${scope}&permissions=19456`
 })
+const isDiscordConfigured = computed(() => !!config.public.discordClientId)
 </script>
 
 <template>
@@ -177,12 +186,25 @@ const discordInviteUrl = computed(() => {
           Ne Ratez Plus Aucun Deal 🚀
         </h2>
         <p class="text-lg md:text-xl font-medium max-w-2xl mb-8 border-l-4 border-wht pl-4 inline-block text-left bg-black shadow-neo px-4 py-2 border-2">
-          Le monde des opérateurs évolue vite. Ajoutez notre <span class="font-bold underline text-accent">Bot Discord Deal Voyager</span> sur vos serveurs ou rejoignez la communauté pour recevoir une notification <strong>en temps réel</strong> dès qu'un forfait baisse de prix ou qu'une offre cachée apparaît sur le marché !
+          Le monde des opérateurs évolue vite. Ajoutez notre <span class="font-bold underline text-accent">Bot Discord Deal Voyager</span> sur vos serveurs pour recevoir une notification <strong>en temps réel</strong> dès qu'un forfait baisse de prix ou qu'une offre cachée apparaît sur le marché !
         </p>
         <div class="flex flex-col sm:flex-row gap-4">
-          <a :href="discordInviteUrl" target="_blank" rel="noopener noreferrer" class="inline-block bg-white text-[#5865F2] font-black text-xl uppercase px-8 py-4 border-4 border-black shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-neo-hover transition-all">
+          <a
+            v-if="isDiscordConfigured"
+            :href="discordInviteUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block bg-white text-[#5865F2] font-black text-xl uppercase px-8 py-4 border-4 border-black shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-neo-hover transition-all"
+          >
             🤖 Inviter le Bot
           </a>
+          <span
+            v-else
+            class="inline-block bg-gray-300 text-gray-600 font-black text-xl uppercase px-8 py-4 border-4 border-black shadow-neo cursor-not-allowed opacity-70"
+            title="Le lien d'invitation Discord n'est pas configuré (DISCORD_CLIENT_ID manquant)."
+          >
+            🤖 Bot non configuré
+          </span>
         </div>
       </div>
     </section>
