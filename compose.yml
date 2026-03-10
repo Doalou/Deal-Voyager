@@ -10,7 +10,11 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       - POSTGRES_DB=${POSTGRES_DB:-deal_voyager}
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dealvoyager} -d ${POSTGRES_DB:-deal_voyager}" ]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-dealvoyager} -d ${POSTGRES_DB:-deal_voyager}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,7 +48,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - '${APP_PORT:-3000}:3000'
+      - "${APP_PORT:-3000}:3000"
     environment:
       - NUXT_HOST=0.0.0.0
       - NUXT_PORT=3000
@@ -53,6 +57,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - NUXT_PUBLIC_MATOMO_URL=${MATOMO_URL:-}
       - NUXT_PUBLIC_MATOMO_SITE_ID=${MATOMO_SITE_ID:-}
+      - NUXT_PUBLIC_DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
     depends_on:
       - backend
 
@@ -80,7 +85,7 @@ services:
       - MATOMO_DATABASE_USERNAME=matomo
       - MATOMO_DATABASE_PASSWORD=${MATOMO_DB_PASSWORD:?MATOMO_DB_PASSWORD is required}
     ports:
-      - '${MATOMO_PORT:-8080}:80'
+      - "${MATOMO_PORT:-8080}:80"
     depends_on:
       - matomo_db
 

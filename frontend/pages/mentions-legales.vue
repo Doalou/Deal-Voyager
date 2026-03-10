@@ -259,6 +259,22 @@ useHead({
           <p>
             Certaines données techniques liées à la navigation peuvent être collectées afin d'assurer le bon fonctionnement du site et d'améliorer l'expérience utilisateur.
           </p>
+          <div class="bg-primary/20 border-2 border-border p-4 shadow-neo transform rotate-[0.3deg]">
+            <p class="font-bold mb-2">🔤 Polices d'écriture — Google Fonts</p>
+            <p>
+              Ce site utilise le service
+              <span class="bg-muted px-1 border-2 border-border font-bold text-foreground">Google Fonts</span>
+              pour l'affichage des polices d'écriture
+              <span class="bg-muted px-1 border-2 border-border font-bold text-foreground">Outfit</span> et
+              <span class="bg-muted px-1 border-2 border-border font-bold text-foreground">Space Grotesk</span>.
+              Lors du chargement d'une page, votre navigateur établit une connexion avec les serveurs de Google (Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, États-Unis) afin de récupérer ces polices.
+              Cette connexion peut entraîner la transmission de votre adresse IP à Google.
+            </p>
+            <p class="mt-2">
+              Pour plus d'informations, consultez la
+              <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-primary hover:text-primary-foreground px-1 transition-colors font-bold">politique de confidentialité de Google</a>.
+            </p>
+          </div>
           <p>Pour toute demande relative aux données personnelles, vous pouvez contacter :</p>
           <div class="inline-block bg-primary text-primary-foreground font-black text-lg px-4 py-2 border-4 border-border shadow-neo transform -rotate-1">
             📧 contact@doalo.fr

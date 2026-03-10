@@ -85,8 +85,8 @@ const hasMoreDeals = computed(() => filteredDeals.value.length > 4)
 const config = useRuntimeConfig()
 const discordInviteUrl = computed(() => {
   const clientId = config.public.discordClientId
-  return clientId 
-    ? `https://discord.com/oauth2/authorize?client_id=${clientId}` 
+  return clientId
+    ? `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot+applications.commands&permissions=19456`
     : '#'
 })
 </script>
@@ -94,11 +94,11 @@ const discordInviteUrl = computed(() => {
 <template>
   <div class="min-h-screen bg-background relative overflow-x-hidden pb-32">
     <!-- Grid pattern background via global CSS -->
-    
+
     <HeroSection />
 
     <main class="container mx-auto px-4 relative z-10 flex flex-col items-center">
-      
+
       <DataSlider v-model="targetDataGb" v-model:networks="targetNetworks" />
 
       <!-- Dynamic Data Section (Client-only to prevent hydration mismatch) -->
@@ -112,12 +112,12 @@ const discordInviteUrl = computed(() => {
 
         <!-- Results Section -->
         <div v-else-if="filteredDeals.length > 0" class="w-full max-w-5xl">
-          
+
           <!-- L'OFFRE STAR -->
           <div v-if="starOffer" class="mb-16">
-            <DealCard 
-              :deal="starOffer" 
-              :is-fairplay="isFairplay(starOffer.operator)" 
+            <DealCard
+              :deal="starOffer"
+              :is-fairplay="isFairplay(starOffer.operator)"
               :is-star-offer="true"
               :activation-price="getActivationPrice(starOffer.operator)"
               :cancellation-price="getCancellationPrice(starOffer.operator)"
@@ -129,13 +129,13 @@ const discordInviteUrl = computed(() => {
             <div class="inline-block bg-foreground text-background px-4 py-2 font-bold uppercase tracking-widest mb-8 border-l-8 border-secondary">
               Alternatives Solides
             </div>
-            
+
             <div class="grid md:grid-cols-3 gap-6 md:gap-8">
-              <DealCard 
-                v-for="deal in otherOffers" 
-                :key="deal.id" 
-                :deal="deal" 
-                :is-fairplay="isFairplay(deal.operator)" 
+              <DealCard
+                v-for="deal in otherOffers"
+                :key="deal.id"
+                :deal="deal"
+                :is-fairplay="isFairplay(deal.operator)"
                 :is-star-offer="false"
                 :activation-price="getActivationPrice(deal.operator)"
                 :cancellation-price="getCancellationPrice(deal.operator)"
@@ -144,7 +144,7 @@ const discordInviteUrl = computed(() => {
 
             <!-- See All / Collapse Button -->
             <div v-if="hasMoreDeals" class="flex justify-center mt-12">
-              <button 
+              <button
                 @click="showAllDeals = !showAllDeals"
                 class="neo-button bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground text-xl px-12 py-4 transform hover:-rotate-1"
               >
