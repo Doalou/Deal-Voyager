@@ -13,6 +13,13 @@ export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
         });
         await new Promise(r => setTimeout(r, 8000)); // Attente plus longue pour Lycamobile
 
+        // --- Résolution active des captchas (le cas échéant) ---
+        try {
+            await (page as any).solveRecaptchas();
+        } catch (e) {
+            console.error('[Lycamobile] Exception solveRecaptchas:', e);
+        }
+
         const tryAcceptCookies = async () => {
             try {
                 const acceptBtn = await page.$('#onetrust-accept-btn-handler, #didomi-notice-agree-button, button[id*="accept"], button[class*="cookie"]');
@@ -55,7 +62,7 @@ export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                 const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
 
                 // Logique d'ajout de plan (inlinée pour éviter le bug __name esbuild)
-                var addPlan = function(dataGb: number, price: number, context: string) {
+                var addPlan = function (dataGb: number, price: number, context: string) {
                     if (dataGb <= 0 || dataGb > 1000 || price <= 0 || price >= 100) return;
                     if (/(?:12|24)\s*mois\s*d['']?engagement|avec\s*engagement/i.test(context)) return;
 
@@ -66,7 +73,7 @@ export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
 
                     var gen = /\b5g\b/i.test(context) ? '5G' : '4G';
                     var planName = 'Forfait Lycamobile ' + (dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo');
-                    if (!results.some(function(r) { return r.dataGb === dataGb && r.price === price; })) {
+                    if (!results.some(function (r) { return r.dataGb === dataGb && r.price === price; })) {
                         results.push({
                             planName: planName,
                             dataGb: dataGb,

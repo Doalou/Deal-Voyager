@@ -2,7 +2,18 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
-## [Unreleased]
+## [2.1.1] — 2026-04-03
+
+### 🐛 Correctifs
+
+- **Affichage des frais (DealCard)** — Les frais d'activation et de résiliation sont désormais affichés sur toutes les cartes forfaits même s'ils sont à 0€, afin de garantir une totale transparence sur l'absence de frais cachés.
+- **Antibot Lycamobile** — Renforcement massif du contournement anti-détection : application du `StealthPlugin` confirmée et injection d'une étape de résolution de captcha via `puppeteer-extra-plugin-recaptcha` pour outrepasser les sécurités anti-bots agressives du MVNO.
+
+### 🛠️ Technique
+
+- **Mise à jour majeure des dépendances** — Toutes les dépendances (`package.json`) du backend et du frontend ont été mises à jour (via `npm-check-updates`), régénérant au passage un `package-lock.json` prêt pour la mise en production.
+- **Optimisation Docker** — Le Dockerfile frontend utilise désormais un *Multi-stage build* et le backend nettoie les paquets de compilation avec `npm prune`, allégeant drastiquement les conteneurs de déploiement.
+- **Node.js 24** — Mise à jour de l'image Docker du frontend et du backend vers `node:24-alpine`.
 
 ### 🔜 À surveiller
 

@@ -100,8 +100,8 @@ const formattedScore = (score: number | null) => {
       <div class="text-left sm:text-right flex flex-col items-start sm:items-end gap-1 w-full sm:w-auto">
         <div class="bg-card border-2 border-border px-3 py-1 font-bold text-xs uppercase shadow-neo-hover flex flex-col items-start sm:items-end leading-tight text-card-foreground w-full sm:w-auto">
           <span>Carte SIM: <span class="text-primary text-base">{{ simPrice }}€</span></span>
-          <span v-if="activationPrice > 0" class="text-[10px] text-muted-foreground">Activation: {{ activationPrice }}€</span>
-          <span v-if="cancellationPrice > 0" class="text-[10px] text-muted-foreground">Résiliation: {{ cancellationPrice }}€</span>
+          <span v-if="activationPrice !== undefined" class="text-[10px] text-muted-foreground">Activation: {{ activationPrice }}€</span>
+          <span v-if="cancellationPrice !== undefined" class="text-[10px] text-muted-foreground">Résiliation: {{ cancellationPrice }}€</span>
         </div>
         <div :class="[
           'px-3 py-1 font-bold text-xs uppercase w-full sm:w-auto text-center sm:text-right', 

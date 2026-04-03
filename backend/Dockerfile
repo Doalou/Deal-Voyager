@@ -7,14 +7,17 @@ WORKDIR /home/pptruser/app
 # Copier les fichiers de dépendances
 COPY --chown=pptruser:pptruser package*.json ./
 
-# Installer TOUTES les dépendances (prisma CLI est en devDep, nécessaire pour generate)
-RUN npm install
+# Installer TOUTES les dépendances (utiliser `npm ci` pour la rapidité et le déterminisme)
+RUN npm ci
 
 # Copier tout le code source
 COPY --chown=pptruser:pptruser . .
 
 # Générer le client Prisma
 RUN npm run build
+
+# Alléger l'image en supprimant les dépendances de developpement
+RUN npm prune --omit=dev
 
 # Rendre le script d'entrée exécutable
 RUN chmod +x entrypoint.sh

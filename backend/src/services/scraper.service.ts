@@ -2,6 +2,7 @@
 import puppeteer from 'puppeteer-extra';
 import type { Page } from 'puppeteer';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import RecaptchaPlugin from 'puppeteer-extra-plugin-recaptcha';
 import prisma from '../lib/prisma';
 import type { ScraperConfig, ScrapedPlan } from './scrapers/types';
 import { soshScrapeLogic } from './scrapers/sosh.scraper';
@@ -26,6 +27,11 @@ import { fetchFeesFromPdf, detectFeesFromCheckout } from './scrapers/utils';
 import { broadcastDeal } from './discord.service';
 
 puppeteer.use(StealthPlugin());
+puppeteer.use(
+  RecaptchaPlugin({
+    visualFeedback: true,
+  })
+);
 
 /**
  * Lance un navigateur Puppeteer avec les options nécessaires pour Docker.
