@@ -18,7 +18,7 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 
 ## Fonctionnalites Principales
 
-- **Scraping Automatisé & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 12 opérateurs. Cron horaire + déclenchement manuel. Détection automatique 4G/5G et Data Europe/DOM.
+- **Scraping Automatisé & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 20 opérateurs. Cron horaire + déclenchement manuel. Détection automatique 4G/5G et Data Europe/DOM.
 - **Classement Transparent (Coût Réel sur 1 An)** — Tri basé sur le coût annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de résiliation. Score euro/Go calculé.
 - **Design Néobrutaliste & Dark Mode** — Interface avec bordures épaisses, contrastes forts, ombres nettes et Dark Mode dynamique. Inclut une page 404 sur-mesure.
 - **Filtrage Avancé** — Slider interactif (0 à 500 Go) avec saisie directe au Go près et filtre exclusif par réseau (Orange, SFR, Bouygues, Free).
@@ -45,6 +45,13 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 | **Cdiscount Mobile** | MVNO | Bouygues Telecom | Oui |
 | **Syma Mobile** | MVNO | SFR | Oui |
 | **Lebara** | MVNO | SFR | Oui |
+| **Lycamobile** | MVNO | Bouygues Telecom | Oui |
+| **Prixtel** | MVNO | Orange | Oui |
+| **TeleCoop** | MVNO | Orange | Oui |
+| **Akeo Telecom** | MVNO | Orange / Bouygues Telecom | Oui |
+| **Chez Switch** | MVNO | SFR | Oui |
+| **Nordnet** | MVNO | Orange | Oui |
+| **France Téléphone (Bleutel)** | MVNO | Orange / Bouygues Telecom | Oui |
 
 ---
 
@@ -228,6 +235,19 @@ Deal-Voyager/
 │   │   │       ├── free.scraper.ts
 │   │   │       ├── youprice.scraper.ts
 │   │   │       ├── coriolis.scraper.ts
+│   │   │       ├── laposte.scraper.ts
+│   │   │       ├── nrj.scraper.ts
+│   │   │       ├── auchan.scraper.ts
+│   │   │       ├── cdiscount.scraper.ts
+│   │   │       ├── syma.scraper.ts
+│   │   │       ├── lebara.scraper.ts
+│   │   │       ├── lycamobile.scraper.ts
+│   │   │       ├── prixtel.scraper.ts
+│   │   │       ├── telecoop.scraper.ts
+│   │   │       ├── akeo.scraper.ts
+│   │   │       ├── chezswitch.scraper.ts
+│   │   │       ├── nordnet.scraper.ts
+│   │   │       ├── francetelephone.scraper.ts
 │   │   │       └── types.ts
 │   │   ├── routes/
 │   │   └── lib/                # Prisma Client
@@ -271,12 +291,11 @@ Pensez a :
 
 ## Roadmap
 
-- [ ] Automatisation de la tarification SIM/eSIM pendant le scraping
-- [ ] Notifications Telegram/Discord pour les offres exceptionnelles
+- [ ] Comparateur Box opérateurs (sélecteur déjà présent en UI)
 - [ ] Historisation des prix et graphiques de tendances
 - [ ] Export CSV/JSON de l'inventaire
 - [ ] CI/CD & tests E2E (Playwright)
-- [ ] Ajout d'operateurs : Prixtel, Mint Mobile, Réglo Mobile...
+- [ ] Notifications avancées (Discord ciblé + Telegram)
 
 ---
 

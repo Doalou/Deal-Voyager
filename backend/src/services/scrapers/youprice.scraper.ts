@@ -15,14 +15,15 @@ export const youPriceScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
             // Détection globale du prix SIM
             let simPrice: number | null = null;
             const lower = allText.toLowerCase();
-            if (/sim\s*gratuit/i.test(lower) || /sim\s*offert/i.test(lower)) {
+            if (/sim\s*gratuit/i.test(lower) || /sim\s*offert/i.test(lower) || /livraison\s*gratuit/i.test(lower) || /frais\s*de\s*livraison\s*offert/i.test(lower)) {
                 simPrice = 0;
             } else {
                 const sp = [
                     /carte\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
                     /activation\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
                     /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim|activation\s*sim)/i,
-                    /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
+                    /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?:de\s*(?:la\s*)?carte\s*sim)?\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*[\u20ac€]/i,
+                    /livraison\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*[\u20ac€]/i,
                 ];
                 for (const pat of sp) {
                     const m = lower.match(pat);

@@ -1,4 +1,5 @@
 import type { ScraperConfig, ScrapedPlan } from "./types";
+import { extractFeesFromText } from "./utils";
 
 export const symaMobileScrapeLogic: ScraperConfig["scrapeFunction"] = async (
   page,
@@ -34,7 +35,7 @@ export const symaMobileScrapeLogic: ScraperConfig["scrapeFunction"] = async (
         '.forfaits_top_list_item, .forfait-card, [class*="offre_"]',
       );
 
-      items.forEach((item) => {
+      for (const item of Array.from(items)) {
         const idProduct =
           item.getAttribute("data-id_product") ||
           item.getAttribute("data-product-id") ||
@@ -97,16 +98,6 @@ export const symaMobileScrapeLogic: ScraperConfig["scrapeFunction"] = async (
           p.is5G = true;
         }
 
-        // Frais d'activation
-        const fraisAmountEl = item.querySelector(
-          "#frais_amount, .frais_amount",
-        );
-        if (fraisAmountEl && fraisAmountEl.textContent) {
-          p.activationPrice = parseFloat(
-            fraisAmountEl.textContent.replace(/[^\d,.]/g, "").replace(",", "."),
-          );
-        }
-
         // EU Data from detail item
         const detailEl = document.querySelector(
           `.forfait_detail_element_wrapper[data-id_product="${idProduct}"]`,
@@ -122,9 +113,9 @@ export const symaMobileScrapeLogic: ScraperConfig["scrapeFunction"] = async (
             }
           }
         }
-      });
+      }
 
-      // Si des plan manquent le EU Data ou le name, on peut chercher globalement par fallback
+      // Si des plans manquent le EU Data ou le name, on peut chercher globalement par fallback
       const finalPlans = Array.from(planMap.values()).filter(
         (p) => p.price > 0,
       );
@@ -153,34 +144,6 @@ export const symaMobileScrapeLogic: ScraperConfig["scrapeFunction"] = async (
         }
       });
 
-      const bodyLines = document.body.innerText
-        .split("\n")
-        .filter((l) => l.trim().length > 0 && l.trim().length < 300);
-      const bodyText = bodyLines.join(" ").toLowerCase();
-      let globalActivation: number | null = null;
-      const actMatch = bodyText.match(
-        /frais\s*d['\u2019]?\s*activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{1,2})?)\s*€/i,
-      );
-      if (actMatch)
-        globalActivation = parseFloat(actMatch[1].replace(",", "."));
-
-      let globalSim: number | null = null;
-      if (/sim\s*gratuit/i.test(bodyText) || /sim\s*offert/i.test(bodyText)) {
-        globalSim = 0;
-      } else {
-        const sps = [
-          /carte\s*sim\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
-          /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim)/i,
-        ];
-        for (const pat of sps) {
-          const m = bodyText.match(pat);
-          if (m) {
-            globalSim = parseFloat(m[1].replace(",", "."));
-            break;
-          }
-        }
-      }
-
       return finalPlans.map((p: any) => ({
         planName:
           `Forfait Syma Mobile ` +
@@ -192,11 +155,39 @@ export const symaMobileScrapeLogic: ScraperConfig["scrapeFunction"] = async (
         calls: "Illimités",
         networkGeneration: p.is5G ? "5G" : "4G",
         dataEuGb: p.euGb,
-        simPrice: globalSim,
-        activationPrice: p.activationPrice ?? globalActivation,
-        cancellationPrice: null, // sans engagement, pas de frais de résiliation affichés
+        simPrice: null,
+        activationPrice: null,
+        cancellationPrice: null,
       }));
     });
+
+    // Extraction des frais dans un texte ciblé mobile (on exclut options/recharges et footer marketing)
+    const feesText = await page.evaluate(() => {
+      const lines = (document.body.innerText || "")
+        .replace(/\u00a0/g, " ")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0 && l.length < 260);
+
+      const kept: string[] = [];
+      for (const line of lines) {
+        const lower = line.toLowerCase();
+        if (/ajouter\s*\d+\s*€|retirer|options|recharge|international/i.test(lower)) {
+          continue;
+        }
+        if (
+          /sim|esim|frais|activation|mise en service|resiliation|résiliation|sans engagement|brochure tarifaire|recapitulatif contractuel|récapitulatif contractuel/i.test(
+            lower,
+          )
+        ) {
+          kept.push(line);
+        }
+      }
+
+      return kept.join("\n");
+    });
+
+    const fees = extractFeesFromText(feesText);
 
     // Filtrer les forfaits non valides (ex: dataGb inexistant)
     const validPlans = plans.filter((p: any) => p.dataGb > 0 && p.price > 0);
@@ -222,6 +213,9 @@ export const symaMobileScrapeLogic: ScraperConfig["scrapeFunction"] = async (
       ...plan,
       operator: "Syma Mobile",
       network: "SFR",
+      simPrice: fees.simPrice ?? undefined,
+      activationPrice: fees.activationPrice ?? undefined,
+      cancellationPrice: fees.cancellationPrice ?? undefined,
     }));
   } catch (error) {
     console.error("Erreur dans la collecte Syma Mobile:", error);

@@ -204,6 +204,101 @@ export function extractFeesFromPdfText(pdfText: string, operatorName?: string): 
 }
 
 /**
+ * Interface pour les frais extraits d'une page web.
+ */
+export interface PageFees {
+    simPrice: number | null;
+    activationPrice: number | null;
+    cancellationPrice: number | null;
+}
+
+/**
+ * Extrait les frais (SIM, activation, résiliation) depuis le texte brut d'une page web.
+ * Fonction centralisée utilisée par tous les scrapers pour éviter la duplication.
+ *
+ * Plafonds anti-faux-positifs :
+ *  - SIM : 0-30€
+ *  - Activation : 0-20€ (évite les frais Fibre ~48€)
+ *  - Résiliation : 0-20€ (évite les frais Fibre ~69€)
+ */
+export function extractFeesFromText(rawText: string): PageFees {
+    // Normalisation unicode complète
+    const text = rawText
+        .replace(/\u00a0/g, ' ')  // non-breaking space
+        .replace(/\u2019/g, "'")  // right single quote → apostrophe
+        .replace(/\u2018/g, "'")  // left single quote → apostrophe
+        .replace(/\u20ac/g, '€')  // euro sign
+        .replace(/\u2013/g, '-')  // en-dash
+        .replace(/\u2014/g, '-')  // em-dash
+        .toLowerCase();
+
+    let simPrice: number | null = null;
+    let activationPrice: number | null = null;
+    let cancellationPrice: number | null = null;
+
+    // ─── SIM price ───
+    if (/(?:carte\s*)?sim\s*(?:gratuit|offert)/i.test(text)) {
+        simPrice = 0;
+    } else {
+        const simPatterns = [
+            /(?:carte\s*)?sim\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+            /(\d+(?:[,.]\d{1,2})?)\s*€[^\n]{0,30}(?:carte\s*sim)/gi,
+        ];
+        for (const pat of simPatterns) {
+            let m;
+            while ((m = pat.exec(text)) !== null) {
+                const val = parseFloat(m[1].replace(',', '.'));
+                if (val >= 0 && val <= 30) { simPrice = val; break; }
+            }
+            if (simPrice !== null) break;
+        }
+    }
+
+    // ─── Activation price ───
+    if (/activation\s*(?:gratuit|offert)/i.test(text) ||
+        /frais\s*(?:d['e]\s*)?activation\s*offert/i.test(text)) {
+        activationPrice = 0;
+    } else {
+        const actPatterns = [
+            /frais\s*d['e]\s*activation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+            /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+            /frais\s*(?:de\s*)?souscription\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+            /activation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+        ];
+        for (const pat of actPatterns) {
+            let m;
+            while ((m = pat.exec(text)) !== null) {
+                const val = parseFloat(m[1].replace(',', '.'));
+                // Plafonné à 20€ pour éviter les frais Fibre/Bbox (48€)
+                if (val >= 0 && val <= 20) { activationPrice = val; break; }
+            }
+            if (activationPrice !== null) break;
+        }
+    }
+
+    // ─── Cancellation price ───
+    if (/sans\s*engagement/i.test(text) || /r[ée]siliation\s*(?:gratuit|offert)/i.test(text)) {
+        cancellationPrice = 0;
+    }
+    // Même si "sans engagement" est trouvé, on cherche quand même un prix explicite
+    // qui l'emporterait (ex: "sans engagement, frais de résiliation : 5€")
+    const cancelPatterns = [
+        /frais\s*(?:de\s*)?r[ée]siliation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+    ];
+    for (const pat of cancelPatterns) {
+        let m;
+        while ((m = pat.exec(text)) !== null) {
+            const val = parseFloat(m[1].replace(',', '.'));
+            // Plafonné à 20€ pour éviter les frais Fibre (69€)
+            if (val >= 0 && val <= 20) { cancellationPrice = val; break; }
+        }
+        if (cancellationPrice !== null && cancellationPrice > 0) break;
+    }
+
+    return { simPrice, activationPrice, cancellationPrice };
+}
+
+/**
  * Télécharge un PDF et en extrait les frais. Retourne null en cas d'erreur.
  */
 export async function fetchFeesFromPdf(pdfUrl: string, operatorName: string): Promise<PdfFees | null> {

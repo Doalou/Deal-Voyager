@@ -29,7 +29,7 @@ model MobilePlan {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([operator, planName])
+  @@unique([operator, planName, network])
   @@index([score])
 }
 

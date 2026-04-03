@@ -11,10 +11,16 @@ const operators = [
   { name: 'Auchan', color: '#E30613', text: 'white' },
   { name: 'Cdiscount', color: '#00528A', text: 'white' },
   { name: 'Syma', color: '#00A651', text: 'white' },
-  { name: 'Lebara', color: '#E6007E', text: 'white' }
+  { name: 'Lebara', color: '#E6007E', text: 'white' },
+  { name: 'Lycamobile', color: '#63A532', text: 'white' },
+  { name: 'Prixtel', color: '#00B4D8', text: 'white' },
+  { name: 'TeleCoop', color: '#2D8F4E', text: 'white' },
+  { name: 'Akeo', color: '#004B87', text: 'white' },
+  { name: 'Nordnet', color: '#003DA5', text: 'white' },
+  { name: 'France Tél', color: '#2C5F8A', text: 'white' }
 ]
 
-const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1.5', '-2']
+const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1.5', '-2', '-1', '2', '-1.5', '1', '-2', '1.5']
 </script>
 
 <template>
@@ -54,7 +60,7 @@ const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1
         </div>
       </div>
       <p class="mt-4 text-sm font-bold text-muted-foreground uppercase tracking-widest">
-        12 opérateurs scannés en temps réel
+        18 opérateurs scannés en temps réel
       </p>
     </div>
   </header>

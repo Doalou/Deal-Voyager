@@ -1,4 +1,5 @@
 import type { ScraperConfig } from "./types";
+import { extractFeesFromText } from './utils';
 
 export const coriolisScrapeLogic: ScraperConfig["scrapeFunction"] = async (
   page,
@@ -19,6 +20,11 @@ export const coriolisScrapeLogic: ScraperConfig["scrapeFunction"] = async (
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await new Promise((r) => setTimeout(r, 2000));
 
+    // ─── Extraction frais via helper centralisé ───
+    const pageText = await page.evaluate(() => (document.body.innerText || ''));
+    const fees = extractFeesFromText(pageText);
+    console.log(`[Coriolis] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+
     const plans = await page.evaluate(() => {
       const results: {
         planName: string;
@@ -27,68 +33,12 @@ export const coriolisScrapeLogic: ScraperConfig["scrapeFunction"] = async (
         calls: string;
         networkGeneration: string;
         dataEuGb: number;
-        simPrice: number | null;
-        activationPrice: number | null;
-        cancellationPrice: number | null;
       }[] = [];
       const bodyText = document.body.innerText;
       const lines = bodyText
         .split("\n")
         .map((l) => l.trim())
         .filter((l) => l.length > 0);
-
-      let simPrice: number | null = null;
-      const lower = bodyText.toLowerCase();
-      const simPats = [
-        /carte\s*sim\s*(?:\/?\s*e?\s*sim\s*)?(?:est\s*)?(?:factur[ée]e?|co[uû]te?)\s*(\d+(?:[,.]\d{2})?)\s*€/i,
-        /carte\s*sim\s*(?:à|a|:)\s*(\d+(?:[,.]\d{2})?)\s*€/i,
-        /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim)/i,
-        /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-      ];
-      for (const pat of simPats) {
-        const m = lower.match(pat);
-        if (m) {
-          const v = parseFloat(m[1].replace(",", "."));
-          if (v > 0 && v <= 50) {
-            simPrice = v;
-            break;
-          }
-        }
-      }
-      if (simPrice === null) {
-        if (
-          /carte\s*sim[^.]{0,10}gratuit/i.test(lower) ||
-          /sim\s*offert/i.test(lower)
-        ) {
-          simPrice = 0;
-        }
-      }
-
-      let activationPrice: number | null = null;
-      const actPats = [
-        /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-        /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-        /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-      ];
-      for (const p of actPats) {
-        const m = lower.match(p);
-        if (m) {
-          activationPrice = parseFloat(m[1].replace(",", "."));
-          break;
-        }
-      }
-
-      let cancellationPrice: number | null = 0;
-      if (
-        /frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i.test(
-          lower,
-        )
-      ) {
-        const m = lower.match(
-          /frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-        );
-        if (m) cancellationPrice = parseFloat(m[1].replace(",", "."));
-      }
 
       // detect5G logic is inlined at each call site below to avoid
       // esbuild __name helper injection inside page.evaluate()
@@ -188,9 +138,6 @@ export const coriolisScrapeLogic: ScraperConfig["scrapeFunction"] = async (
               calls: "Illimités",
               networkGeneration: gen,
               dataEuGb: euGb,
-              simPrice,
-              activationPrice,
-              cancellationPrice,
             });
           }
           continue;
@@ -204,11 +151,12 @@ export const coriolisScrapeLogic: ScraperConfig["scrapeFunction"] = async (
 
           let planName = "";
           for (let j = i - 1; j >= Math.max(0, i - 5); j--) {
-            if (/^Le\s+\w+/i.test(lines[j])) {
+            if (/^Le\s+\w+/i.test(lines[j]) || /^Forfait\s+/i.test(lines[j])) {
               planName = lines[j].replace(/offerte/i, "").trim();
               break;
             }
           }
+          if (!planName) continue; // Ignore loose GB data without a valid plan name above
 
           let price = 0;
           for (let j = i + 1; j < Math.min(lines.length, i + 8); j++) {
@@ -305,19 +253,26 @@ export const coriolisScrapeLogic: ScraperConfig["scrapeFunction"] = async (
               calls: "Illimités",
               networkGeneration: gen,
               dataEuGb: euGb,
-              simPrice,
-              activationPrice,
-              cancellationPrice,
             });
           }
         }
       }
 
-      return results;
-    });
+      // Coriolis dedup step: prevent picking up same plan mixed with lower roaming GBs.
+      // If two extracted plans have the same price, we only keep the one with the highest data.
+      const plansByPrice = new Map<string, typeof results[0]>();
+      for (const p of results) {
+        // Group by price; round mathematically to avoid floating point hash issues
+        const pKey = `${Math.round(p.price * 100)}`;
+        const existing = plansByPrice.get(pKey);
+        // Compare dataGb to filter out fake "10 Go" from the same page if we already caught "100 Go" at same price
+        if (!existing || p.dataGb > existing.dataGb) {
+          plansByPrice.set(pKey, p);
+        }
+      }
 
-    for (const p of plans) {
-    }
+      return Array.from(plansByPrice.values());
+    });
 
     return plans
       .filter((p) => p.price > 0 && p.dataGb > 0)
@@ -330,9 +285,9 @@ export const coriolisScrapeLogic: ScraperConfig["scrapeFunction"] = async (
         network: "SFR",
         networkGeneration: plan.networkGeneration,
         dataEuGb: plan.dataEuGb || undefined,
-        simPrice: plan.simPrice ?? undefined,
-        activationPrice: plan.activationPrice ?? undefined,
-        cancellationPrice: plan.cancellationPrice ?? undefined,
+        simPrice: fees.simPrice ?? undefined,
+        activationPrice: fees.activationPrice ?? undefined,
+        cancellationPrice: fees.cancellationPrice ?? undefined,
       }));
   } catch (error) {
     console.error("Erreur dans la collecte Coriolis:", error);

@@ -37,6 +37,7 @@ const { data: operators } = useFetch<OperatorSettings[]>('/api/v1/operators', { 
 // State
 const targetDataGb = ref(20)
 const targetNetworks = ref<string[]>(['Orange', 'Bouygues', 'SFR', 'Free'])
+const activeCategory = ref<'mobile' | 'box'>('mobile')
 
 // Helper: check if operator is flagged
 const isFairplay = (operatorName: string) => {
@@ -107,6 +108,30 @@ const isDiscordConfigured = computed(() => !!config.public.discordClientId)
     <HeroSection />
 
     <main class="container mx-auto px-4 relative z-10 flex flex-col items-center">
+
+      <!-- Sélecteur Forfaits Mobiles / Box Opérateurs -->
+      <div class="flex gap-4 mb-8 w-full max-w-5xl justify-center">
+        <button
+          @click="activeCategory = 'mobile'"
+          :class="[
+            'neo-button text-lg px-8 py-3 font-black uppercase border-4 border-border transition-all',
+            activeCategory === 'mobile'
+              ? 'bg-primary text-primary-foreground shadow-neo transform -rotate-1'
+              : 'bg-card text-card-foreground hover:bg-muted'
+          ]"
+        >
+          📱 Forfaits Mobiles
+        </button>
+        <button
+          disabled
+          class="neo-button text-lg px-8 py-3 font-black uppercase border-4 border-border bg-muted text-muted-foreground cursor-not-allowed opacity-60 relative"
+        >
+          📦 Box Opérateurs
+          <span class="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-black px-2 py-0.5 border-2 border-border shadow-neo rotate-6">
+            SOON
+          </span>
+        </button>
+      </div>
 
       <DataSlider v-model="targetDataGb" v-model:networks="targetNetworks" />
 

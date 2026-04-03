@@ -22,6 +22,12 @@ const getOperatorStyle = (name: string) => {
   if (normalized.includes('cdiscount')) return 'bg-[#00528A] text-white'
   if (normalized.includes('syma')) return 'bg-[#00A651] text-white'
   if (normalized.includes('lebara')) return 'bg-[#E6007E] text-white'
+  if (normalized.includes('lycamobile') || normalized.includes('lyca')) return 'bg-[#63A532] text-white'
+  if (normalized.includes('prixtel')) return 'bg-[#00B4D8] text-white'
+  if (normalized.includes('telecoop') || normalized.includes('télécoop')) return 'bg-[#2D8F4E] text-white'
+  if (normalized.includes('akeo')) return 'bg-[#004B87] text-white'
+  if (normalized.includes('nordnet')) return 'bg-[#003DA5] text-white'
+  if (normalized.includes('france t') || normalized.includes('bleutel')) return 'bg-[#2C5F8A] text-white'
   
   return 'bg-card text-card-foreground'
 }

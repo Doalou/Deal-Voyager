@@ -16,6 +16,12 @@ import { nrjMobileScrapeLogic } from './scrapers/nrj.scraper';
 import { cdiscountMobileScrapeLogic } from './scrapers/cdiscount.scraper';
 import { symaMobileScrapeLogic } from './scrapers/syma.scraper';
 import { lebaraScrapeLogic } from './scrapers/lebara.scraper';
+import { lycamobileScrapeLogic } from './scrapers/lycamobile.scraper';
+import { prixtelScrapeLogic } from './scrapers/prixtel.scraper';
+import { telecoopScrapeLogic } from './scrapers/telecoop.scraper';
+import { akeoScrapeLogic } from './scrapers/akeo.scraper';
+import { nordnetScrapeLogic } from './scrapers/nordnet.scraper';
+import { franceTelephoneScrapeLogic } from './scrapers/francetelephone.scraper';
 import { fetchFeesFromPdf, detectFeesFromCheckout } from './scrapers/utils';
 import { broadcastDeal } from './discord.service';
 
@@ -94,7 +100,7 @@ const scraperConfigs: ScraperConfig[] = [
   { name: 'Coriolis', url: 'https://www.coriolis.com/forfaits-sans-mobile', scrapeFunction: coriolisScrapeLogic },
   {
     name: 'La Poste Mobile',
-    url: 'https://www.lapostemobile.fr/offres/forfaits-sans-engagement',
+    url: 'https://www.lapostemobile.fr/offres-mobiles/forfaits-sans-engagement',
     pdfUrl: 'https://medias.lapostemobile.fr/portail_mobile/pdf/portail_web/LPM-Recapitulatif-contractuel-SIM.pdf',
     scrapeFunction: laPosteMobileScrapeLogic,
   },
@@ -124,6 +130,36 @@ const scraperConfigs: ScraperConfig[] = [
   },
   { name: 'Lebara', url: 'https://mobile.lebara.com/fr/fr/', scrapeFunction: lebaraScrapeLogic },
   // { name: 'Réglo Mobile', url: 'https://www.reglomobile.fr/forfaits-mobiles', scrapeFunction: regloMobileScrapeLogic },
+
+  // v2.0.0 — Nouveaux MVNOs
+  { name: 'Lycamobile', url: 'https://www.lycamobile.fr/abo/fr/bundles/sim-only-deals/', scrapeFunction: lycamobileScrapeLogic },
+  {
+    name: 'Prixtel',
+    url: 'https://www.prixtel.com/forfait-mobile/',
+    findPdfUrl: async (page) => {
+      try {
+        const pdfLink = await page.evaluate(() => {
+          const links = Array.from(document.querySelectorAll('a[href]'));
+          for (const a of links) {
+            const href = a.getAttribute('href') || '';
+            const text = (a.textContent || '').toLowerCase();
+            if (/\.pdf$/i.test(href) && /prixtel_.*_gt_|guide tarifaire|fiche standardis/i.test(href + ' ' + text)) {
+              return new URL(href, globalThis.location.origin).href;
+            }
+          }
+          return null;
+        });
+        return pdfLink;
+      } catch {
+        return null;
+      }
+    },
+    scrapeFunction: prixtelScrapeLogic,
+  },
+  { name: 'TeleCoop', url: 'https://telecoop.fr/particuliers', scrapeFunction: telecoopScrapeLogic },
+  { name: 'Akeo Telecom', url: 'https://www.akeotelecom.com/mobile/forfaits', scrapeFunction: akeoScrapeLogic },
+  { name: 'Nordnet', url: 'https://www.nordnet.com/forfaits-mobile', scrapeFunction: nordnetScrapeLogic },
+  { name: 'France Téléphone', url: 'https://france-telephone.com/forfaits-mobiles-bleutel-2/', scrapeFunction: franceTelephoneScrapeLogic },
 ];
 
 /**
@@ -307,6 +343,38 @@ export const scrapeOffers = async () => {
             }
           }
           console.log(`[${config.name}] Sauvegarde terminée.`);
+
+          // --- Nettoyage : supprimer les forfaits obsolètes ---
+          // On compare les plans en base pour cet opérateur avec ceux qu'on vient de scraper.
+          // Si un plan en base n'a pas été retourné par le scraper, il a été retiré par l'opérateur.
+          try {
+            const existingPlans = await prisma.mobilePlan.findMany({
+              where: { operator: config.name },
+            });
+
+            const scrapedKeys = new Set(
+              scrapedPlans.map(p => `${p.planName}|||${p.network || ''}`),
+            );
+
+            const stalePlans = existingPlans.filter(
+              ep => !scrapedKeys.has(`${ep.planName}|||${ep.network || ''}`),
+            );
+
+            if (stalePlans.length > 0) {
+              console.log(`[${config.name}] 🗑️ - ${stalePlans.length} forfait(s) obsolète(s) détecté(s), suppression...`);
+              for (const stale of stalePlans) {
+                try {
+                  await prisma.mobilePlan.delete({ where: { id: stale.id } });
+                  console.log(`[${config.name}]   → Supprimé : ${stale.planName} (${stale.network || 'N/A'}) — ${stale.price}€/mois, ${stale.dataGb} Go`);
+                  await broadcastDeal(stale, 'DELETE');
+                } catch (delErr) {
+                  console.error(`[${config.name}] Erreur suppression "${stale.planName}":`, delErr);
+                }
+              }
+            }
+          } catch (cleanupErr) {
+            console.error(`[${config.name}] Erreur lors du nettoyage des forfaits obsolètes:`, cleanupErr);
+          }
         } else {
           console.log(`[${config.name}] Aucune offre trouvée ou le scraping a échoué.`);
         }

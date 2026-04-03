@@ -26,16 +26,18 @@ const getOperatorColor = (operatorName: string): number => {
 
 export const broadcastDeal = async (
   plan: MobilePlanType,
-  type: "NEW" | "UPDATE",
+  type: "NEW" | "UPDATE" | "DELETE",
 ) => {
   if (!discordClient.isReady()) return;
 
   const title =
     type === "NEW"
       ? `🆕 Nouveau forfait détecté : ${plan.planName} chez ${plan.operator} !`
-      : `🔄 Forfait mis à jour : ${plan.planName} chez ${plan.operator} !`;
+      : type === "DELETE"
+        ? `🗑️ Forfait supprimé : ${plan.planName} chez ${plan.operator}`
+        : `🔄 Forfait mis à jour : ${plan.planName} chez ${plan.operator} !`;
 
-  const color = getOperatorColor(plan.operator);
+  const color = type === "DELETE" ? 0x95a5a6 : getOperatorColor(plan.operator);
 
   const embed = new EmbedBuilder()
     .setTitle(title)

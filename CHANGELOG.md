@@ -2,6 +2,90 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [Unreleased]
+
+### 🔜 À surveiller
+
+- **B&You — frais promotionnels** — Les frais B&You (SIM 1€, activation 1€) sont des promos qui changent régulièrement. L'extraction dépend du contenu des mentions légales visibles.
+- **Lycamobile — antibot** — Contournements anti-détection ajoutés mais l'antibot Lycamobile reste agressif. À surveiller en production.
+
+---
+
+## [2.1.0] — 2026-04-03
+
+### 🔧 Rework — Scrapers v2.0 & détection des frais
+
+- **Free Mobile — rework complet + détection du Forfait Free Max** — Réécriture totale du scraper Free Mobile. Le site utilise un système d'onglets (« Forfait 2€ » / « Forfaits 5G/5G+ ») que le scraper navigue maintenant dynamiquement. Détection du nouveau **Forfait Free Max** (data illimitée 5G+, 29,99€/mois) qui était invisible pour l'ancien scraper car le heading affiche « illimité » au lieu d'un nombre de Go. Le **Forfait Free 5G+** (350 Go, 19,99€), la **Série Free** (150 Go, 9,99€) et le **Forfait 2€** (1 Go, 2€) sont tous correctement extraits. Gestion du format de prix splitté Free (ex: `29` sur une ligne + `€99` sur la suivante). Utilise `extractFeesFromText` pour les frais (SIM 10€, activation 0€, résiliation 0€).
+- **Free Mobile — fin de la confusion Forfait 2€ / Série Free** — Réécriture de la stratégie de navigation : découverte dynamique des liens `/fiche-forfait-*` depuis la page d'accueil puis navigation dédiée vers chaque fiche forfait. Élimine la confusion causée par la lecture du `body.innerText` global qui mélangeait les données de tous les forfaits.
+- **Détection des frais centralisée (`extractFeesFromText`)** — Nouvelle fonction pure dans `utils.ts` qui centralise toute la logique d'extraction des frais (SIM, activation, résiliation) depuis le texte brut d'une page. Élimine la duplication massive de code de regex entre les scrapers. Inclut des plafonds anti-faux-positifs (activation ≤ 20€, résiliation ≤ 20€) pour empêcher les frais Fibre/Bbox (48€ mise en service, 69€ résiliation) de contaminer les forfaits mobiles.
+- **Coriolis — extraction des frais centralisée** — Remplacement de l'extraction inline des frais (60+ lignes de regex dupliquées dans `page.evaluate()`) par `extractFeesFromText()` centralisé. Les frais sont maintenant extraits côté Node.js et injectés dans chaque plan retourné.
+- **La Poste Mobile — scraper réécrit** — URL corrigée (`/offres-mobiles/forfaits-sans-engagement` au lieu de `/offres/forfaits-sans-engagement`). Scraper entièrement réécrit avec `extractFeesFromText()`, ouverture des mentions légales, et parsing adapté au nouveau format du site.
+- **B&You — rework complet (595 → 220 lignes)** — Réécriture totale du scraper. Sélecteurs CSS mis à jour (`button.is-label-check` au lieu de `label.radio-label`). Suppression de la double extraction des frais (pré-extraction mentions légales + re-détection par forfait) au profit d'une seule passe via le helper centralisé après ouverture de la modale Mentions Légales. Détection prix par sticky bar → font-size → regex body.
+- **Akeo Telecom — prix sans engagement uniquement** — Le scraper ne prenait pas correctement le prix sans engagement. Filtrage strict sur le pattern « ou XX,XX€/mois » pour ignorer les prix engagement 12 mois. Ajout de la détection des frais via `extractFeesFromText`.
+- **France Téléphone — fin du hardcodage 0€** — Le scraper initialisait `activationPrice = 0` et `cancellationPrice = 0` en dur, ce qui empêchait le fallback PDF de se déclencher. Remplacé par `extractFeesFromText` avec filtrage contextuel des offres fixes (Bleufix).
+- **Nordnet — clic séquentiel des onglets + isolation du panel actif** — Le site utilise des onglets (1 Go, 30 Go, 70 Go, 100 Go, 150 Go) qu'il faut cliquer pour voir le prix. Le scraper clique désormais sur chaque onglet et lit le prix depuis le `tabpanel` actif uniquement (via `aria-hidden`, `aria-selected`, CSS visibility) au lieu du body entier. Fallback textuel conservé. Ajout de la détection des frais via `extractFeesFromText`.
+- **Prixtel — détection de l'offre Oxygène** — Ajout du pattern « Oxygène » et « Série spéciale » à la détection des noms de forfaits. L'offre phare (120-160 Go, 5G gratuite, 6,99€) n'était pas détectée. Ajout de la détection des frais via `extractFeesFromText`.
+- **TeleCoop — frais enfin détectés** — Le scraper ne retournait aucun frais (SIM, activation, résiliation). Ajout de `extractFeesFromText` et parsing amélioré du forfait Sobriété (prix + data détectés séparément).
+
+### 🗑️ Retrait
+
+- **Chez Switch retiré** — L'opérateur ne propose que des forfaits avec engagement 12 mois. Retiré du scraper, du Hero (badges), de l'OperatorBadge (couleur) et du compteur opérateurs (19 → 18).
+
+### 🤖 Bot Discord
+
+- **Notification de suppression de forfait** — Le bot Discord notifie désormais quand un forfait est retiré par un opérateur. Après chaque scrape, les forfaits présents en base mais absents du résultat du scraping sont automatiquement supprimés et une notification 🗑️ est envoyée sur tous les salons abonnés. Le type `broadcastDeal` accepte maintenant `NEW`, `UPDATE` et `DELETE`. L'embed de suppression utilise une couleur grise neutre (`#95a5a6`) pour se distinguer visuellement des nouveautés et mises à jour.
+
+### 🐛 Correctifs
+
+- **Lycamobile — crash `__name is not defined`** — Le bundler esbuild/tsx injectait un wrapper `__name()` autour de la fonction helper `pushPlan` dans `page.evaluate()`, ce qui crashait dans le contexte navigateur Puppeteer. Corrigé en utilisant `var addPlan = function(...)` au lieu de `const pushPlan = (...) =>` pour éviter l'injection.
+- **Lycamobile — contournement antibot** — Ajout de mesures anti-détection supplémentaires : suppression du flag `webdriver`, spoof des plugins navigateur, attente initiale plus longue (8s).
+- **Nordnet — tous les forfaits au même prix** — Le regex de prix matchait toujours le premier `XX€XX par mois` du body text car tous les tabpanels étaient dans le DOM. Corrigé en lisant le prix depuis le `tabpanel` actif uniquement (filtrage par `aria-hidden`, `hidden`, CSS `display`/`visibility`).
+- **TeleCoop — aucun forfait détecté** — Le regex du prix Sobriété exigeait `(\d{1,2})\s*€\s*/?\s*mois` mais le site affiche le prix avec un espace fine insécable (`\u202f`) déjà normalisé, suivi d'un `€` sans `/mois`. Ajout d'un fallback `(\d{1,2})\s*€` et relâchement du regex data `inclus` en optionnel.
+- **Akeo — aucun forfait détecté** — Le regex cherchait le format `ou XX,XX€/mois` mais le site affiche `XX € XX / mois` (format splitté avec espaces). Ajout d'un pattern fallback `(\d{1,2})\s*€\s*(\d{2})\s*/\s*mois` pour gérer les deux formats.
+
+### 🛠️ Technique
+
+- **Règle de plafond anti-Fibre** — Les frais d'activation et de résiliation captés par le scraper sont automatiquement ignorés s'ils dépassent respectivement 20€, ce qui élimine les faux positifs récurrents liés aux offres Fibre/Bbox affichées en cross-sell.
+- **Normalisation unicode renforcée** — La fonction centralisée normalise systématiquement les apostrophes typographiques (`'` → `'`), les espaces insécables, les tirets longs, et le symbole € avant analyse regex. Ceci est appliqué uniformément à tous les scrapers.
+- **Purge automatique des forfaits obsolètes** — Après la sauvegarde de chaque opérateur, le scraper compare les plans en base avec ceux fraîchement scrapés. Les plans non retrouvés (renommés, supprimés, changement de gamme) sont automatiquement supprimés de la base et notifiés via Discord.
+
+---
+
+## [2.0.0] — 2026-03-17
+
+
+### ✨ Nouvelles fonctionnalités — 8 nouveaux opérateurs (20 au total)
+- **Lycamobile** — Scraper pour le MVNO à gros volumes sur réseau Bouygues Telecom. Extraction DOM par blocs forfaits avec fallback textuel ligne par ligne. Filtrage automatique des offres internationales et bundles non-mensuels.
+- **Prixtel** — Scraper pour l'opérateur à forfaits modulaires (Le Petit, Le Grand, Le Géant) sur réseau Orange. Extraction des paliers data/prix par regex avec prise du palier le plus élevé par plan. Détection de la génération réseau (4G/5G) depuis le nom du forfait.
+- **TeleCoop** — Scraper pour l'opérateur coopératif et solidaire sur réseau Orange. Extraction DOM standard par cartes/blocs, filtrage des forfaits avec engagement.
+- **Akeo Telecom** — Scraper pour le MVNO sur réseau SFR. Extraction dynamique avec détection du réseau depuis le texte de la page. Filtrage anti-engagement.
+- **Chez Switch** — Scraper pour le MVNO écoresponsable sur réseau Orange. Prise en charge SPA avec scrolls et attentes supplémentaires. Extraction du palier data le plus élevé par carte.
+- **Prompto** — Scraper pour le MVNO du Crédit Mutuel sur réseau SFR. Extraction DOM par blocs produits avec fallback textuel.
+- **Nordnet** — Scraper pour la filiale mobile d'Orange (ex-Nordnet Mobile). Filtrage intelligent des offres box/fibre/ADSL pour ne conserver que les forfaits mobiles.
+- **France Téléphone (Bleutel)** — Scraper API-first utilisant l'API WooCommerce Store (`/wp-json/wc/store/v1/products`) avec fallback DOM. Chaque forfait est dupliqué pour les réseaux Orange et Bouygues Telecom (choix à la souscription, prix identiques).
+
+### ✨ Nouvelles fonctionnalités — Frontend
+- **Sélecteur « Forfaits Mobiles » / « Box Opérateurs »** — Ajout d'un sélecteur UI en page d'accueil séparant les forfaits mobiles (actif) et les box opérateurs (coming soon). Prépare l'arrivée du comparateur Box dans une version ultérieure.
+- **20 badges opérateurs** — Le HeroSection affiche désormais les 20 opérateurs suivis avec leurs couleurs de marque respectives. Compteur mis à jour (« 20 opérateurs scannés en temps réel »).
+- **Couleurs des nouveaux opérateurs** — Ajout des couleurs de marque dans `OperatorBadge.vue` pour Lycamobile (vert #63A532), Prixtel (bleu #00B4D8), TeleCoop (vert #2D8F4E), Akeo (bleu #004B87), Chez Switch (orange #FF6B00), Prompto (rouge #E30613), Nordnet (bleu #003DA5), France Téléphone (bleu-gris #2C5F8A).
+
+### 🛠️ Architecture
+- **Architecture scraper API-first (France Téléphone)** — Nouveau pattern de scraping qui tente d'abord l'API JSON du site (WooCommerce Store API) avant de se rabattre sur l'extraction DOM. Plus fiable et plus rapide quand l'API est disponible.
+- **Duplication multi-réseau (France Téléphone)** — Nouveau mécanisme de duplication automatique des forfaits pour les opérateurs proposant le même forfait sur plusieurs réseaux. Chaque plan France Téléphone apparaît en version Orange et Bouygues Telecom.
+- **Détection d'engagement harmonisée** — Tous les nouveaux scrapers incluent un filtrage automatique des offres avec période d'engagement (regex multi-patterns : « engagement », « 12 mois », « 24 mois »). Seuls les forfaits sans engagement sont conservés.
+- **Conformité `__name` (esbuild/tsx)** — Les 8 nouveaux scrapers respectent strictement la règle de ne jamais déclarer de fonctions nommées à l'intérieur de `page.evaluate()`, évitant le bug `__name is not defined` en production.
+
+### 📝 Notes
+- **Mint Mobile FR retiré** — L'opérateur « Mint Mobile (FR) » initialement prévu a été retiré du scope. Mint Mobile est un MVNO exclusivement américain (propriété de T-Mobile US) et n'opère pas en France.
+
+### 🔧 Correctifs (post-release 2.0.0)
+- **B&You — extraction frais mentions légales durcie** — Ajout d'une ouverture dynamique des blocs « Mentions légales / détails » avant parsing. Réduction des faux négatifs sur SIM / activation / résiliation quand le texte est masqué derrière un accordéon.
+- **YouPrice — frais SIM via livraison** — Prise en compte explicite des formulations « frais de livraison / envoi (carte SIM) » dans les patterns SIM, y compris les variantes « livraison offerte / gratuite ».
+- **Coriolis — doublons de forfaits réduits** — Ajout d'une passe de dédoublonnage pour éviter les faux doublons (forfait principal + palier data parasite) et limiter les collisions de lignes au même prix.
+- **Akeo Telecom — séparation sans engagement renforcée** — Filtrage contextuel des prix liés aux offres « avec engagement » afin de conserver uniquement les forfaits sans engagement.
+- **Chez Switch — extraction multi-stratégies cumulée** — Les stratégies de détection ne sont plus exclusives : elles s'additionnent avec déduplication finale, ce qui rétablit la découverte de plusieurs offres au lieu d'une seule.
+- **France Téléphone (Bleutel) — faux frais d'activation fixe neutralisés** — Ajout d'un pré-filtrage mobile (exclusion des contextes « fixe / bleufix ») pour éviter d'hériter des frais de mise en service des offres fixes.
+
 ## [1.1.1] — 2026-03-10
 
 ### 🔧 Corrections

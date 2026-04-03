@@ -1,188 +1,229 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
+import { extractFeesFromText } from './utils';
 
 export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
     try {
         await new Promise(r => setTimeout(r, 5000));
-        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+        // ─── Fermer cookie banner si présent ───
+        try {
+            const btn = await page.$('button[id*="accept"], #didomi-notice-agree-button, [class*="cookie"] button');
+            if (btn) { await btn.click(); await new Promise(r => setTimeout(r, 1000)); }
+        } catch { }
+
+        // ─── Scroller pour charger tout ───
+        await page.evaluate(async () => {
+            for (let i = 0; i < 3; i++) {
+                window.scrollTo(0, document.body.scrollHeight);
+                await new Promise(r => setTimeout(r, 800));
+            }
+        });
         await new Promise(r => setTimeout(r, 2000));
 
-        const plans = await page.evaluate(() => {
-            const results: { planName: string; dataGb: number; price: number; calls: string; networkGeneration: string; dataEuGb: number; simPrice: number | null; activationPrice: number | null; cancellationPrice: number | null }[] = [];
-            const bodyText = document.body.innerText;
-            const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        // ─── Extraction frais via helper centralisé ───
+        const pageText = await page.evaluate(() => (document.body.innerText || ''));
+        const fees = extractFeesFromText(pageText);
+        console.log(`[Free Mobile] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
 
-            let simPrice: number | null = null;
-            const lowerBody = bodyText.toLowerCase();
-            const simPats = [
-                /carte\s*sim\s*(?:\/?\s*e?\s*sim\s*)?(?:est\s*)?(?:factur[ée]e?|co[uû]te?)\s*(\d+(?:[,.]\d{2})?)\s*€/i,
-                /carte\s*sim\s*(?:\/?\s*e?\s*sim\s*)?(?:à|a|:)\s*(\d+(?:[,.]\d{2})?)\s*€/i,
-                /(\d+(?:[,.]\d{2})?)\s*€[^\n]{0,30}(?:carte\s*sim)/i,
-                /(?:e-?sim|esim)\s*(?:à|a|:)?\s*(\d+(?:[,.]\d{2})?)\s*€/i,
-                /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-            ];
-            for (const p of simPats) {
-                const m = lowerBody.match(p);
-                if (m) {
-                    const v = parseFloat(m[1].replace(',', '.'));
-                    if (v > 0 && v <= 50) { simPrice = v; break; }
-                }
-            }
-            if (simPrice === null) {
-                const isTrulyFree = /carte\s*sim[^.]{0,10}gratuit/i.test(lowerBody) ||
-                    (/sim\s*(offert|gratuit)/i.test(lowerBody) && !/abonn[ée]s?\s*freebox/i.test(lowerBody) && !/offre\s*freebox/i.test(lowerBody));
-                if (isTrulyFree) simPrice = 0;
-            }
+        const plans: ScrapedPlan[] = [];
 
-
-
-            // Détection frais d'activation
-            let activationPrice: number | null = null;
-            const actPats = [
-                /frais\s*(?:d['\u2019e]\s*)?activation\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-                /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-                /frais\s*(?:de\s*)?souscription\s*(?::|\u00e0)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i,
-            ];
-            for (const p of actPats) {
-                const m = lowerBody.match(p);
-                if (m) { activationPrice = parseFloat(m[1].replace(',', '.')); break; }
-            }
-
-            let cancellationPrice: number | null = null;
-            if (/r[ée]siliation\s*gratuit/i.test(lowerBody) || /sans\s*frais\s*(?:de\s*)?r[ée]siliation/i.test(lowerBody)) {
-                cancellationPrice = 0;
-            } else {
-                const m = lowerBody.match(/frais\s*(?:de\s*)?r[\u00e9e]siliation\s*(?::|de)?\s*(\d+(?:[,.]\d{2})?)\s*\u20ac/i);
-                if (m) cancellationPrice = parseFloat(m[1].replace(',', '.'));
-            }
-
-            // Identifier les blocs de forfait par titres
-            const planBlocks: { startIdx: number; name: string }[] = [];
-            for (let i = 0; i < lines.length; i++) {
-                if (/^(Forfait|Série)\s/i.test(lines[i]) && lines[i].length < 40) {
-                    planBlocks.push({ startIdx: i, name: lines[i] });
-                }
-            }
-
-
-            for (const block of planBlocks) {
-                let dataGb = 0;
-                let price = -1;
-                let calls = "Illimités"; // Par défaut
-
-                for (let j = block.startIdx; j < Math.min(block.startIdx + 40, lines.length); j++) {
-                    // Stopper si on rencontre un autre bloc
-                    if (j > block.startIdx + 2 && /^(Forfait|Série)\s/i.test(lines[j]) && lines[j].length < 40) {
-                        break;
-                    }
-
-                    // Chercher la data
-                    if (dataGb === 0) {
-                        const dataMatch = lines[j].match(/(\d{1,4})\s*(Go|Mo)/i);
-                        if (dataMatch) {
-                            const val = parseInt(dataMatch[1], 10);
-                            const unit = dataMatch[2].toLowerCase();
-                            dataGb = unit === 'mo' ? val / 1000 : val;
+        // ─── Découverte dynamique des liens vers les fiches forfait ───
+        // On cherche tous les liens du type "/fiche-forfait-*" sur la page d'accueil
+        const planUrls = await page.evaluate(() => {
+            var links = Array.from(document.querySelectorAll('a[href]'));
+            var found: string[] = [];
+            for (var i = 0; i < links.length; i++) {
+                var href = links[i].getAttribute('href') || '';
+                // Chercher les liens vers les fiches forfait (pattern: /fiche-forfait-*)
+                if (/\/fiche-forfait-/i.test(href)) {
+                    try {
+                        var fullUrl = new URL(href, window.location.origin).href;
+                        if (found.indexOf(fullUrl) === -1) {
+                            found.push(fullUrl);
                         }
-                    }
-
-                    // Chercher le prix — APPROCHE FLEXIBLE
-                    // Le prix peut être affiché de PLUSIEURS façons possibles par innerText:
-                    //
-                    // Cas 1: "9" seul sur une ligne, suivi de "€99" sur la suivante
-                    // Cas 2: "19" seul, suivi de "€99"
-                    // Cas 3: "2" seul, suivi de "€" seul
-                    // Cas 4: "9,99€/mois" tout en un
-                    // Cas 5: "9€99" sur une même ligne
-                    // Cas 6: "9" suivi de "€ 99" (avec espace)
-                    // Cas 7: les centimes/€ contiennent des espaces insécables (\u00a0)
-
-                    if (price < 0) {
-                        // Ignorer les options et les prix abonnés
-                        if (/booster|abonné|avantage|pop/i.test(lines[j])) {
-                            continue;
-                        }
-
-                        // Nettoyer la ligne de tout espace insécable
-                        const cleanLine = lines[j].replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
-                        const cleanNext = j + 1 < lines.length ? lines[j + 1].replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim() : '';
-
-                        // Cas combiné sur une ligne (doit être EXACTEMENT le prix, ex: "9,99€" ou "9,99 €/mois", pas au milieu d'une phrase)
-                        const inlineMatch = cleanLine.match(/^(\d{1,3})[,€.](\d{2})\s*€?\s*\/?m?o?i?s?$/);
-                        if (inlineMatch) {
-                            price = parseFloat(`${inlineMatch[1]}.${inlineMatch[2]}`);
-                            continue;
-                        }
-
-                        // Nombre seul sur la ligne (1-2 digits)
-                        if (/^\d{1,2}$/.test(cleanLine)) {
-                            const euros = parseInt(cleanLine, 10);
-
-                            // La ligne suivante contient les centimes
-                            // "€99" ou "€ 99" ou "€"
-                            const centsMatch = cleanNext.match(/€\s*(\d{2})/);
-                            if (centsMatch) {
-                                price = euros + parseInt(centsMatch[1], 10) / 100;
-                                continue;
-                            }
-                            // Juste "€" (prix entier)
-                            if (/^€$/.test(cleanNext) || /^€\s*$/.test(cleanNext)) {
-                                price = euros;
-                                continue;
-                            }
-                        }
-                    }
-
-                    // Chercher les appels
-                    const text = lines[j].toLowerCase();
-                    if (text.match(/(\d+)h\s*d*['’]*appels/i) || text.match(/appels\s*(\d+)h/i)) {
-                        const m = text.match(/(\d+)h/i);
-                        if (m) calls = `${m[1]}h`;
-                    } else if (text.match(/appels.*illimit/i) && calls === "Illimités") {
-                        // On garde Illimités seulement si on n'a pas mis un 2h plus tôt
-                        calls = "Illimités";
-                    }
-                }
-
-                const gen = /\b5g\b/i.test(block.name) ? '5G' : '4G';
-
-                // Extract EU/DOM data from block
-                let euGb = 0;
-                for (let j = block.startIdx; j < Math.min(block.startIdx + 40, lines.length); j++) {
-                    if (j > block.startIdx + 2 && /^(Forfait|Série)\s/i.test(lines[j]) && lines[j].length < 40) break;
-                    const euMatch = lines[j].match(/(\d{1,3})\s*[Gg]o.*?(?:europ|UE|DOM)/i);
-                    if (euMatch) { euGb = parseInt(euMatch[1], 10); break; }
-                    const euMatch2 = lines[j].match(/(?:europ|UE|DOM).*?(\d{1,3})\s*[Gg]o/i);
-                    if (euMatch2) { euGb = parseInt(euMatch2[1], 10); break; }
-                }
-
-                if (dataGb > 0 && price >= 0 && price < 100) {
-                    if (!results.some(r => r.dataGb === dataGb && r.price === price)) {
-                        results.push({ planName: block.name, dataGb, price, calls, networkGeneration: gen, dataEuGb: euGb, simPrice, activationPrice, cancellationPrice });
-                    }
+                    } catch (e) { }
                 }
             }
-
-            return results;
+            return found;
         });
+        console.log(`[Free Mobile] ${planUrls.length} fiche(s) forfait découverte(s): ${planUrls.join(', ')}`);
 
-        for (const p of plans) {
+        // Fallback : si aucun lien fiche-forfait trouvé, chercher les onglets/menu
+        if (planUrls.length === 0) {
+            const menuLinks = await page.evaluate(() => {
+                var links = Array.from(document.querySelectorAll('a[href]'));
+                var found: string[] = [];
+                for (var i = 0; i < links.length; i++) {
+                    var href = links[i].getAttribute('href') || '';
+                    var text = (links[i].textContent || '').trim().toLowerCase();
+                    // Chercher des liens contenant "forfait" dans le texte ou l'URL
+                    if ((text.length < 40 && text.length > 3 && /forfait|série/i.test(text)) ||
+                        /\/forfait/i.test(href)) {
+                        try {
+                            var fullUrl = new URL(href, window.location.origin).href;
+                            if (found.indexOf(fullUrl) === -1 && fullUrl !== window.location.href) {
+                                found.push(fullUrl);
+                            }
+                        } catch (e) { }
+                    }
+                }
+                return found;
+            });
+            for (var url of menuLinks) planUrls.push(url);
+            console.log(`[Free Mobile] Fallback: ${menuLinks.length} lien(s) forfait trouvé(s)`);
         }
 
-        return plans
-            .filter(p => p.price > 0 && p.dataGb > 0)
-            .map(plan => ({
-                planName: plan.planName,
-                dataGb: plan.dataGb,
-                price: plan.price,
-                calls: plan.calls,
-                operator: 'Free Mobile',
-                network: 'Free Mobile',
-                networkGeneration: plan.networkGeneration || '4G',
-                dataEuGb: plan.dataEuGb || undefined,
-                simPrice: plan.simPrice ?? undefined,
-                activationPrice: plan.activationPrice ?? undefined,
-                cancellationPrice: plan.cancellationPrice ?? undefined
-            }));
+        for (const planUrl of planUrls) {
+            try {
+                await page.goto(planUrl, { waitUntil: 'networkidle2', timeout: 20000 });
+                await new Promise(r => setTimeout(r, 3000));
+
+                // ─── Scroller la page du forfait ───
+                await page.evaluate(async () => {
+                    for (var i = 0; i < 3; i++) {
+                        window.scrollTo(0, document.body.scrollHeight);
+                        await new Promise(function(r) { setTimeout(r, 500); });
+                    }
+                });
+                await new Promise(r => setTimeout(r, 1500));
+
+                // ─── Extraire le forfait depuis cette page dédiée ───
+                var planData = await page.evaluate(function() {
+                    var bodyText = (document.body.innerText || '')
+                        .replace(/\u00a0/g, ' ')
+                        .replace(/\u202f/g, ' ');
+                    var lines = bodyText.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
+
+                    var planName = '';
+                    var dataGb = 0;
+                    var price = -1;
+                    var calls = 'Illimités';
+                    var gen = '4G';
+                    var euGb = 0;
+
+                    // Chercher le nom du forfait dans le titre (h1 ou premier "Forfait/Série")
+                    var titleEl = document.querySelector('h1');
+                    if (titleEl) {
+                        planName = (titleEl.textContent || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+                    }
+                    if (!planName) {
+                        for (var i = 0; i < Math.min(lines.length, 20); i++) {
+                            if (/^(Forfait|Série)\s/i.test(lines[i]) && lines[i].length < 50) {
+                                planName = lines[i];
+                                break;
+                            }
+                        }
+                    }
+                    if (!planName) return null;
+
+                    // Ignorer les boosters/options dans le nom
+                    if (/option\s*booster/i.test(planName)) {
+                        planName = planName.replace(/\s*\+\s*option\s*booster/i, '').trim();
+                    }
+
+                    // ─── Chercher les infos dans les 60 premières lignes ───
+                    for (var j = 0; j < Math.min(lines.length, 60); j++) {
+                        var cl = lines[j].replace(/\s+/g, ' ').trim();
+                        var nl = j + 1 < lines.length ? lines[j + 1].replace(/\s+/g, ' ').trim() : '';
+
+                        // Data illimitée
+                        if (dataGb === 0 && /^illimit[ée]/i.test(cl)) {
+                            dataGb = 9999;
+                        }
+
+                        // Data en Go/Mo
+                        if (dataGb === 0) {
+                            var dm = cl.match(/^(\d{1,4})\s*(Go|Mo)$/i);
+                            if (dm) {
+                                var v = parseInt(dm[1], 10);
+                                dataGb = dm[2].toLowerCase() === 'mo' ? v / 1000 : v;
+                            }
+                            if (dataGb === 0) {
+                                var idm = cl.match(/(\d{1,4})\s*(Go|Mo)\s*en\s*(?:5G|4G)/i);
+                                if (idm) {
+                                    var v2 = parseInt(idm[1], 10);
+                                    dataGb = idm[2].toLowerCase() === 'mo' ? v2 / 1000 : v2;
+                                }
+                            }
+                        }
+
+                        // Prix
+                        if (price < 0) {
+                            if (/booster|abonné|avantage|freebox|pop/i.test(cl)) continue;
+
+                            var im = cl.match(/^(\d{1,3})[,€.](\d{2})\s*€?\s*\/?m?o?i?s?$/);
+                            if (im) {
+                                price = parseFloat(im[1] + '.' + im[2]);
+                                continue;
+                            }
+
+                            if (/^\d{1,2}$/.test(cl)) {
+                                var cm = nl.match(/€\s*(\d{2})/);
+                                if (cm) {
+                                    price = parseInt(cl, 10) + parseInt(cm[1], 10) / 100;
+                                    continue;
+                                }
+                                if (/^€\s*$/.test(nl) || nl === '€') {
+                                    price = parseInt(cl, 10);
+                                    continue;
+                                }
+                            }
+                        }
+
+                        // Réseau
+                        if (/\b5g\+?\b/i.test(cl)) gen = '5G';
+
+                        // Appels
+                        var callM = cl.match(/(\d+)h\s*d?'?appels?/i);
+                        if (callM) calls = callM[1] + 'h';
+
+                        // Data EU
+                        var euM = cl.match(/(\d{1,3})\s*(?:Go).*?(?:europ|UE|DOM|destination)/i);
+                        if (euM && euGb === 0) euGb = parseInt(euM[1], 10);
+                        if (/illimit[ée].*destination/i.test(cl) && dataGb === 9999) {
+                            euGb = 9999;
+                        }
+                    }
+
+                    // 5G depuis le nom
+                    if (/5g/i.test(planName)) gen = '5G';
+
+                    if (price >= 0 && price < 100 && dataGb > 0) {
+                        return {
+                            planName: planName,
+                            dataGb: dataGb,
+                            price: price,
+                            calls: calls,
+                            networkGeneration: gen,
+                            dataEuGb: euGb,
+                        };
+                    }
+                    return null;
+                });
+
+                if (planData && !plans.some(function(x) { return x.planName === planData!.planName && x.price === planData!.price; })) {
+                    plans.push({
+                        planName: planData.planName,
+                        dataGb: planData.dataGb,
+                        price: planData.price,
+                        calls: planData.calls,
+                        operator: 'Free Mobile',
+                        network: 'Free Mobile',
+                        networkGeneration: planData.networkGeneration || '4G',
+                        dataEuGb: planData.dataEuGb || undefined,
+                        simPrice: fees.simPrice ?? undefined,
+                        activationPrice: fees.activationPrice ?? undefined,
+                        cancellationPrice: fees.cancellationPrice ?? undefined,
+                    });
+                    console.log(`[Free Mobile] Forfait détecté: ${planData.planName} — ${planData.dataGb}Go — ${planData.price}€`);
+                }
+            } catch (err) {
+                console.warn(`[Free Mobile] Erreur sur ${planUrl}:`, err);
+            }
+        }
+
+        console.log(`[Free Mobile] ${plans.length} forfait(s) détecté(s)`);
+        return plans.filter(p => p.price > 0 && p.dataGb > 0);
     } catch (error) {
         console.error('Erreur dans la collecte Free Mobile:', error);
         return [];
