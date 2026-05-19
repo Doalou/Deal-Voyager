@@ -2,6 +2,28 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [2.1.2] — 2026-05-19
+
+### ✨ Nouvelles fonctionnalités
+
+- **Bot Discord — détail des mises à jour de forfaits** — Les notifications de mise à jour affichent désormais clairement le passage **ancien forfait → nouveau forfait**. L'embed Discord ajoute un bloc « Passage du forfait » avec un résumé `Avant` / `Après` et la liste des champs modifiés : prix, data, data EU/DOM, réseau, génération réseau, carte SIM, activation et résiliation.
+
+### 🔧 Frontend
+
+- **Migration Tailwind CSS 4.3.0** — Le frontend passe de l'intégration `@nuxtjs/tailwindcss` / Tailwind 3 à **Tailwind CSS 4.3.0** via `@tailwindcss/vite`.
+- **Liste opérateurs alignée** — Les badges opérateurs du Hero affichent maintenant les 18 opérateurs réellement actifs côté scraper, avec les noms complets (`RED by SFR`, `Free Mobile`, `La Poste Mobile`, etc.) et un compteur calculé dynamiquement.
+- **Configuration CSS-first Tailwind v4** — Suppression de `tailwind.config.js` au profit des directives Tailwind v4 dans `assets/css/main.css` : `@import "tailwindcss"`, `@theme inline`, `@custom-variant dark` et `@source`.
+- **Chargement CSS explicite Nuxt** — `nuxt.config.ts` charge maintenant `~/assets/css/main.css` directement et branche le plugin Vite officiel `@tailwindcss/vite`.
+- **Compatibilité styles scoped** — Ajout de `@reference` pour les styles Vue utilisant `@apply` et remplacement des anciennes variables Tailwind internes du slider par les variables CSS du thème.
+
+### 🛠️ Technique
+
+- **Détection de changements plus complète côté scraper** — Les mises à jour détectent maintenant aussi les changements d'appels, génération réseau, data EU/DOM et frais de résiliation, en plus du prix, de la data, de la carte SIM et des frais d'activation.
+- **Typecheck backend stabilisé** — Ajout d'une déclaration TypeScript locale pour `puppeteer-extra-plugin-recaptcha`, ce qui permet à `npx tsc --noEmit` de passer proprement après génération du client Prisma.
+- **Validation build** — Vérification de la migration avec `npm run build` côté frontend, `docker build` frontend, `npx tsc --noEmit` côté backend et `npm run build` backend.
+
+---
+
 ## [2.1.1] — 2026-04-03
 
 ### 🐛 Correctifs

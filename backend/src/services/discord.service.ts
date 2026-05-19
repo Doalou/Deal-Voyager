@@ -5,6 +5,123 @@ import type { Prisma } from "../generated/prisma/client.js";
 
 type MobilePlanType = Prisma.MobilePlanGetPayload<{}>;
 
+const formatPrice = (value: number | null | undefined) =>
+  value == null ? "N/A" : `${value.toFixed(2)} €`;
+
+const formatData = (value: number | null | undefined) => {
+  if (value == null) return "N/A";
+  return value >= 1 ? `${value} Go` : `${value * 1000} Mo`;
+};
+
+const formatFee = (value: number | null | undefined) =>
+  value == null ? "N/A" : `${value} €`;
+
+const formatPlanSnapshot = (plan: MobilePlanType) => {
+  const networkGeneration = plan.networkGeneration
+    ? ` ${plan.networkGeneration}`
+    : "";
+
+  return [
+    `**${plan.planName}**`,
+    `${formatPrice(plan.price)}/mois`,
+    `${formatData(plan.dataGb)}${networkGeneration}`,
+    plan.network ? `réseau ${plan.network}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+};
+
+const valuesDiffer = (
+  before: string | number | null | undefined,
+  after: string | number | null | undefined,
+) => before !== after;
+
+const buildUpdateDetails = (
+  previousPlan: MobilePlanType,
+  plan: MobilePlanType,
+) => {
+  const changes = [
+    {
+      label: "Nom",
+      before: previousPlan.planName,
+      after: plan.planName,
+    },
+    {
+      label: "Prix",
+      before: formatPrice(previousPlan.price),
+      after: formatPrice(plan.price),
+      rawBefore: previousPlan.price,
+      rawAfter: plan.price,
+    },
+    {
+      label: "Data",
+      before: formatData(previousPlan.dataGb),
+      after: formatData(plan.dataGb),
+      rawBefore: previousPlan.dataGb,
+      rawAfter: plan.dataGb,
+    },
+    {
+      label: "Data EU/DOM",
+      before: formatData(previousPlan.dataEuGb),
+      after: formatData(plan.dataEuGb),
+      rawBefore: previousPlan.dataEuGb,
+      rawAfter: plan.dataEuGb,
+    },
+    {
+      label: "Réseau",
+      before: previousPlan.network || "Inconnu",
+      after: plan.network || "Inconnu",
+      rawBefore: previousPlan.network,
+      rawAfter: plan.network,
+    },
+    {
+      label: "Génération",
+      before: previousPlan.networkGeneration || "N/A",
+      after: plan.networkGeneration || "N/A",
+      rawBefore: previousPlan.networkGeneration,
+      rawAfter: plan.networkGeneration,
+    },
+    {
+      label: "Carte SIM",
+      before: formatFee(previousPlan.simPrice),
+      after: formatFee(plan.simPrice),
+      rawBefore: previousPlan.simPrice,
+      rawAfter: plan.simPrice,
+    },
+    {
+      label: "Activation",
+      before: formatFee(previousPlan.activationPrice),
+      after: formatFee(plan.activationPrice),
+      rawBefore: previousPlan.activationPrice,
+      rawAfter: plan.activationPrice,
+    },
+    {
+      label: "Résiliation",
+      before: formatFee(previousPlan.cancellationPrice),
+      after: formatFee(plan.cancellationPrice),
+      rawBefore: previousPlan.cancellationPrice,
+      rawAfter: plan.cancellationPrice,
+    },
+  ];
+
+  const changedLines = changes
+    .filter((change) =>
+      valuesDiffer(
+        change.rawBefore ?? change.before,
+        change.rawAfter ?? change.after,
+      ),
+    )
+    .map((change) => `• **${change.label}** : ${change.before} → ${change.after}`);
+
+  return [
+    `**Avant** : ${formatPlanSnapshot(previousPlan)}`,
+    `**Après** : ${formatPlanSnapshot(plan)}`,
+    changedLines.length > 0
+      ? `\n${changedLines.join("\n")}`
+      : "\n• Aucun changement détaillé détecté",
+  ].join("\n");
+};
+
 const getOperatorColor = (operatorName: string): number => {
   const normalized = operatorName.toLowerCase();
   if (normalized.includes("sosh") || normalized.includes("orange"))
@@ -27,6 +144,7 @@ const getOperatorColor = (operatorName: string): number => {
 export const broadcastDeal = async (
   plan: MobilePlanType,
   type: "NEW" | "UPDATE" | "DELETE",
+  previousPlan?: MobilePlanType,
 ) => {
   if (!discordClient.isReady()) return;
 
@@ -58,6 +176,14 @@ export const broadcastDeal = async (
       { name: "📞 Appels", value: plan.calls || "Illimités", inline: true },
       { name: "💬 SMS/MMS", value: plan.sms || "Illimités", inline: true },
     );
+
+  if (type === "UPDATE" && previousPlan) {
+    embed.addFields({
+      name: "🔁 Passage du forfait",
+      value: buildUpdateDetails(previousPlan, plan),
+      inline: false,
+    });
+  }
 
   let feesText = "";
   if (plan.simPrice !== null) feesText += `Carte SIM : ${plan.simPrice}€\n`;

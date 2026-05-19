@@ -1,7 +1,13 @@
+import tailwindcss from "@tailwindcss/vite";
+
 export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
   devtools: { enabled: false },
-  modules: ["@nuxtjs/tailwindcss", "@nuxtjs/color-mode"],
+  modules: ["@nuxtjs/color-mode"],
+  css: ["~/assets/css/main.css"],
+  vite: {
+    plugins: [tailwindcss()],
+  },
   runtimeConfig: {
     apiInternalUrl: "http://localhost:3001",
     public: {
@@ -42,11 +48,5 @@ export default defineNuxtConfig({
         },
       ],
     },
-  },
-  tailwindcss: {
-    cssPath: "~/assets/css/main.css",
-    configPath: "tailwind.config.js",
-    exposeConfig: false,
-    viewer: false,
   },
 });

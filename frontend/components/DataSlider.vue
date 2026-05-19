@@ -133,7 +133,7 @@ input[type=range]::-webkit-slider-thumb {
   appearance: none;
   width: 32px;
   height: 48px;
-  background: var(--tw-colors-accent);
+  background: var(--accent);
   border: 4px solid black;
   cursor: pointer;
   box-shadow: 2px 2px 0px 0px black;
@@ -150,7 +150,7 @@ input[type=range]::-webkit-slider-thumb:active {
 input[type=range]::-moz-range-thumb {
   width: 32px;
   height: 48px;
-  background: var(--tw-colors-accent);
+  background: var(--accent);
   border: 4px solid black;
   cursor: pointer;
   box-shadow: 2px 2px 0px 0px black;

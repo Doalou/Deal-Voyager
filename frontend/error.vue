@@ -53,6 +53,8 @@ const handleError = () => clearError({ redirect: '/' })
 </template>
 
 <style scoped>
+@reference "./assets/css/main.css";
+
 .neo-button {
   @apply px-8 py-4 font-black border-4 border-border shadow-neo transition-all duration-100 flex items-center justify-center gap-2 active:shadow-none active:translate-x-[4px] active:translate-y-[4px] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-neo-lg;
 }

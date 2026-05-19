@@ -1,23 +1,23 @@
 <script setup lang="ts">
 const operators = [
   { name: 'Sosh', color: '#FF7900', text: 'black' },
-  { name: 'RED', color: '#E2001A', text: 'white' },
+  { name: 'RED by SFR', color: '#E2001A', text: 'white' },
   { name: 'B&You', color: '#0089C5', text: 'white' },
-  { name: 'Free', color: '#CC0000', text: 'white' },
+  { name: 'Free Mobile', color: '#CC0000', text: 'white' },
   { name: 'YouPrice', color: '#1B1B3A', text: 'white' },
   { name: 'Coriolis', color: '#6B2D8B', text: 'white' },
-  { name: 'La Poste', color: '#FFD300', text: 'black' },
-  { name: 'NRJ', color: '#E31937', text: 'white' },
-  { name: 'Auchan', color: '#E30613', text: 'white' },
-  { name: 'Cdiscount', color: '#00528A', text: 'white' },
-  { name: 'Syma', color: '#00A651', text: 'white' },
+  { name: 'La Poste Mobile', color: '#FFD300', text: 'black' },
+  { name: 'NRJ Mobile', color: '#E31937', text: 'white' },
+  { name: 'Auchan Telecom', color: '#E30613', text: 'white' },
+  { name: 'Cdiscount Mobile', color: '#00528A', text: 'white' },
+  { name: 'Syma Mobile', color: '#00A651', text: 'white' },
   { name: 'Lebara', color: '#E6007E', text: 'white' },
   { name: 'Lycamobile', color: '#63A532', text: 'white' },
   { name: 'Prixtel', color: '#00B4D8', text: 'white' },
   { name: 'TeleCoop', color: '#2D8F4E', text: 'white' },
-  { name: 'Akeo', color: '#004B87', text: 'white' },
+  { name: 'Akeo Telecom', color: '#004B87', text: 'white' },
   { name: 'Nordnet', color: '#003DA5', text: 'white' },
-  { name: 'France Tél', color: '#2C5F8A', text: 'white' }
+  { name: 'France Téléphone', color: '#2C5F8A', text: 'white' }
 ]
 
 const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1.5', '-2', '-1', '2', '-1.5', '1', '-2', '1.5']
@@ -60,7 +60,7 @@ const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1
         </div>
       </div>
       <p class="mt-4 text-sm font-bold text-muted-foreground uppercase tracking-widest">
-        18 opérateurs scannés en temps réel
+        {{ operators.length }} opérateurs scannés en temps réel
       </p>
     </div>
   </header>

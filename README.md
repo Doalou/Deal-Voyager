@@ -18,7 +18,7 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 
 ## Fonctionnalites Principales
 
-- **Scraping Automatisé & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 20 opérateurs. Cron horaire + déclenchement manuel. Détection automatique 4G/5G et Data Europe/DOM.
+- **Scraping Automatisé & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 18 opérateurs. Cron horaire + déclenchement manuel. Détection automatique 4G/5G et Data Europe/DOM.
 - **Classement Transparent (Coût Réel sur 1 An)** — Tri basé sur le coût annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de résiliation. Score euro/Go calculé.
 - **Design Néobrutaliste & Dark Mode** — Interface avec bordures épaisses, contrastes forts, ombres nettes et Dark Mode dynamique. Inclut une page 404 sur-mesure.
 - **Filtrage Avancé** — Slider interactif (0 à 500 Go) avec saisie directe au Go près et filtre exclusif par réseau (Orange, SFR, Bouygues, Free).
@@ -49,7 +49,6 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 | **Prixtel** | MVNO | Orange | Oui |
 | **TeleCoop** | MVNO | Orange | Oui |
 | **Akeo Telecom** | MVNO | Orange / Bouygues Telecom | Oui |
-| **Chez Switch** | MVNO | SFR | Oui |
 | **Nordnet** | MVNO | Orange | Oui |
 | **France Téléphone (Bleutel)** | MVNO | Orange / Bouygues Telecom | Oui |
 

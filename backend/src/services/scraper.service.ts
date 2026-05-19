@@ -299,8 +299,12 @@ export const scrapeOffers = async () => {
                 const hasChanged =
                   existing.price !== plan.price ||
                   existing.dataGb !== plan.dataGb ||
+                  existing.calls !== (plan.calls || 'Illimités') ||
+                  existing.networkGeneration !== (plan.networkGeneration || null) ||
+                  existing.dataEuGb !== (plan.dataEuGb ?? null) ||
                   existing.simPrice !== (plan.simPrice ?? null) ||
-                  existing.activationPrice !== (plan.activationPrice ?? null);
+                  existing.activationPrice !== (plan.activationPrice ?? null) ||
+                  existing.cancellationPrice !== (plan.cancellationPrice ?? null);
 
                 const updatedPlan = await prisma.mobilePlan.update({
                   where: { id: existing.id },
@@ -320,7 +324,7 @@ export const scrapeOffers = async () => {
                 });
 
                 if (hasChanged) {
-                  await broadcastDeal(updatedPlan, 'UPDATE');
+                  await broadcastDeal(updatedPlan, 'UPDATE', existing);
                 }
               } else {
                 const newPlan = await prisma.mobilePlan.create({
