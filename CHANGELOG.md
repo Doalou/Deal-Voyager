@@ -9,7 +9,7 @@ Toutes les modifications notables de ce projet sont documentées ici.
 - **Mise à jour des dépendances npm (backend)** - Prisma `7.8.0`, Puppeteer `25.x`, TypeScript `7.x`, `@types/node` `26.x`, `axios` `1.18.x`, `pg` `8.22.x`, `tsx` `4.23.x` et `undici` `8.7.x`. Lockfile régénéré et builds validés localement.
 - **Mise à jour des dépendances npm (frontend)** - Nuxt `4.4.8`, Vue `3.5.39`, `vue-router` `5.1.x`, Tailwind CSS `4.3.2` et `@tailwindcss/vite` `4.3.2`. Lockfile régénéré et `npm run build` validé.
 - **GitHub Actions modernisées** - Passage à `actions/checkout@v7`, `actions/setup-node@v6`, `docker/setup-buildx-action@v4`, `docker/login-action@v4`, `docker/metadata-action@v6` et `docker/build-push-action@v7` sur les workflows Docker. Remplacement des SHA épinglés obsolètes par des tags de version maintenables.
-- **Cosign mis à jour** - `sigstore/cosign-installer@v4` avec `cosign-release: v3.1.1` (remplace l'ancienne version `v2.2.4`).
+- **Cosign mis à jour** - `sigstore/cosign-installer@v4.1.2` avec `cosign-release: v3.1.1` (remplace l'ancienne version `v2.2.4`).
 - **Compatibilité Node.js 24 en CI** - Ajout de `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` sur tous les workflows pour anticiper la dépréciation de Node.js 20 sur les runners GitHub Actions. Matrice de test `webpack.yml` passée de `20.x/22.x` à `22.x/24.x`, et `npm-publish-github-packages.yml` basculé sur Node `24`.
 - **CI plus déterministe** - Remplacement de `npm install` par `npm ci` dans `webpack.yml` pour des builds reproductibles à partir des lockfiles.
 
