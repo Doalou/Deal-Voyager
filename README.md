@@ -1,8 +1,9 @@
-  # Deal-Voyager
+# Deal-Voyager
 
-> **Vos forfaits mobiles sans embrouilles.**
+> **Ton Forfait, Ton Choix**
 
-Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. Il scrape automatiquement les prix des operateurs (MNO/MVNO) et les classe au centime pres pour vous aider a trouver l'offre la plus honnete - sans partenariat financier, sans publicite, et sans bullshit.
+Deal-Voyager est un comparateur de forfaits mobiles français, 100 % indépendant.
+Il scrape automatiquement les prix des opérateurs (MNO/MVNO), puis les classe au centime près pour vous aider à trouver l'offre la plus honnête : sans partenariat financier, sans publicité et sans bullshit.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Vue.js](https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vue.js&logoColor=4FC08D)
@@ -16,28 +17,28 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 
 ---
 
-## Fonctionnalites Principales
+## Fonctionnalités principales
 
-- **Scraping Automatisé & Furtif** - Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 18 opérateurs. Cron horaire + déclenchement manuel. Détection automatique 4G/5G et Data Europe/DOM.
-- **Classement Transparent (Coût Réel sur 1 An)** - Tri basé sur le coût annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de résiliation. Score euro/Go calculé.
-- **Design Néobrutaliste & Dark Mode** - Interface avec bordures épaisses, contrastes forts, ombres nettes et Dark Mode dynamique. Inclut une page 404 sur-mesure.
-- **Filtrage Avancé** - Slider interactif (0 à 500 Go) avec saisie directe au Go près et filtre exclusif par réseau (Orange, SFR, Bouygues, Free).
-- **Bot Discord Dédié** - Bot Discord formatant les alertes de nouveaux forfaits en temps réel pour vos serveurs.
-- **Liens Directs Sans Affiliation** - Accès en un clic aux pages opérateurs, zéro tracking.
-- **Control Room** - Panneau d'administration hybride (accessible uniquement via `/admin` et protégé par Basic Auth) avec suivi du scraping en temps réel, gestion des frais par opérateur, label "Fairplay", et bouton de purge de la base.
-- **Déploiement Docker Sécurisé** - Stack complète (Frontend, Backend, BDD) avec credentials configurables via `.env`, proxy interne Nitro, et zéro port exposé inutilement.
+- **Scraping automatisé et furtif** : Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 18 opérateurs. Cron horaire, déclenchement manuel, détection automatique 4G/5G et Data Europe/DOM.
+- **Classement transparent sur 1 an** : tri basé sur le coût annuel total, avec prix mensuel x 12, carte SIM, frais d'activation et frais de résiliation. Score euro/Go calculé.
+- **Design néobrutaliste et dark mode** : interface avec bordures épaisses, contrastes forts, ombres nettes et dark mode dynamique. Inclut une page 404 sur-mesure.
+- **Filtrage avancé** : slider interactif de 0 à 500 Go, saisie directe au Go près et filtre exclusif par réseau (Orange, SFR, Bouygues, Free).
+- **Bot Discord dédié** : alertes de nouveaux forfaits formatées en temps réel pour vos serveurs.
+- **Liens directs sans affiliation** : accès en un clic aux pages opérateurs, zéro tracking.
+- **Control Room** : panneau d'administration hybride, accessible uniquement via `/admin` et protégé par Basic Auth, avec suivi du scraping en temps réel, gestion des frais par opérateur, label "Fairplay" et bouton de purge de la base.
+- **Déploiement Docker sécurisé** : stack complète (frontend, backend, BDD) avec credentials configurables via `.env`, proxy interne Nitro et zéro port exposé inutilement.
 
 ---
 
-## Operateurs Couverts
+## Opérateurs couverts
 
-| Operateur | Type | Reseau | Detection 4G/5G |
+| Opérateur | Type | Réseau | Détection 4G/5G |
 |-----------|------|--------|-----------------|
 | **Sosh** | MNO low-cost | Orange | Oui |
 | **RED by SFR** | MNO low-cost | SFR | Oui |
 | **B&You** | MNO low-cost | Bouygues Telecom | Oui |
 | **Free Mobile** | MNO | Free | Oui |
-| **YouPrice** | MVNO | Orange / SFR / Bouygues | Oui (multi-reseau) |
+| **YouPrice** | MVNO | Orange / SFR / Bouygues | Oui (multi-réseau) |
 | **Coriolis** | MVNO | SFR | Oui |
 | **La Poste Mobile** | MVNO | Bouygues Telecom | Oui |
 | **NRJ Mobile** | MVNO | Bouygues Telecom | Oui |
