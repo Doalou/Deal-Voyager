@@ -3,6 +3,9 @@ FROM --platform=linux/amd64 node:24-slim AS builder
 
 WORKDIR /app
 
+# Le runtime final fournit deja Chromium via l'image Puppeteer.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 # Copie des fichiers de dépendances
 COPY package*.json ./
 
