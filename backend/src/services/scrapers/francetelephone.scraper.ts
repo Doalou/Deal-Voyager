@@ -43,7 +43,7 @@ export const franceTelephoneScrapeLogic: ScraperConfig['scrapeFunction'] = async
             fees.cancellationPrice = 0;
         }
 
-        console.log(`[France Telephone] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+        console.log(`[France Telephone] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
 
         // ─── STRATEGIE 1 : API WooCommerce Store ───
         let apiPlans: ScrapedPlan[] = [];

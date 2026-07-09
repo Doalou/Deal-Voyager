@@ -1,6 +1,6 @@
 <script setup lang="ts">
 useHead({
-  title: 'Mentions Légales — Deal-Voyager',
+  title: 'Mentions Légales - Deal-Voyager',
   meta: [
     { name: 'description', content: 'Mentions légales du site Deal-Voyager, comparateur de forfaits mobiles.' }
   ]
@@ -13,12 +13,12 @@ useHead({
     <div class="container mx-auto px-4 pt-12 pb-8 relative z-10">
       <NuxtLink
         to="/"
-        class="neo-button bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground inline-flex items-center gap-2 text-sm uppercase tracking-wider mb-8 transform hover:rotate-1"
+        class="neo-button bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground inline-flex items-center gap-2 text-sm uppercase tracking-wider mb-12 transform hover:rotate-1"
       >
         ← Retour à l'accueil
       </NuxtLink>
 
-      <div class="inline-block transform -rotate-1">
+      <div class="block mt-2 transform -rotate-1">
         <h1 class="text-4xl md:text-6xl font-black uppercase tracking-tight text-foreground">
           Mentions
           <span class="bg-primary text-primary-foreground px-3 py-1 border-4 border-border shadow-neo inline-block transform rotate-1">
@@ -28,10 +28,11 @@ useHead({
       </div>
     </div>
 
+
     <!-- Content -->
     <main class="container mx-auto px-4 relative z-10 max-w-4xl">
 
-      <!-- Section 1 — Éditeur du site -->
+      <!-- Section 1 - Éditeur du site -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 -rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-primary text-primary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
@@ -42,10 +43,8 @@ useHead({
         <div class="space-y-4 text-card-foreground font-medium text-lg leading-relaxed pl-14">
           <p>Le site <span class="bg-primary px-1 font-bold border-2 border-border text-primary-foreground">DealVoyager</span> est édité par :</p>
           <div class="bg-muted border-2 border-border p-5 shadow-neo space-y-1">
-            <p class="font-black text-xl uppercase">Doalo</p>
-            <p>Entreprise individuelle (Auto-entrepreneur)</p>
-            <p class="mt-3"><span class="font-bold">SIREN :</span> 939 387 643</p>
-            <p><span class="font-bold">Immatriculation :</span> RCS Strasbourg</p>
+            <p class="font-black text-xl uppercase">Association NERIEUM</p>
+            <p>Association à but non lucratif (Loi 1908)</p>
             <p class="mt-3 font-bold">Adresse :</p>
             <p>6 Rue Pina Bausch</p>
             <p>67380 Lingolsheim</p>
@@ -55,7 +54,7 @@ useHead({
         </div>
       </section>
 
-      <!-- Section 2 — Hébergement -->
+      <!-- Section 2 - Hébergement -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-secondary text-secondary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
@@ -66,19 +65,20 @@ useHead({
         <div class="space-y-4 text-card-foreground font-medium text-lg leading-relaxed pl-14">
           <p>Le site est hébergé par :</p>
           <div class="bg-muted border-2 border-border p-5 shadow-neo space-y-1">
-            <p class="font-black text-xl uppercase">Infomaniak</p>
-            <p>Rue Eugène-Marziano 25</p>
-            <p>1227 Les Acacias (Genève)</p>
-            <p>Suisse</p>
+            <p class="font-black text-xl uppercase">Netcup</p>
+            <p>netcup GmbH</p>
+            <p>Daimlerstraße 9-11</p>
+            <p>76185 Karlsruhe</p>
+            <p>Allemagne</p>
             <p class="mt-3">
               <span class="font-bold">Site web :</span>
-              <a href="https://www.infomaniak.com" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-primary hover:text-primary-foreground px-1 transition-colors">infomaniak.com</a>
+              <a href="https://www.netcup.de" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-primary hover:text-primary-foreground px-1 transition-colors">netcup.de</a>
             </p>
           </div>
         </div>
       </section>
 
-      <!-- Section 3 — Présentation du site -->
+      <!-- Section 3 - Présentation du site -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 -rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-accent text-accent-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
@@ -99,7 +99,7 @@ useHead({
         </div>
       </section>
 
-      <!-- Section 4 — Fonctionnement du comparateur -->
+      <!-- Section 4 - Fonctionnement du comparateur -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-destructive text-destructive-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
@@ -143,7 +143,7 @@ useHead({
         </div>
       </section>
 
-      <!-- Section 5 — Responsabilité -->
+      <!-- Section 5 - Responsabilité -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 -rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-primary text-primary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
@@ -171,7 +171,7 @@ useHead({
         </div>
       </section>
 
-      <!-- Section 6 — Liens externes et affiliation -->
+      <!-- Section 6 - Liens externes et affiliation -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-secondary text-secondary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
@@ -189,7 +189,7 @@ useHead({
         </div>
       </section>
 
-      <!-- Section 7 — Propriété intellectuelle -->
+      <!-- Section 7 - Propriété intellectuelle -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 -rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-accent text-accent-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
@@ -214,44 +214,11 @@ useHead({
         </div>
       </section>
 
-      <!-- Section 8 — Mesure d'audience -->
-      <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 rotate-[0.3deg]">
-        <div class="flex items-start gap-4 mb-6">
-          <div class="bg-destructive text-destructive-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
-            8
-          </div>
-          <h2 class="text-2xl md:text-3xl font-black uppercase text-card-foreground">Mesure d'audience</h2>
-        </div>
-        <div class="space-y-4 text-card-foreground font-medium text-lg leading-relaxed pl-14">
-          <p>
-            Le site utilise l'outil de mesure d'audience
-            <span class="bg-primary px-1 font-bold border-2 border-border text-primary-foreground">Matomo</span>,
-            installé et hébergé directement sur l'infrastructure du site.
-          </p>
-          <p>Cet outil permet d'analyser la fréquentation du site afin :</p>
-          <ul class="space-y-2">
-            <li class="flex items-start gap-3">
-              <span class="bg-foreground text-background font-black text-xs w-6 h-6 flex items-center justify-center flex-shrink-0 border-2 border-border mt-0.5">→</span>
-              <span>de mesurer l'audience</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span class="bg-foreground text-background font-black text-xs w-6 h-6 flex items-center justify-center flex-shrink-0 border-2 border-border mt-0.5">→</span>
-              <span>d'améliorer l'expérience utilisateur</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span class="bg-foreground text-background font-black text-xs w-6 h-6 flex items-center justify-center flex-shrink-0 border-2 border-border mt-0.5">→</span>
-              <span>d'optimiser le fonctionnement du service</span>
-            </li>
-          </ul>
-          <p>Les données collectées sont anonymisées et utilisées uniquement à des fins statistiques.</p>
-        </div>
-      </section>
-
-      <!-- Section 9 — Données personnelles -->
+      <!-- Section 8 - Données personnelles -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 -rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-primary text-primary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
-            9
+            8
           </div>
           <h2 class="text-2xl md:text-3xl font-black uppercase text-card-foreground">Données personnelles</h2>
         </div>
@@ -260,7 +227,7 @@ useHead({
             Certaines données techniques liées à la navigation peuvent être collectées afin d'assurer le bon fonctionnement du site et d'améliorer l'expérience utilisateur.
           </p>
           <div class="bg-primary/20 border-2 border-border p-4 shadow-neo transform rotate-[0.3deg]">
-            <p class="font-bold mb-2">🔤 Polices d'écriture — Google Fonts</p>
+            <p class="font-bold mb-2">🔤 Polices d'écriture - Google Fonts</p>
             <p>
               Ce site utilise le service
               <span class="bg-muted px-1 border-2 border-border font-bold text-foreground">Google Fonts</span>
@@ -277,16 +244,16 @@ useHead({
           </div>
           <p>Pour toute demande relative aux données personnelles, vous pouvez contacter :</p>
           <div class="inline-block bg-primary text-primary-foreground font-black text-lg px-4 py-2 border-4 border-border shadow-neo transform -rotate-1">
-            📧 contact@doalo.fr
+            📧 contact@nerieum.fr
           </div>
         </div>
       </section>
 
-      <!-- Section 10 — Droit applicable -->
+      <!-- Section 9 - Droit applicable -->
       <section class="neo-box bg-card p-6 md:p-10 mb-8 transform hover:rotate-0 rotate-[0.3deg]">
         <div class="flex items-start gap-4 mb-6">
           <div class="bg-secondary text-secondary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">
-            10
+            9
           </div>
           <h2 class="text-2xl md:text-3xl font-black uppercase text-card-foreground">Droit applicable</h2>
         </div>

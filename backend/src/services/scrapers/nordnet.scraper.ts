@@ -40,7 +40,7 @@ export const nordnetScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
             return mobileLines.join('\n');
         });
         const fees = extractFeesFromText(feesText);
-        console.log(`[Nordnet] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+        console.log(`[Nordnet] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
 
         const plans: ScrapedPlan[] = [];
 

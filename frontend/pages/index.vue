@@ -92,7 +92,7 @@ if (import.meta.dev) {
 const discordInviteUrl = computed(() => {
   const clientId = config.public.discordClientId
   if (!clientId) {
-    console.warn('[Deal-Voyager] NUXT_PUBLIC_DISCORD_CLIENT_ID is not set — Discord invite link disabled.')
+    console.warn('[Deal-Voyager] NUXT_PUBLIC_DISCORD_CLIENT_ID is not set - Discord invite link disabled.')
     return ''
   }
   const scope = encodeURIComponent('bot applications.commands')
@@ -206,71 +206,107 @@ const isDiscordConfigured = computed(() => !!config.public.discordClientId)
 
     <!-- Section Promotion Discord -->
     <section class="container mx-auto px-4 mt-24 relative z-10 flex justify-center">
-      <div class="neo-box bg-[#5865F2] text-white p-8 md:p-12 w-full max-w-5xl flex flex-col items-center justify-center text-center transform -rotate-1 hover:rotate-0 transition-transform duration-300">
-        <h2 class="text-3xl md:text-5xl font-black uppercase mb-4 tracking-tight drop-shadow-md">
-          Ne Ratez Plus Aucun Deal 🚀
-        </h2>
-        <p class="text-lg md:text-xl font-medium max-w-2xl mb-8 border-l-4 border-wht pl-4 inline-block text-left bg-black shadow-neo px-4 py-2 border-2">
-          Le monde des opérateurs évolue vite. Ajoutez notre <span class="font-bold underline text-accent">Bot Discord Deal Voyager</span> sur vos serveurs pour recevoir une notification <strong>en temps réel</strong> dès qu'un forfait baisse de prix ou qu'une offre cachée apparaît sur le marché !
-        </p>
-        <div class="flex flex-col sm:flex-row gap-4">
-          <a
-            v-if="isDiscordConfigured"
-            :href="discordInviteUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-block bg-white text-[#5865F2] font-black text-xl uppercase px-8 py-4 border-4 border-black shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-neo-hover transition-all"
-          >
-            🤖 Inviter le Bot
-          </a>
-          <span
-            v-else
-            class="inline-block bg-gray-300 text-gray-600 font-black text-xl uppercase px-8 py-4 border-4 border-black shadow-neo cursor-not-allowed opacity-70"
-            title="Le lien d'invitation Discord n'est pas configuré (DISCORD_CLIENT_ID manquant)."
-          >
-            🤖 Bot non configuré
-          </span>
+      <div class="neo-box bg-[#5865F2] text-white p-8 md:p-12 w-full max-w-5xl border-4 border-black shadow-neo transform -rotate-1 hover:rotate-0 transition-transform duration-300">
+        <div class="grid md:grid-cols-12 gap-8 items-center">
+          <!-- Colonne Gauche - Texte -->
+          <div class="md:col-span-7 text-left space-y-4">
+            <span class="inline-block bg-yellow-400 text-black font-black text-xs uppercase px-2.5 py-1 border-2 border-black tracking-wider transform -rotate-2">
+              🔌 BOT DISCORD
+            </span>
+            <h2 class="text-3xl md:text-5xl font-black uppercase tracking-tight drop-shadow-md">
+              Ne ratez plus aucun deal ! 🚀
+            </h2>
+            <p class="text-lg md:text-xl font-medium leading-relaxed opacity-95">
+              Le marché des télécoms change constamment. Ajoutez notre robot comparateur sur votre serveur pour recevoir des alertes <strong>en temps réel</strong> dès qu'un forfait baisse de prix ou qu'une nouvelle offre est détectée !
+            </p>
+          </div>
+
+          <!-- Colonne Droite - Capture & CTA -->
+          <div class="md:col-span-5 flex flex-col items-center justify-center">
+            <!-- Capture d'écran Réelle du Bot Discord -->
+            <div class="w-full border-4 border-black rounded-none overflow-hidden shadow-neo mb-6 transform rotate-1 hover:rotate-0 transition-transform bg-[#313338]">
+              <img
+                src="/images/discord.png"
+                alt="Aperçu des alertes du Bot Discord Deal Voyager"
+                class="w-full h-auto object-cover"
+              />
+            </div>
+
+            <!-- Bouton d'invitation -->
+            <div class="w-full">
+              <a
+                v-if="isDiscordConfigured"
+                :href="discordInviteUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="w-full inline-block text-center bg-yellow-400 text-black font-black text-xl uppercase py-4 border-4 border-black shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-neo-hover transition-all"
+              >
+                🤖 Inviter le Bot
+              </a>
+              <span
+                v-else
+                class="w-full inline-block text-center bg-gray-300 text-gray-600 font-black text-xl uppercase py-4 border-4 border-black shadow-neo cursor-not-allowed opacity-70"
+                title="Le lien d'invitation Discord n'est pas configuré (DISCORD_CLIENT_ID manquant)."
+              >
+                🤖 Bot non configuré
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Section Méthodologie -->
-    <section class="container mx-auto px-4 mt-24 mb-16 relative z-10">
-      <div class="neo-box bg-card p-8 md:p-12 border-4 border-border text-card-foreground">
-        <h2 class="text-3xl md:text-4xl font-black uppercase mb-6 border-b-8 border-border pb-4 inline-block">Notre Méthodologie</h2>
-        <div class="grid md:grid-cols-2 gap-8 text-lg font-medium">
+    <section class="container mx-auto px-4 mt-24 mb-16 relative z-10 text-center">
+      <div class="inline-block transform -rotate-1 mb-10">
+        <h2 class="text-3xl md:text-5xl font-black uppercase tracking-tight text-foreground bg-card px-6 py-3 border-4 border-border shadow-neo">
+          Notre Méthodologie
+        </h2>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+        <!-- Carte 1 -->
+        <div class="neo-box bg-yellow-100 text-black p-6 border-4 border-black shadow-neo flex flex-col justify-between hover:scale-102 hover:rotate-1 transition-all duration-200">
           <div>
-            <div class="flex items-start gap-4 mb-6">
-              <div class="bg-primary text-primary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">1</div>
-              <div>
-                <h3 class="font-bold text-xl uppercase mb-2">Le Coût Réel (1 an)</h3>
-                <p>Fini les mauvaises surprises ! On calcule pour vous le vrai coût sur la première année. On prend tout en compte : le forfait, la carte SIM, et même les éventuels petits frais cachés d'activation ou de résiliation.</p>
-              </div>
+            <div class="bg-yellow-400 text-black font-black text-xl w-10 h-10 flex items-center justify-center border-2 border-black shadow-neo mb-4 transform -rotate-6">
+              1
             </div>
-            <div class="flex items-start gap-4">
-              <div class="bg-secondary text-secondary-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">2</div>
-              <div>
-                <h3 class="font-bold text-xl uppercase mb-2">Le Juste Prix pour Vos Besoins</h3>
-                <p>Dites-nous de combien de gigas vous avez besoin, et on s'occupe du reste. On écarte les forfaits qui ne vous conviennent pas pour mettre en lumière la meilleure offre, celle qui est vraiment la plus économique pour vous.</p>
-              </div>
-            </div>
+            <h3 class="font-black text-xl uppercase mb-3 leading-tight text-black">Le Coût Réel</h3>
           </div>
+          <p class="font-medium text-black">Fini les mauvaises surprises. On calcule pour vous le vrai coût sur la première année, en incluant le forfait, la carte SIM et les frais d'activation et de résiliation.</p>
+        </div>
+
+        <!-- Carte 2 -->
+        <div class="neo-box bg-emerald-100 text-black p-6 border-4 border-black shadow-neo flex flex-col justify-between hover:scale-102 hover:-rotate-1 transition-all duration-200">
           <div>
-            <div class="flex items-start gap-4 mb-6">
-              <div class="bg-accent text-accent-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">3</div>
-              <div>
-                <h3 class="font-bold text-xl uppercase mb-2">100% Indépendants</h3>
-                <p>On surveille les sites des opérateurs tous les jours pour vous dénicher les vrais prix en temps réel. Ici, pas de favoritisme ni d'offres sponsorisées : on vous montre la réalité, tout simplement.</p>
-              </div>
+            <div class="bg-emerald-400 text-black font-black text-xl w-10 h-10 flex items-center justify-center border-2 border-black shadow-neo mb-4 transform rotate-6">
+              2
             </div>
-            <div class="flex items-start gap-4">
-              <div class="bg-destructive text-destructive-foreground font-black text-xl w-10 h-10 flex items-center justify-center flex-shrink-0 border-2 border-border shadow-neo">4</div>
-              <div>
-                <h3 class="font-bold text-xl uppercase mb-2">Notre Label "Fairplay"</h3>
-                <p>Certains opérateurs ont la fâcheuse habitude d'augmenter leurs prix en cours de route. Si c'est le cas, on retire leur badge "Fairplay" et on vous prévient du risque pour vous éviter de revoir votre facture à la hausse.</p>
-              </div>
-            </div>
+            <h3 class="font-black text-xl uppercase mb-3 leading-tight text-black">Le Juste Prix</h3>
           </div>
+          <p class="font-medium text-black">Indiquez vos besoins en gigas et on élimine d'office les offres hors-sujet. Vous ne voyez que ce qui est optimal et économique pour vous.</p>
+        </div>
+
+        <!-- Carte 3 -->
+        <div class="neo-box bg-cyan-100 text-black p-6 border-4 border-black shadow-neo flex flex-col justify-between hover:scale-102 hover:rotate-1 transition-all duration-200">
+          <div>
+            <div class="bg-cyan-400 text-black font-black text-xl w-10 h-10 flex items-center justify-center border-2 border-black shadow-neo mb-4 transform -rotate-6">
+              3
+            </div>
+            <h3 class="font-black text-xl uppercase mb-3 leading-tight text-black">100% Neutre</h3>
+          </div>
+          <p class="font-medium text-black">Nos scrapers parcourent les sites des opérateurs quotidiennement. Aucun lien affilié caché, aucun traitement de faveur : juste la réalité du marché.</p>
+        </div>
+
+        <!-- Carte 4 -->
+        <div class="neo-box bg-rose-100 text-black p-6 border-4 border-black shadow-neo flex flex-col justify-between hover:scale-102 hover:-rotate-1 transition-all duration-200">
+          <div>
+            <div class="bg-rose-400 text-black font-black text-xl w-10 h-10 flex items-center justify-center border-2 border-black shadow-neo mb-4 transform rotate-6">
+              4
+            </div>
+            <h3 class="font-black text-xl uppercase mb-3 leading-tight text-black">Label Fairplay</h3>
+          </div>
+          <p class="font-medium text-black">Si un opérateur a l'habitude de pratiquer des augmentations surprises après quelques mois, nous lui retirons son label de confiance pour vous protéger.</p>
         </div>
       </div>
     </section>

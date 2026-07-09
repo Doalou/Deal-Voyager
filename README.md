@@ -2,7 +2,7 @@
 
 > **Vos forfaits mobiles sans embrouilles.**
 
-Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. Il scrape automatiquement les prix des operateurs (MNO/MVNO) et les classe au centime pres pour vous aider a trouver l'offre la plus honnete — sans partenariat financier, sans publicite, et sans bullshit.
+Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. Il scrape automatiquement les prix des operateurs (MNO/MVNO) et les classe au centime pres pour vous aider a trouver l'offre la plus honnete - sans partenariat financier, sans publicite, et sans bullshit.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Vue.js](https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vue.js&logoColor=4FC08D)
@@ -18,14 +18,14 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
 
 ## Fonctionnalites Principales
 
-- **Scraping Automatisé & Furtif** — Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 18 opérateurs. Cron horaire + déclenchement manuel. Détection automatique 4G/5G et Data Europe/DOM.
-- **Classement Transparent (Coût Réel sur 1 An)** — Tri basé sur le coût annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de résiliation. Score euro/Go calculé.
-- **Design Néobrutaliste & Dark Mode** — Interface avec bordures épaisses, contrastes forts, ombres nettes et Dark Mode dynamique. Inclut une page 404 sur-mesure.
-- **Filtrage Avancé** — Slider interactif (0 à 500 Go) avec saisie directe au Go près et filtre exclusif par réseau (Orange, SFR, Bouygues, Free).
-- **Bot Discord Dédié** — Bot Discord formatant les alertes de nouveaux forfaits en temps réel pour vos serveurs.
-- **Liens Directs Sans Affiliation** — Accès en un clic aux pages opérateurs, zéro tracking.
-- **Control Room** — Panneau d'administration hybride (accessible uniquement via `/admin` et protégé par Basic Auth) avec suivi du scraping en temps réel, gestion des frais par opérateur, label "Fairplay", et bouton de purge de la base.
-- **Déploiement Docker Sécurisé** — Stack complète (Frontend, Backend, BDD) avec credentials configurables via `.env`, proxy interne Nitro, et zéro port exposé inutilement.
+- **Scraping Automatisé & Furtif** - Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 18 opérateurs. Cron horaire + déclenchement manuel. Détection automatique 4G/5G et Data Europe/DOM.
+- **Classement Transparent (Coût Réel sur 1 An)** - Tri basé sur le coût annuel total : prix mensuel x 12 + carte SIM + frais d'activation + frais de résiliation. Score euro/Go calculé.
+- **Design Néobrutaliste & Dark Mode** - Interface avec bordures épaisses, contrastes forts, ombres nettes et Dark Mode dynamique. Inclut une page 404 sur-mesure.
+- **Filtrage Avancé** - Slider interactif (0 à 500 Go) avec saisie directe au Go près et filtre exclusif par réseau (Orange, SFR, Bouygues, Free).
+- **Bot Discord Dédié** - Bot Discord formatant les alertes de nouveaux forfaits en temps réel pour vos serveurs.
+- **Liens Directs Sans Affiliation** - Accès en un clic aux pages opérateurs, zéro tracking.
+- **Control Room** - Panneau d'administration hybride (accessible uniquement via `/admin` et protégé par Basic Auth) avec suivi du scraping en temps réel, gestion des frais par opérateur, label "Fairplay", et bouton de purge de la base.
+- **Déploiement Docker Sécurisé** - Stack complète (Frontend, Backend, BDD) avec credentials configurables via `.env`, proxy interne Nitro, et zéro port exposé inutilement.
 
 ---
 
@@ -66,11 +66,11 @@ Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. I
                     │   Frontend Nuxt (SSR)   │                  │  API Discord  │
                     │   Proxy /api/v1/** ─────┼──► Backend ──────► (Bot alerts & │
                     │   Auth HTTP Basic       │    Express:3001  │  Webhooks)    │
-                    └────────────┬────────────┘        │         └───────────────┘
-                                 │                     ▼
-┌────────────────┐  ┌────────────▼────────────┐  ┌────────────────┐
-│ matomo_db:3306 ◄──┼        matomo:80        │  │ PostgreSQL:5432│
-└────────────────┘  └─────────────────────────┘  └────────────────┘
+                    └─────────────────────────┘        │         └───────────────┘
+                                                       ▼
+                                                 ┌────────────────┐
+                                                 │ PostgreSQL:5432│
+                                                 └────────────────┘
 ```
 
 Seul le port du frontend est exposé. Le backend et PostgreSQL communiquent exclusivement via le réseau Docker interne. Le Backend effectue lui-même ses requêtes sortantes vers l'API de Discord.
@@ -118,12 +118,6 @@ DISCORD_BOT_TOKEN=votre_token_bot_discord
 
 # Port public (optionnel, défaut: 3000)
 # APP_PORT=3000
-
-# Analytique Matomo (Optionnel)
-MATOMO_DB_PASSWORD=votre_mot_de_passe_matomo_db
-# MATOMO_PORT=8080
-# MATOMO_URL=http://localhost:8080
-# MATOMO_SITE_ID=1
 ```
 
 > **Important :** Le déploiement refuse de démarrer si les variables obligatoires ne sont pas définies.
@@ -143,36 +137,16 @@ Le conteneur `backend` execute automatiquement `prisma db push` au demarrage pou
 | **Comparateur** | [http://localhost:3000](http://localhost:3000) |
 | **Control Room** | [http://localhost:3000/admin](http://localhost:3000/admin) |
 
-L'API n'est pas exposee directement — toutes les requetes `/api/v1/*` passent par le proxy Nuxt.
+L'API n'est pas exposee directement - toutes les requetes `/api/v1/*` passent par le proxy Nuxt.
 
 ### 4. Premier Scraping
 
 1. Rendez-vous sur la [Control Room](http://localhost:3000/admin) (authentification HTTP Basic).
 2. Cliquez sur **Lancer l'extraction maintenant**.
-3. Patientez 1 a 2 minutes — la page suit la progression automatiquement.
+3. Patientez 1 a 2 minutes - la page suit la progression automatiquement.
 4. Les offres apparaissent sur l'accueil une fois le scraping termine.
 
-### 5. Configuration de Matomo (Optionnel)
-
-L'analytique est desactivee par defaut pour respecter la vie privee. Pour l'activer via les conteneurs Docker inclus :
-1. Accedez a l'interface d'installation sur `http://localhost:8080` (port modifiable via `MATOMO_PORT`).
-2. Lors de l'etape "Configuration de la base de donnees" de l'installateur Matomo, utilisez ces valeurs :
-   - Serveur de base de donnees : `matomo_db`
-   - Identifiant : `matomo`
-   - Mot de passe : *La valeur de MATOMO_DB_PASSWORD definie dans votre .env*
-   - Nom de la base de donnees : `matomo`
-3. Lors de la creation du site, utilisez `http://frontend:3000` comme URL du site (c'est l'adresse Docker interne qui permet a Matomo de verifier le script de suivi).
-4. Renseignez les variables dans votre fichier `.env` :
-   ```env
-   MATOMO_URL=http://localhost:8080
-   MATOMO_SITE_ID=1
-   ```
-5. Appliquez les changements en reconstruisant le frontend :
-   ```bash
-   docker compose up -d --build frontend
-   ```
-
-### 6. Configuration du Bot Discord (Optionnel)
+### 5. Configuration du Bot Discord (Optionnel)
 
 Pour permettre à votre communauté de recevoir des alertes automatiques lors de changements de prix :
 1. Créez une application sur le [Discord Developer Portal](https://discord.com/developers/applications).
@@ -195,7 +169,7 @@ Pour permettre à votre communauté de recevoir des alertes automatiques lors de
 | **Comparaison timing-safe** | Mots de passe comparés via XOR constant-time (backend + frontend). |
 | **Sécurité par l'obscurité** | Le bouton `/admin` n'est pas affiché publiquement dans l'interface. |
 | **Rate limiting** | 10 tentatives max par IP sur 15 min (backend). |
-| **Proxy interne** | Le backend n'est pas exposé — tout passe par le proxy Nitro du frontend. |
+| **Proxy interne** | Le backend n'est pas exposé - tout passe par le proxy Nitro du frontend. |
 | **PostgreSQL isolé** | Port 5432 non exposé, accessible uniquement via le réseau Docker. |
 | **CORS restreint** | Whitelist configurable au lieu de `origin: *`. |
 | **Auth header transmis** | Le header HTTP Basic du navigateur est stocké côté serveur (`useState`) et réutilisé pour les appels API. |
@@ -300,7 +274,7 @@ Pensez a :
 
 ## Licence
 
-**GNU General Public License v3.0** — Voir [LICENSE](LICENSE.txt).
+**GNU General Public License v3.0** - Voir [LICENSE](LICENSE.txt).
 
 ---
 

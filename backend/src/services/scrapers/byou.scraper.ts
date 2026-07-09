@@ -45,7 +45,7 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         const fees = extractFeesFromText(pageText);
 
         console.log(
-            `[B&You] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`,
+            `[B&You] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`,
         );
 
         // ─── Récupérer les options de forfait disponibles ───

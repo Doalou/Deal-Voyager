@@ -61,30 +61,6 @@ export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                 const text = (document.body.innerText || '').replace(/\u00a0/g, ' ').replace(/\u202f/g, ' ');
                 const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
 
-                // Logique d'ajout de plan (inlinée pour éviter le bug __name esbuild)
-                var addPlan = function (dataGb: number, price: number, context: string) {
-                    if (dataGb <= 0 || dataGb > 1000 || price <= 0 || price >= 100) return;
-                    if (/(?:12|24)\s*mois\s*d['']?engagement|avec\s*engagement/i.test(context)) return;
-
-                    var euGb = 0;
-                    var euMatch = context.match(/(\d{1,3})\s*go\s*(?:de\s*donn[ée]es\s*d['']?itin[ée]rance\s*dans\s*l['']?ue|(?:valables?|inclus?)\s*en\s*(?:ue|europe|dom)|(?:depuis|dans)\s*l['']?ue)/i)
-                        || context.match(/(?:ue|europe|dom|itin[ée]rance)[^\n\d]{0,40}(\d{1,3})\s*go/i);
-                    if (euMatch) euGb = Number.parseInt(euMatch[1], 10);
-
-                    var gen = /\b5g\b/i.test(context) ? '5G' : '4G';
-                    var planName = 'Forfait Lycamobile ' + (dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo');
-                    if (!results.some(function (r) { return r.dataGb === dataGb && r.price === price; })) {
-                        results.push({
-                            planName: planName,
-                            dataGb: dataGb,
-                            price: price,
-                            calls: 'Illimités',
-                            networkGeneration: gen,
-                            dataEuGb: euGb,
-                        });
-                    }
-                };
-
                 // Pass 1: capture par lignes (très robuste pour Lyca postpaid/prepaid)
                 for (var i = 0; i < lines.length; i++) {
                     var dataMatch = /(?:forfait[^\n]{0,60})?(\d{1,4})\s*(?:go|gb)\b/i.exec(lines[i]);
@@ -110,7 +86,27 @@ export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                         continue;
                     }
 
-                    addPlan(dataGb, price, context);
+                    if (dataGb > 0 && dataGb <= 1000 && price > 0 && price < 100) {
+                        if (!/(?:12|24)\s*mois\s*d['']?engagement|avec\s*engagement/i.test(context)) {
+                            var euGb = 0;
+                            var euMatch = context.match(/(\d{1,3})\s*go\s*(?:de\s*donn[ée]es\s*d['']?itin[ée]rance\s*dans\s*l['']?ue|(?:valables?|inclus?)\s*en\s*(?:ue|europe|dom)|(?:depuis|dans)\s*l['']?ue)/i)
+                                || context.match(/(?:ue|europe|dom|itin[ée]rance)[^\n\d]{0,40}(\d{1,3})\s*go/i);
+                            if (euMatch) euGb = Number.parseInt(euMatch[1], 10);
+
+                            var gen = /\b5g\b/i.test(context) ? '5G' : '4G';
+                            var planName = 'Forfait Lycamobile ' + (dataGb >= 1 ? dataGb + ' Go' : (dataGb * 1000) + ' Mo');
+                            if (!results.some(function (r) { return r.dataGb === dataGb && r.price === price; })) {
+                                results.push({
+                                    planName: planName,
+                                    dataGb: dataGb,
+                                    price: price,
+                                    calls: 'Illimités',
+                                    networkGeneration: gen,
+                                    dataEuGb: euGb,
+                                });
+                            }
+                        }
+                    }
                 }
 
                 // Pass 2: regex globale sur blocs compacts (filet de sécurité)
@@ -123,7 +119,28 @@ export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                     var end = Math.min(text.length, bm.index + bm[0].length + 120);
                     var ctx = text.substring(start, end);
                     if (!/(forfait|data|par\s*mois|30\s*jours|lyca|appels|sms|acheter|voir\s*plus)/i.test(ctx)) continue;
-                    addPlan(dGb, pr, ctx);
+                    
+                    if (dGb > 0 && dGb <= 1000 && pr > 0 && pr < 100) {
+                        if (!/(?:12|24)\s*mois\s*d['']?engagement|avec\s*engagement/i.test(ctx)) {
+                            var euGb2 = 0;
+                            var euMatch2 = ctx.match(/(\d{1,3})\s*go\s*(?:de\s*donn[ée]es\s*d['']?itin[ée]rance\s*dans\s*l['']?ue|(?:valables?|inclus?)\s*en\s*(?:ue|europe|dom)|(?:depuis|dans)\s*l['']?ue)/i)
+                                || ctx.match(/(?:ue|europe|dom|itin[ée]rance)[^\n\d]{0,40}(\d{1,3})\s*go/i);
+                            if (euMatch2) euGb2 = Number.parseInt(euMatch2[1], 10);
+
+                            var gen2 = /\b5g\b/i.test(ctx) ? '5G' : '4G';
+                            var planName2 = 'Forfait Lycamobile ' + (dGb >= 1 ? dGb + ' Go' : (dGb * 1000) + ' Mo');
+                            if (!results.some(function (r) { return r.dataGb === dGb && r.price === pr; })) {
+                                results.push({
+                                    planName: planName2,
+                                    dataGb: dGb,
+                                    price: pr,
+                                    calls: 'Illimités',
+                                    networkGeneration: gen2,
+                                    dataEuGb: euGb2,
+                                });
+                            }
+                        }
+                    }
                 }
 
                 return results;

@@ -27,7 +27,7 @@ export const laPosteMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (
                 const triggers = Array.from(document.querySelectorAll('button, a, span, div[role="button"]'));
                 for (const el of triggers) {
                     const t = (el.textContent || '').toLowerCase().trim();
-                    if (t.includes('mentions l') || t.includes('informations l') || t.includes('conditions g') || t.includes('voir les d')) {
+                    if (el.tagName !== 'A' && (t.includes('mentions l') || t.includes('informations l') || t.includes('conditions g') || t.includes('voir les d'))) {
                         try { (el as HTMLElement).click(); } catch { }
                     }
                 }
@@ -38,7 +38,7 @@ export const laPosteMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (
         // ─── Extraction frais via helper centralisé ───
         const pageText = await page.evaluate(() => (document.body.innerText || ''));
         const fees = extractFeesFromText(pageText);
-        console.log(`[La Poste Mobile] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+        console.log(`[La Poste Mobile] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
 
         // ─── Extraction des forfaits ───
         const plans = await page.evaluate(() => {

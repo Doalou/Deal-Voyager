@@ -23,7 +23,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
         // ─── Extraction frais via helper centralisé ───
         const pageText = await page.evaluate(() => (document.body.innerText || ''));
         const fees = extractFeesFromText(pageText);
-        console.log(`[Free Mobile] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+        console.log(`[Free Mobile] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
 
         const plans: ScrapedPlan[] = [];
 
@@ -215,7 +215,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                         activationPrice: fees.activationPrice ?? undefined,
                         cancellationPrice: fees.cancellationPrice ?? undefined,
                     });
-                    console.log(`[Free Mobile] Forfait détecté: ${planData.planName} — ${planData.dataGb}Go — ${planData.price}€`);
+                    console.log(`[Free Mobile] Forfait détecté: ${planData.planName} - ${planData.dataGb}Go - ${planData.price}€`);
                 }
             } catch (err) {
                 console.warn(`[Free Mobile] Erreur sur ${planUrl}:`, err);

@@ -26,7 +26,7 @@ export const prixtelScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         // ─── Extraction frais via helper centralisé (la suite est complétée par checkout/PDF dans scraper.service.ts) ───
         const pageText = await page.evaluate(() => (document.body.innerText || ''));
         const fees = extractFeesFromText(pageText);
-        console.log(`[Prixtel] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+        console.log(`[Prixtel] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
 
         // ─── Récupération dynamique des pages de forfait (Le petit, Le grand, Oxygène, Le géant) ───
         const offerLinks = await page.evaluate(() => {

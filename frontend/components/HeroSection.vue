@@ -1,26 +1,46 @@
 <script setup lang="ts">
-const operators = [
-  { name: 'Sosh', color: '#FF7900', text: 'black' },
-  { name: 'RED by SFR', color: '#E2001A', text: 'white' },
-  { name: 'B&You', color: '#0089C5', text: 'white' },
-  { name: 'Free Mobile', color: '#CC0000', text: 'white' },
-  { name: 'YouPrice', color: '#1B1B3A', text: 'white' },
-  { name: 'Coriolis', color: '#6B2D8B', text: 'white' },
-  { name: 'La Poste Mobile', color: '#FFD300', text: 'black' },
-  { name: 'NRJ Mobile', color: '#E31937', text: 'white' },
-  { name: 'Auchan Telecom', color: '#E30613', text: 'white' },
-  { name: 'Cdiscount Mobile', color: '#00528A', text: 'white' },
-  { name: 'Syma Mobile', color: '#00A651', text: 'white' },
-  { name: 'Lebara', color: '#E6007E', text: 'white' },
-  { name: 'Lycamobile', color: '#63A532', text: 'white' },
-  { name: 'Prixtel', color: '#00B4D8', text: 'white' },
-  { name: 'TeleCoop', color: '#2D8F4E', text: 'white' },
-  { name: 'Akeo Telecom', color: '#004B87', text: 'white' },
-  { name: 'Nordnet', color: '#003DA5', text: 'white' },
-  { name: 'France Téléphone', color: '#2C5F8A', text: 'white' }
-]
+// Palette de couleurs par opérateur - couleurs de marque officielles
+const operatorColors: Record<string, { color: string; text: string }> = {
+  'Sosh':             { color: '#FF7900', text: 'black'  }, // Orange Sosh
+  'RED by SFR':       { color: '#00E094', text: 'black'  }, // Vert menthe officiel RED by SFR (--c-b-brand-1)
+  'B&You':            { color: '#009DCC', text: 'white'  }, // Bleu Pacific Blue Bouygues Telecom
+  'Free Mobile':      { color: '#E30613', text: 'white'  }, // Rouge Free/Iliad
+  'YouPrice':         { color: '#3A1F6B', text: 'white'  }, // Violet foncé YouPrice
+  'Coriolis':         { color: '#4DBDC6', text: 'black'  }, // Bleu-canard Coriolis officiel
+  'La Poste Mobile':  { color: '#FFD300', text: 'black'  }, // Jaune La Poste
+  'NRJ Mobile':       { color: '#FF0032', text: 'white'  }, // Rouge NRJ
+  'Auchan Telecom':   { color: '#D6180B', text: 'white'  }, // Rouge Auchan
+  'Cdiscount Mobile': { color: '#1B5EFF', text: 'white'  }, // Bleu digital Cdiscount (nouveau logo 2024)
+  'Syma Mobile':      { color: '#EC1C24', text: 'white'  }, // Rouge Syma Mobile (logo rouge et blanc)
+  'Lebara':           { color: '#B91866', text: 'white'  }, // Magenta Lebara officiel
+  'Réglo Mobile':     { color: '#97085F', text: 'white'  }, // Bordeaux-magenta Réglo Mobile officiel
+  'Lycamobile':       { color: '#08DC7D', text: 'black'  }, // Vert menthe Lycamobile officiel
+  'Prixtel':          { color: '#545FFF', text: 'white'  }, // Bleu-violet - couleur du point du logo 2021
+  'TeleCoop':         { color: '#2D8F4E', text: 'white'  }, // Vert TeleCoop
+  'Akeo Telecom':     { color: '#004B87', text: 'white'  }, // Bleu Akeo
+  'Nordnet':          { color: '#FF6C00', text: 'white'  }, // Orange (filiale Orange group)
+  'France Téléphone': { color: '#1A3A6B', text: 'white'  }, // Bleu marine France Téléphone
+}
 
-const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1.5', '-2', '-1', '2', '-1.5', '1', '-2', '1.5']
+// Fallback si l'API est vide ou indisponible
+const fallbackOperators = Object.keys(operatorColors).map(name => ({
+  name,
+  ...operatorColors[name],
+}))
+
+const operators = ref(fallbackOperators)
+
+const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1.5', '-2', '-1', '2', '-1.5', '1', '-2', '1.5', '-2', '1']
+
+// Chargement dynamique depuis l'API : déduplique les opérateurs réels en base
+const { data: deals } = await useFetch('/api/v1/deals')
+if (deals.value && Array.isArray(deals.value) && deals.value.length > 0) {
+  const uniqueNames = [...new Set((deals.value as any[]).map((d: any) => d.operator as string))].sort()
+  operators.value = uniqueNames.map(name => ({
+    name,
+    ...(operatorColors[name] ?? { color: '#374151', text: 'white' }),
+  }))
+}
 </script>
 
 <template>
@@ -34,12 +54,12 @@ const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1
       <div class="inline-block bg-card border-4 border-border shadow-neo px-6 py-2 mb-8 transform -rotate-2">
         <span class="font-bold text-xl uppercase tracking-wider text-card-foreground">📡 Deal-Voyager</span>
       </div>
-      
+
       <h1 class="text-4xl md:text-7xl font-black tracking-tight mb-8 leading-tight text-foreground">
-        Trouvez votre forfait <br/> 
+        Trouvez votre forfait <br/>
         <span class="inline-block bg-primary text-primary-foreground px-4 py-1 border-4 border-border mt-2 transform rotate-1">IDÉAL</span>
       </h1>
-      
+
       <p class="text-lg md:text-2xl font-medium text-card-foreground max-w-2xl mx-auto bg-card border-2 border-border p-4 shadow-neo">
         Ajustez le curseur, on vous trouve <span class="font-black bg-secondary text-secondary-foreground px-1">le forfait le moins cher</span> au centime près.
       </p>
@@ -53,7 +73,7 @@ const rotations = ['-2', '1', '-1', '2', '-1.5', '1.5', '-2', '1', '2', '-1', '1
           :style="{
             backgroundColor: op.color,
             color: op.text,
-            transform: `rotate(${rotations[i]}deg)`,
+            transform: `rotate(${rotations[i % rotations.length]}deg)`,
           }"
         >
           {{ op.name }}

@@ -55,41 +55,9 @@ services:
       - NUXT_API_INTERNAL_URL=http://backend:3001
       - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
-      - NUXT_PUBLIC_MATOMO_URL=${MATOMO_URL:-}
-      - NUXT_PUBLIC_MATOMO_SITE_ID=${MATOMO_SITE_ID:-}
       - NUXT_PUBLIC_DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
     depends_on:
       - backend
 
-  matomo_db:
-    image: mirror.gcr.io/mariadb:10.11
-    container_name: deal_voyager_matomo_db
-    restart: unless-stopped
-    volumes:
-      - matomo_db_data:/var/lib/mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MATOMO_DB_PASSWORD:?MATOMO_DB_PASSWORD is required}
-      - MYSQL_DATABASE=matomo
-      - MYSQL_USER=matomo
-      - MYSQL_PASSWORD=${MATOMO_DB_PASSWORD:?MATOMO_DB_PASSWORD is required}
-
-  matomo:
-    image: mirror.gcr.io/matomo:latest
-    container_name: deal_voyager_matomo
-    restart: unless-stopped
-    volumes:
-      - matomo_data:/var/www/html
-    environment:
-      - MATOMO_DATABASE_HOST=matomo_db
-      - MATOMO_DATABASE_DBNAME=matomo
-      - MATOMO_DATABASE_USERNAME=matomo
-      - MATOMO_DATABASE_PASSWORD=${MATOMO_DB_PASSWORD:?MATOMO_DB_PASSWORD is required}
-    ports:
-      - "${MATOMO_PORT:-8080}:80"
-    depends_on:
-      - matomo_db
-
 volumes:
   postgres_data:
-  matomo_db_data:
-  matomo_data:

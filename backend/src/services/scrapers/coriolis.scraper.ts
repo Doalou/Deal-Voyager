@@ -23,7 +23,7 @@ export const coriolisScrapeLogic: ScraperConfig["scrapeFunction"] = async (
     // ─── Extraction frais via helper centralisé ───
     const pageText = await page.evaluate(() => (document.body.innerText || ''));
     const fees = extractFeesFromText(pageText);
-    console.log(`[Coriolis] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+    console.log(`[Coriolis] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
 
     const plans = await page.evaluate(() => {
       const results: {

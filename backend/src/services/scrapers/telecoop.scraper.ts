@@ -23,7 +23,7 @@ export const telecoopScrapeLogic: ScraperConfig['scrapeFunction'] = async (page)
         // ─── Extraction frais via helper centralisé ───
         const pageText = await page.evaluate(() => (document.body.innerText || ''));
         const fees = extractFeesFromText(pageText);
-        console.log(`[TeleCoop] Frais extraits — SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+        console.log(`[TeleCoop] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
 
         // ─── Extraction des forfaits ───
         const plans = await page.evaluate(() => {

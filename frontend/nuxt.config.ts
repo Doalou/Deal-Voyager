@@ -11,8 +11,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiInternalUrl: "http://localhost:3001",
     public: {
-      matomoUrl: "",
-      matomoSiteId: "",
       discordClientId: "",
     },
   },
@@ -21,7 +19,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: "Deal-Voyager — Vos forfaits mobiles sans embrouilles",
+      title: "Deal-Voyager - Ton Forfait, Ton Choix",
       meta: [
         {
           name: "description",

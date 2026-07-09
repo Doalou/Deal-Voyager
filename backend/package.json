@@ -29,6 +29,7 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-recaptcha": "^3.6.8",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "pg": "^8.13.1",
     "tsx": "^4.21.0",
     "undici": "^8.0.1"
   },
@@ -39,6 +40,7 @@
     "@types/node-schedule": "^2.1.8",
     "@types/pdf-parse": "^1.1.5",
     "prisma": "7.6.0",
+    "@types/pg": "^8.11.10",
     "typescript": "^6.0.2"
   }
 }

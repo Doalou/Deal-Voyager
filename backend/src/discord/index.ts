@@ -79,7 +79,7 @@ export const initDiscordBot = async () => {
         // Defer the reply immediately to avoid the 3-second timeout
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       } catch (deferError) {
-        // If we can't even defer, the interaction is already dead — bail out
+        // If we can't even defer, the interaction is already dead - bail out
         console.error(
           "[Discord] Impossible de defer l'interaction :",
           deferError,

@@ -54,7 +54,7 @@ const startPolling = () => {
   pollingInterval = setInterval(async () => {
     await refreshStats()
     if (!stats.value.isScraping) {
-      // Scraping finished — do a final refresh and stop polling
+      // Scraping finished - do a final refresh and stop polling
       await refreshDeals()
       await refreshOperators()
       stopPolling()
@@ -385,15 +385,15 @@ const dealsByOperator = computed(() => {
                   <span :class="[
                     'px-2 py-0.5 text-xs font-black border-2 border-border',
                     deal.networkGeneration === '5G' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
-                  ]">{{ deal.networkGeneration || '—' }}</span>
+                  ]">{{ deal.networkGeneration || '-' }}</span>
                 </td>
                 <td class="p-3 md:p-4 text-center font-black text-xl border-r-2 border-border">{{ deal.price.toFixed(2) }}€</td>
                 <td class="p-3 md:p-4 text-center border-r-2 border-border">
                   <span v-if="deal.simPrice !== null && deal.simPrice !== undefined" class="px-2 py-0.5 text-xs font-black border-2 border-border" :class="deal.simPrice === 0 ? 'bg-green-100 text-green-800' : 'bg-card text-card-foreground'">{{ deal.simPrice }}€</span>
-                  <span v-else class="text-muted-foreground text-xs">—</span>
+                  <span v-else class="text-muted-foreground text-xs">-</span>
                 </td>
                 <td class="p-3 md:p-4 text-center font-mono text-sm">
-                  {{ deal.score ? deal.score.toFixed(3) : '—' }}
+                  {{ deal.score ? deal.score.toFixed(3) : '-' }}
                 </td>
               </tr>
             </tbody>

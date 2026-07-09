@@ -206,7 +206,7 @@ export const symaMobileScrapeLogic: ScraperConfig["scrapeFunction"] = async (
           .slice(0, 60)
           .join("\n");
       });
-      console.log(`[Syma Mobile] DEBUG — Premiers 60 lignes:\n${debugText}`);
+      console.log(`[Syma Mobile] DEBUG - Premiers 60 lignes:\n${debugText}`);
     }
 
     return validPlans.map((plan: any) => ({

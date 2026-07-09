@@ -1,23 +1,37 @@
-# Utiliser l'image officielle de Puppeteer qui inclut déjà Chrome et toutes les dépendances.
+# Stage 1: Build & Prune
+FROM --platform=linux/amd64 node:24-slim AS builder
+
+WORKDIR /app
+
+# Copie des fichiers de dépendances
+COPY package*.json ./
+
+# Installation de toutes les dépendances (y compris dev pour Prisma CLI et tsx)
+RUN npm ci
+
+# Copie du schéma Prisma et du code source requis pour la génération
+COPY prisma ./prisma
+COPY src ./src
+COPY tsconfig.json prisma.config.ts ./
+
+# Génération du client Prisma
+RUN npm run build
+
+# Nettoyage des dépendances de développement pour alléger le dossier node_modules
+RUN npm prune --omit=dev && npm cache clean --force
+
+# Stage 2: Final Run Image
 FROM --platform=linux/amd64 ghcr.io/puppeteer/puppeteer:latest
 
 USER pptruser
 WORKDIR /home/pptruser/app
 
-# Copier les fichiers de dépendances
-COPY --chown=pptruser:pptruser package*.json ./
-
-# Installer TOUTES les dépendances (utiliser `npm ci` pour la rapidité et le déterminisme)
-RUN npm ci
-
-# Copier tout le code source
-COPY --chown=pptruser:pptruser . .
-
-# Générer le client Prisma
-RUN npm run build
-
-# Alléger l'image en supprimant les dépendances de developpement
-RUN npm prune --omit=dev
+# Copie des fichiers d'exécution
+COPY --chown=pptruser:pptruser package.json entrypoint.sh ./
+COPY --chown=pptruser:pptruser --from=builder /app/node_modules ./node_modules
+COPY --chown=pptruser:pptruser --from=builder /app/src ./src
+COPY --chown=pptruser:pptruser --from=builder /app/prisma ./prisma
+COPY --chown=pptruser:pptruser --from=builder /app/prisma.config.ts ./
 
 # Rendre le script d'entrée exécutable
 RUN chmod +x entrypoint.sh

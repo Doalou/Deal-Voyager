@@ -155,7 +155,7 @@ export const regloMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pa
                     if (ignoredLabels.test(candidate)) continue;
                     if (/^\d/.test(candidate)) continue;
                     if (/€|go\b|mois|mo\b/i.test(candidate)) continue;
-                    if (/^(--|—|#|\*|•)/.test(candidate)) continue;
+                    if (/^(--|-|#|\*|•)/.test(candidate)) continue;
                     planLabel = candidate;
                 }
 
@@ -237,7 +237,7 @@ export const regloMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pa
         });
 
         if (plans.length === 0) {
-            console.warn('[Réglo Mobile] Aucun forfait détecté — possible blocage DataDome ou changement de structure.');
+            console.warn('[Réglo Mobile] Aucun forfait détecté - possible blocage DataDome ou changement de structure.');
         }
 
         return plans
