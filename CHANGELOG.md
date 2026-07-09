@@ -2,6 +2,29 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [2.2.3] - 2026-07-09
+
+### 🐛 Correctifs
+
+- **Scraper Lycamobile fiabilisé** - Extraction prioritaire depuis les vraies cartes forfaits `PlanCard` afin d'éviter les faux forfaits créés à partir des lignes d'itinérance Europe/DOM. La page prépayée n'est plus mélangée aux forfaits mensuels sans engagement. Les offres détectées remontent maintenant correctement la data principale, le prix, la 5G et la data EU/DOM.
+- **Scraper Lebara fiabilisé** - Extraction prioritaire depuis les cartes `.plan-card-details` de la SPA Lebara, avec récupération correcte des enveloppes d'itinérance EU/DOM (10/15/20 Go selon le forfait). La détection des frais passe par `extractFeesFromText` avec fallback explicite pour la SIM/eSIM sans frais et les forfaits sans engagement.
+- **Scraper Sosh fiabilisé** - Extraction prioritaire depuis les cartes forfaits visibles de `#mobile-offers` au lieu du texte global de la page, afin d'ignorer la bannière cookies et les mentions contractuelles. Le forfait `1Go Bloqué` remonte maintenant correctement ses `2h` d'appels et son enveloppe EU/DOM.
+- **Compatibilité `page.evaluate` avec tsx/esbuild** - Suppression des helpers locaux injectés dans le contexte navigateur pour éviter les crashs `ReferenceError: __name is not defined` lors du scraping Lycamobile et Lebara.
+- **Contrôleur scraping typé strictement** - Correction des erreurs TypeScript Express 5 sur `req.params.name` (`string | string[]`). Les routes de mise à jour opérateur normalisent maintenant le paramètre et renvoient `400` si le nom d'opérateur est invalide.
+- **Puppeteer Extra fiabilisé** - Initialisation des plugins protégée contre les doubles chargements, activation du plugin reCAPTCHA uniquement lorsqu'un token est configuré, options Chromium paramétrables via environnement (`PUPPETEER_EXECUTABLE_PATH`, `PUPPETEER_ARGS`, `PUPPETEER_HEADLESS`) et préparation centralisée des pages avant navigation (viewport, user-agent, langue, anti-détection de base).
+
+### 🎨 Discord & UI
+
+- **Couleurs des embeds Discord alignées sur le site** - La palette du bot Discord reprend désormais les couleurs opérateur affichées côté frontend : RED by SFR vert menthe, B&You bleu, Free rouge, Coriolis bleu-canard, Syma rouge, Lebara magenta, Lycamobile vert menthe, Prixtel bleu-violet, Nordnet orange, etc.
+- **Badges opérateurs harmonisés** - `OperatorBadge.vue` utilise la même palette que le hero et les embeds Discord, avec normalisation des accents pour fiabiliser les correspondances (`Télécoop`, `Réglo`, `France Téléphone`, etc.).
+
+### ✅ Validation
+
+- **Typecheck backend restauré** - `npx tsc --noEmit --pretty false` passe à nouveau sans erreur.
+- **Build frontend validé** - `npm run build` côté frontend passe avec succès après l'harmonisation des couleurs.
+
+---
+
 ## [2.2.1] - 2026-07-09
 
 ### 🛠️ Technique & CI

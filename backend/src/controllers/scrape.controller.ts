@@ -5,6 +5,13 @@ import prisma from '../lib/prisma';
 // Simple lock en mémoire
 let isScraping = false;
 
+const getSingleParam = (value: string | string[] | undefined): string | null => {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+  return null;
+};
+
 export const handleScrapeRequest = async (req: Request, res: Response): Promise<void> => {
   if (isScraping) {
     res.status(429).json({ message: 'Un scraping est déjà en cours. Veuillez patienter.' });
@@ -84,8 +91,13 @@ export const handleGetOperatorsRequest = async (req: Request, res: Response) => 
 };
 
 export const handleToggleFairplayRequest = async (req: Request, res: Response) => {
-  const { name } = req.params;
+  const name = getSingleParam(req.params.name);
   const { isFairplay } = req.body;
+
+  if (!name) {
+    res.status(400).json({ message: "Nom d'opérateur invalide." });
+    return;
+  }
 
   try {
     const operator = await prisma.operatorSettings.upsert({
@@ -102,8 +114,13 @@ export const handleToggleFairplayRequest = async (req: Request, res: Response) =
 };
 
 export const handleUpdateOperatorSimPriceRequest = async (req: Request, res: Response) => {
-  const { name } = req.params;
+  const name = getSingleParam(req.params.name);
   const { simPrice, activationPrice, cancellationPrice } = req.body;
+
+  if (!name) {
+    res.status(400).json({ message: "Nom d'opérateur invalide." });
+    return;
+  }
 
   const parsedSimPrice = simPrice !== null && simPrice !== undefined ? parseFloat(simPrice) : null;
   const parsedActivationPrice = activationPrice !== null && activationPrice !== undefined ? parseFloat(activationPrice) : null;

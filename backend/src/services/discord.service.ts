@@ -122,23 +122,39 @@ const buildUpdateDetails = (
   ].join("\n");
 };
 
+const normalizeOperatorName = (operatorName: string) =>
+  operatorName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
 const getOperatorColor = (operatorName: string): number => {
-  const normalized = operatorName.toLowerCase();
+  const normalized = normalizeOperatorName(operatorName);
   if (normalized.includes("sosh") || normalized.includes("orange"))
     return 0xff7900;
-  if (normalized.includes("red") || normalized.includes("sfr")) return 0xe2001a;
+  if (normalized.includes("red")) return 0x00e094;
   if (normalized.includes("b&you") || normalized.includes("bouygues"))
-    return 0x0089c5;
-  if (normalized.includes("free")) return 0xcc0000;
-  if (normalized.includes("coriolis")) return 0x6b2d8b;
-  if (normalized.includes("youprice")) return 0x1b1b3a;
+    return 0x009dcc;
+  if (normalized.includes("free")) return 0xe30613;
+  if (normalized.includes("youprice")) return 0x3a1f6b;
+  if (normalized.includes("coriolis")) return 0x4dbdc6;
   if (normalized.includes("la poste")) return 0xffd300;
-  if (normalized.includes("nrj")) return 0xe31937;
-  if (normalized.includes("auchan")) return 0xe30613;
-  if (normalized.includes("cdiscount")) return 0x00528a;
-  if (normalized.includes("syma")) return 0x00a651;
-  if (normalized.includes("lebara")) return 0xe6007e;
-  return 0xffffff; // Default white
+  if (normalized.includes("nrj")) return 0xff0032;
+  if (normalized.includes("auchan")) return 0xd6180b;
+  if (normalized.includes("cdiscount")) return 0x1b5eff;
+  if (normalized.includes("syma")) return 0xec1c24;
+  if (normalized.includes("lebara")) return 0xb91866;
+  if (normalized.includes("reglo")) return 0x97085f;
+  if (normalized.includes("lycamobile") || normalized.includes("lyca"))
+    return 0x08dc7d;
+  if (normalized.includes("prixtel")) return 0x545fff;
+  if (normalized.includes("telecoop")) return 0x2d8f4e;
+  if (normalized.includes("akeo")) return 0x004b87;
+  if (normalized.includes("nordnet")) return 0xff6c00;
+  if (normalized.includes("france t") || normalized.includes("bleutel"))
+    return 0x1a3a6b;
+  if (normalized.includes("sfr")) return 0xe2001a;
+  return 0xffffff;
 };
 
 export const broadcastDeal = async (

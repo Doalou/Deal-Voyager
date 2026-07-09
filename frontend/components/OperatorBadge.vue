@@ -9,25 +9,30 @@ const props = defineProps<{
 
 // Map operator names to specific brand colors for the neo-brutalist aesthetic
 const getOperatorStyle = (name: string) => {
-  const normalized = name.toLowerCase()
+  const normalized = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
   if (normalized.includes('sosh') || normalized.includes('orange')) return 'bg-[#FF7900] text-black'
-  if (normalized.includes('red') || normalized.includes('sfr')) return 'bg-[#E2001A] text-white'
-  if (normalized.includes('b&you') || normalized.includes('bouygues')) return 'bg-[#0089C5] text-white'
-  if (normalized.includes('free')) return 'bg-[#CC0000] text-white'
-  if (normalized.includes('coriolis')) return 'bg-[#6B2D8B] text-white'
-  if (normalized.includes('youprice')) return 'bg-[#1B1B3A] text-white'
+  if (normalized.includes('red')) return 'bg-[#00E094] text-black'
+  if (normalized.includes('b&you') || normalized.includes('bouygues')) return 'bg-[#009DCC] text-white'
+  if (normalized.includes('free')) return 'bg-[#E30613] text-white'
+  if (normalized.includes('youprice')) return 'bg-[#3A1F6B] text-white'
+  if (normalized.includes('coriolis')) return 'bg-[#4DBDC6] text-black'
   if (normalized.includes('la poste')) return 'bg-[#FFD300] text-black'
-  if (normalized.includes('nrj')) return 'bg-[#E31937] text-white'
-  if (normalized.includes('auchan')) return 'bg-[#E30613] text-white'
-  if (normalized.includes('cdiscount')) return 'bg-[#00528A] text-white'
-  if (normalized.includes('syma')) return 'bg-[#00A651] text-white'
-  if (normalized.includes('lebara')) return 'bg-[#E6007E] text-white'
-  if (normalized.includes('lycamobile') || normalized.includes('lyca')) return 'bg-[#63A532] text-white'
-  if (normalized.includes('prixtel')) return 'bg-[#00B4D8] text-white'
-  if (normalized.includes('telecoop') || normalized.includes('télécoop')) return 'bg-[#2D8F4E] text-white'
+  if (normalized.includes('nrj')) return 'bg-[#FF0032] text-white'
+  if (normalized.includes('auchan')) return 'bg-[#D6180B] text-white'
+  if (normalized.includes('cdiscount')) return 'bg-[#1B5EFF] text-white'
+  if (normalized.includes('syma')) return 'bg-[#EC1C24] text-white'
+  if (normalized.includes('lebara')) return 'bg-[#B91866] text-white'
+  if (normalized.includes('reglo')) return 'bg-[#97085F] text-white'
+  if (normalized.includes('lycamobile') || normalized.includes('lyca')) return 'bg-[#08DC7D] text-black'
+  if (normalized.includes('prixtel')) return 'bg-[#545FFF] text-white'
+  if (normalized.includes('telecoop')) return 'bg-[#2D8F4E] text-white'
   if (normalized.includes('akeo')) return 'bg-[#004B87] text-white'
-  if (normalized.includes('nordnet')) return 'bg-[#003DA5] text-white'
-  if (normalized.includes('france t') || normalized.includes('bleutel')) return 'bg-[#2C5F8A] text-white'
+  if (normalized.includes('nordnet')) return 'bg-[#FF6C00] text-white'
+  if (normalized.includes('france t') || normalized.includes('bleutel')) return 'bg-[#1A3A6B] text-white'
+  if (normalized.includes('sfr')) return 'bg-[#E2001A] text-white'
   
   return 'bg-card text-card-foreground'
 }

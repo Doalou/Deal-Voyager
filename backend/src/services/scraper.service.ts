@@ -26,12 +26,41 @@ import { franceTelephoneScrapeLogic } from './scrapers/francetelephone.scraper';
 import { fetchFeesFromPdf, detectFeesFromCheckout } from './scrapers/utils';
 import { broadcastDeal } from './discord.service';
 
-puppeteer.use(StealthPlugin());
-puppeteer.use(
-  RecaptchaPlugin({
-    visualFeedback: true,
-  })
-);
+const DEFAULT_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+let puppeteerExtraConfigured = false;
+
+const configurePuppeteerExtra = () => {
+  if (puppeteerExtraConfigured) return;
+
+  puppeteer.use(StealthPlugin());
+  console.log('[Puppeteer Extra] Plugin stealth activé.');
+
+  const recaptchaToken =
+    process.env.RECAPTCHA_TOKEN ||
+    process.env.TWOCAPTCHA_TOKEN ||
+    process.env.TWO_CAPTCHA_TOKEN;
+
+  if (recaptchaToken) {
+    const recaptchaProvider = process.env.RECAPTCHA_PROVIDER_ID || '2captcha';
+    puppeteer.use(
+      RecaptchaPlugin({
+        provider: {
+          id: recaptchaProvider,
+          token: recaptchaToken,
+        },
+        visualFeedback: process.env.RECAPTCHA_VISUAL_FEEDBACK !== 'false',
+        throwOnError: false,
+      }),
+    );
+    console.log(`[Puppeteer Extra] Plugin reCAPTCHA activé (${recaptchaProvider}).`);
+  } else {
+    console.log('[Puppeteer Extra] Plugin reCAPTCHA ignoré (aucun token configuré).');
+  }
+
+  puppeteerExtraConfigured = true;
+};
 
 let activeBrowser: Browser | null = null;
 
@@ -52,8 +81,20 @@ export const closeActiveBrowser = async () => {
  * Lance un navigateur Puppeteer avec les options nécessaires pour Docker.
  */
 const launchBrowser = () => {
-  return puppeteer.launch({
-    headless: true,
+  configurePuppeteerExtra();
+
+  const executablePath =
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    process.env.CHROME_BIN ||
+    process.env.CHROMIUM_PATH;
+
+  const extraArgs = process.env.PUPPETEER_ARGS
+    ? process.env.PUPPETEER_ARGS.split(' ').map((arg) => arg.trim()).filter(Boolean)
+    : [];
+
+  const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
+    headless: process.env.PUPPETEER_HEADLESS === 'false' ? false : true,
+    protocolTimeout: 120000,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -64,7 +105,32 @@ const launchBrowser = () => {
       '--disable-gpu',
       '--ignore-certificate-errors',
       '--disable-blink-features=AutomationControlled',
+      '--window-size=1280,960',
+      '--lang=fr-FR,fr',
+      ...extraArgs,
     ],
+  };
+
+  if (executablePath) {
+    launchOptions.executablePath = executablePath;
+    console.log(`[Puppeteer] Chromium explicite : ${executablePath}`);
+  }
+
+  return puppeteer.launch(launchOptions);
+};
+
+const preparePage = async (page: Page) => {
+  page.setDefaultNavigationTimeout(60000);
+  page.setDefaultTimeout(30000);
+
+  await page.setViewport({ width: 1280, height: 960 });
+  await page.setUserAgent(DEFAULT_USER_AGENT);
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8' });
+
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr', 'en-US', 'en'] });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
   });
 };
 
@@ -195,11 +261,7 @@ export const scrapeOffers = async () => {
     console.log(`--- Début du scraping pour ${config.name} ---`);
     const page = await browser.newPage();
     try {
-      await page.setViewport({ width: 1280, height: 960 });
-      await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-      );
-      await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8' });
+      await preparePage(page);
 
       // Navigation avec retry en cas de timeout réseau
       let navSuccess = false;
