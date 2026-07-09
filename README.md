@@ -1,6 +1,6 @@
   # Deal-Voyager
 
-> **Vos forfaits mobiles sans embrouilles.**
+> **Ton Forfait, Ton Choix.**
 
 Deal-Voyager est un comparateur de forfaits mobiles francais 100% independant. Il scrape automatiquement les prix des operateurs (MNO/MVNO) et les classe au centime pres pour vous aider a trouver l'offre la plus honnete - sans partenariat financier, sans publicite, et sans bullshit.
 
