@@ -260,22 +260,6 @@ Pensez a :
 - Pointer le DNS vers l'IP publique de votre serveur
 - Mettre a jour `APP_PORT` si necessaire
 
----
-
-## Roadmap
-
-- [ ] Comparateur Box opérateurs (sélecteur déjà présent en UI)
-- [ ] Historisation des prix et graphiques de tendances
-- [ ] Export CSV/JSON de l'inventaire
-- [ ] CI/CD & tests E2E (Playwright)
-- [ ] Notifications avancées (Discord ciblé + Telegram)
-
----
-
 ## Licence
 
 **GNU General Public License v3.0** - Voir [LICENSE](LICENSE.txt).
-
----
-
-**Fait avec soin pour la communaute telecoms francaise.**
