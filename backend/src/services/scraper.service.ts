@@ -1,10 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import puppeteer from 'puppeteer-extra';
-import type { Page, Browser } from 'puppeteer';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import RecaptchaPlugin from 'puppeteer-extra-plugin-recaptcha';
+import { Configuration, ProxyConfiguration, log } from '@crawlee/core';
+import { CheerioCrawler } from '@crawlee/cheerio';
+import { PlaywrightCrawler } from '@crawlee/playwright';
+import type { Page } from 'playwright';
 import prisma from '../lib/prisma';
-import type { ScraperConfig, ScrapedPlan } from './scrapers/types';
+import type {
+  MobileNetwork,
+  OperatorDefinition,
+  ScrapedPlan,
+  ScrapeOutcome,
+  ScrapeRunSummary,
+} from './scrapers/types';
 import { soshScrapeLogic } from './scrapers/sosh.scraper';
 import { redScrapeLogic } from './scrapers/red.scraper';
 import { bAndYouScrapeLogic } from './scrapers/byou.scraper';
@@ -15,485 +20,658 @@ import { laPosteMobileScrapeLogic } from './scrapers/laposte.scraper';
 import { auchanTelecomScrapeLogic } from './scrapers/auchan.scraper';
 import { nrjMobileScrapeLogic } from './scrapers/nrj.scraper';
 import { cdiscountMobileScrapeLogic } from './scrapers/cdiscount.scraper';
-import { symaMobileScrapeLogic } from './scrapers/syma.scraper';
+import { symaMobileHtmlScrapeLogic, symaMobileScrapeLogic } from './scrapers/syma.scraper';
 import { lebaraScrapeLogic } from './scrapers/lebara.scraper';
 import { lycamobileScrapeLogic } from './scrapers/lycamobile.scraper';
 import { prixtelScrapeLogic } from './scrapers/prixtel.scraper';
-import { telecoopScrapeLogic } from './scrapers/telecoop.scraper';
-import { akeoScrapeLogic } from './scrapers/akeo.scraper';
+import { telecoopHtmlScrapeLogic, telecoopScrapeLogic } from './scrapers/telecoop.scraper';
+import { akeoHtmlScrapeLogic, akeoScrapeLogic } from './scrapers/akeo.scraper';
 import { nordnetScrapeLogic } from './scrapers/nordnet.scraper';
-import { franceTelephoneScrapeLogic } from './scrapers/francetelephone.scraper';
-import { fetchFeesFromPdf, detectFeesFromCheckout } from './scrapers/utils';
+import { franceTelephoneHtmlScrapeLogic, franceTelephoneScrapeLogic } from './scrapers/francetelephone.scraper';
+import { detectFeesFromCheckout, fetchFeesFromPdf } from './scrapers/utils';
 import { broadcastDeal } from './discord.service';
 
-const DEFAULT_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+const DEFAULT_CONCURRENCY = 3;
+const DEFAULT_REQUEST_TIMEOUT_SECS = 90;
+const DEFAULT_RETRIES = 2;
+const FORBIDDEN_OFFER_PATTERN = /\b(box|bleubox|bleufix|fibre|adsl|smartphone|t[ée]l[ée]phone inclus|engagement\s*(?:12|24)\s*mois)\b/i;
+const BLOCKED_PAGE_PATTERN = /datadome|cf-chl-|cloudflare ray id|g-recaptcha|h-captcha|captcha challenge|access denied|accès bloqué|accès refusé|verify you are human|v[ée]rification de s[ée]curit[ée] en cours|v[ée]rifiez que vous êtes humain/i;
 
-let puppeteerExtraConfigured = false;
-
-const configurePuppeteerExtra = () => {
-  if (puppeteerExtraConfigured) return;
-
-  puppeteer.use(StealthPlugin());
-  console.log('[Puppeteer Extra] Plugin stealth activé.');
-
-  const recaptchaToken =
-    process.env.RECAPTCHA_TOKEN ||
-    process.env.TWOCAPTCHA_TOKEN ||
-    process.env.TWO_CAPTCHA_TOKEN;
-
-  if (recaptchaToken) {
-    const recaptchaProvider = process.env.RECAPTCHA_PROVIDER_ID || '2captcha';
-    puppeteer.use(
-      RecaptchaPlugin({
-        provider: {
-          id: recaptchaProvider,
-          token: recaptchaToken,
-        },
-        visualFeedback: process.env.RECAPTCHA_VISUAL_FEEDBACK !== 'false',
-        throwOnError: false,
-      }),
-    );
-    console.log(`[Puppeteer Extra] Plugin reCAPTCHA activé (${recaptchaProvider}).`);
-  } else {
-    console.log('[Puppeteer Extra] Plugin reCAPTCHA ignoré (aucun token configuré).');
-  }
-
-  puppeteerExtraConfigured = true;
-};
-
-let activeBrowser: Browser | null = null;
-
-export const closeActiveBrowser = async () => {
-  if (activeBrowser) {
-    console.log('Fermeture propre du navigateur Puppeteer actif...');
-    try {
-      await activeBrowser.close();
-    } catch (e) {
-      console.error('Erreur lors de la fermeture du navigateur :', e);
-    } finally {
-      activeBrowser = null;
-    }
-  }
-};
-
-/**
- * Lance un navigateur Puppeteer avec les options nécessaires pour Docker.
- */
-const launchBrowser = () => {
-  configurePuppeteerExtra();
-
-  const executablePath =
-    process.env.PUPPETEER_EXECUTABLE_PATH ||
-    process.env.CHROME_BIN ||
-    process.env.CHROMIUM_PATH;
-
-  const extraArgs = process.env.PUPPETEER_ARGS
-    ? process.env.PUPPETEER_ARGS.split(' ').map((arg) => arg.trim()).filter(Boolean)
-    : [];
-
-  const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
-    headless: process.env.PUPPETEER_HEADLESS === 'false' ? false : true,
-    protocolTimeout: 120000,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--ignore-certificate-errors',
-      '--disable-blink-features=AutomationControlled',
-      '--window-size=1280,960',
-      '--lang=fr-FR,fr',
-      ...extraArgs,
-    ],
-  };
-
-  if (executablePath) {
-    launchOptions.executablePath = executablePath;
-    console.log(`[Puppeteer] Chromium explicite : ${executablePath}`);
-  }
-
-  return puppeteer.launch(launchOptions);
-};
-
-const preparePage = async (page: Page) => {
-  page.setDefaultNavigationTimeout(60000);
-  page.setDefaultTimeout(30000);
-
-  await page.setViewport({ width: 1280, height: 960 });
-  await page.setUserAgent(DEFAULT_USER_AGENT);
-  await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8' });
-
-  await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr', 'en-US', 'en'] });
-    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-  });
-};
-
-const placeholderScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
-  console.log(`Logique de scraping non implémentée pour : ${page.url()}`);
-  return [];
-};
-
-/**
- * Configuration des scrapers pour chaque opérateur.
- * C'est ici que l'on ajoute ou retire des opérateurs à scraper.
- */
-const scraperConfigs: ScraperConfig[] = [
-  // MNOs & leurs marques "low-cost"
-  { name: 'Sosh', url: 'https://shop.sosh.fr/mobile/forfaits-mobiles', defaultSimPrice: 10, scrapeFunction: soshScrapeLogic },
-  { name: 'RED by SFR', url: 'https://www.red-by-sfr.fr/forfaits-mobiles/', defaultSimPrice: 10, scrapeFunction: redScrapeLogic },
+export const operatorDefinitions: readonly OperatorDefinition[] = [
+  {
+    name: 'Sosh',
+    url: 'https://shop.sosh.fr/mobile/forfaits-mobiles',
+    mode: 'http',
+    networks: ['Orange'],
+    minOffers: 4,
+    defaultSimPrice: 10,
+    scrapeFunction: soshScrapeLogic,
+  },
+  {
+    name: 'RED by SFR',
+    url: 'https://www.red-by-sfr.fr/forfaits-mobiles/',
+    mode: 'browser',
+    networks: ['SFR'],
+    minOffers: 4,
+    defaultSimPrice: 10,
+    scrapeFunction: redScrapeLogic,
+  },
   {
     name: 'B&You',
     url: 'https://www.bouyguestelecom.fr/forfaits-mobiles/b-and-you',
+    mode: 'browser',
+    networks: ['Bouygues Telecom'],
+    minOffers: 4,
     pdfUrl: 'https://www.bouyguestelecom.fr/static/cms/tarifs/Guide_Des_Tarifs.pdf',
-    findPdfUrl: async (page) => {
-      try {
-        const pdfLink = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a[href]'));
-          for (const a of links) {
-            const href = a.getAttribute('href') || '';
-            if (/guide.*(tarif|prix)|tarif.*guide/i.test(href) && /\.pdf$/i.test(href)) {
-              return new URL(href, window.location.origin).href;
-            }
-          }
-          for (const a of links) {
-            const href = a.getAttribute('href') || '';
-            const text = (a.textContent || '').toLowerCase();
-            if (/\.pdf$/i.test(href) && /(tarif|prix|brochure|cgs)/i.test(text + href)) {
-              return new URL(href, window.location.origin).href;
-            }
-          }
-          return null;
-        });
-        return pdfLink;
-      } catch { return null; }
-    },
+    findPdfUrl: findTariffPdf,
     scrapeFunction: bAndYouScrapeLogic,
   },
   {
     name: 'Free Mobile',
     url: 'https://mobile.free.fr/',
+    mode: 'browser',
+    networks: ['Free'],
+    minOffers: 3,
     pdfUrl: 'https://mobile.free.fr/docs/bt/tarifs.pdf',
     scrapeFunction: freeMobileScrapeLogic,
   },
-
-  // Principaux MVNOs
-  { name: 'YouPrice', url: 'https://www.youprice.fr/forfaits', scrapeFunction: youPriceScrapeLogic },
-  { name: 'Coriolis', url: 'https://www.coriolis.com/forfaits-sans-mobile', scrapeFunction: coriolisScrapeLogic },
+  {
+    name: 'YouPrice',
+    url: 'https://www.youprice.fr/forfaits',
+    mode: 'browser',
+    networks: ['Orange', 'SFR', 'Bouygues Telecom'],
+    minOffers: 3,
+    scrapeFunction: youPriceScrapeLogic,
+  },
+  {
+    name: 'Coriolis',
+    url: 'https://www.coriolis.com/forfaits-sans-mobile',
+    mode: 'http',
+    networks: ['SFR'],
+    minOffers: 3,
+    scrapeFunction: coriolisScrapeLogic,
+  },
   {
     name: 'La Poste Mobile',
     url: 'https://www.lapostemobile.fr/offres-mobiles/forfaits-sans-engagement',
+    mode: 'browser',
+    networks: ['Bouygues Telecom'],
+    minOffers: 2,
     pdfUrl: 'https://medias.lapostemobile.fr/portail_mobile/pdf/portail_web/LPM-Recapitulatif-contractuel-SIM.pdf',
     scrapeFunction: laPosteMobileScrapeLogic,
   },
   {
     name: 'NRJ Mobile',
     url: 'https://www.nrjmobile.fr/forfait-se',
+    mode: 'http',
+    networks: ['Bouygues Telecom'],
+    minOffers: 4,
     pdfUrl: 'https://www.nrjmobile.fr/pdf/nrj-mobile-cgs.pdf',
     scrapeFunction: nrjMobileScrapeLogic,
   },
   {
     name: 'Auchan Telecom',
     url: 'https://www.auchantelecom.fr/forfait-se',
+    mode: 'http',
+    networks: ['Bouygues Telecom'],
+    minOffers: 3,
     pdfUrl: 'https://www.auchantelecom.fr/pdf/auchan-telecom-cgs.pdf',
     scrapeFunction: auchanTelecomScrapeLogic,
   },
   {
     name: 'Cdiscount Mobile',
     url: 'https://www.cdiscount.com/cdiscount-mobile/v-164-0.html',
+    mode: 'http',
+    networks: ['Bouygues Telecom'],
+    minOffers: 4,
     pdfUrl: 'https://cdiscountmobile.cdiscount.com/pdf/cdiscount-mobile-cgs.pdf',
     scrapeFunction: cdiscountMobileScrapeLogic,
   },
   {
     name: 'Syma Mobile',
     url: 'https://www.symamobile.com/forfait',
+    mode: 'http',
+    networks: ['SFR'],
+    minOffers: 3,
     pdfUrl: 'https://api.symamobile.com/fr_FR/docs/legal/dl/brochure-tarifaire-forfaits-sans-engagement-symamobile.pdf',
-    scrapeFunction: symaMobileScrapeLogic
+    htmlScrapeFunction: symaMobileHtmlScrapeLogic,
+    scrapeFunction: symaMobileScrapeLogic,
   },
-  { name: 'Lebara', url: 'https://mobile.lebara.com/fr/fr/', scrapeFunction: lebaraScrapeLogic },
-  // { name: 'Réglo Mobile', url: 'https://www.reglomobile.fr/forfaits-mobiles', scrapeFunction: regloMobileScrapeLogic },
-
-  // v2.0.0 - Nouveaux MVNOs
-  { name: 'Lycamobile', url: 'https://www.lycamobile.fr/abo/fr/bundles/sim-only-deals/', scrapeFunction: lycamobileScrapeLogic },
+  {
+    name: 'Lebara',
+    url: 'https://www.lebara.fr/fr/',
+    mode: 'http',
+    networks: ['SFR'],
+    minOffers: 3,
+    scrapeFunction: lebaraScrapeLogic,
+  },
+  {
+    name: 'Lycamobile',
+    url: 'https://www.lycamobile.fr/abo/fr/bundles/sim-only-deals/',
+    mode: 'browser',
+    networks: ['Bouygues Telecom'],
+    minOffers: 2,
+    scrapeFunction: lycamobileScrapeLogic,
+  },
   {
     name: 'Prixtel',
     url: 'https://www.prixtel.com/forfait-mobile/',
-    findPdfUrl: async (page) => {
-      try {
-        const pdfLink = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a[href]'));
-          for (const a of links) {
-            const href = a.getAttribute('href') || '';
-            const text = (a.textContent || '').toLowerCase();
-            if (/\.pdf$/i.test(href) && /prixtel_.*_gt_|guide tarifaire|fiche standardis/i.test(href + ' ' + text)) {
-              return new URL(href, globalThis.location.origin).href;
-            }
-          }
-          return null;
-        });
-        return pdfLink;
-      } catch {
-        return null;
-      }
-    },
+    mode: 'browser',
+    networks: ['SFR'],
+    minOffers: 3,
+    findPdfUrl: findPrixtelPdf,
     scrapeFunction: prixtelScrapeLogic,
   },
-  { name: 'TeleCoop', url: 'https://telecoop.fr/particuliers', scrapeFunction: telecoopScrapeLogic },
-  { name: 'Akeo Telecom', url: 'https://www.akeotelecom.com/mobile/forfaits', scrapeFunction: akeoScrapeLogic },
-  { name: 'Nordnet', url: 'https://www.nordnet.com/forfaits-mobile', scrapeFunction: nordnetScrapeLogic },
-  { name: 'France Téléphone', url: 'https://france-telephone.com/forfaits-mobiles-bleutel-2/', scrapeFunction: franceTelephoneScrapeLogic },
-];
+  {
+    name: 'TeleCoop',
+    url: 'https://telecoop.fr/particuliers',
+    mode: 'http',
+    networks: ['Orange'],
+    minOffers: 2,
+    htmlScrapeFunction: telecoopHtmlScrapeLogic,
+    scrapeFunction: telecoopScrapeLogic,
+  },
+  {
+    name: 'Akeo Telecom',
+    url: 'https://www.akeotelecom.com/mobile/forfaits',
+    mode: 'http',
+    networks: ['Orange', 'Bouygues Telecom'],
+    minOffers: 4,
+    htmlScrapeFunction: akeoHtmlScrapeLogic,
+    scrapeFunction: akeoScrapeLogic,
+  },
+  {
+    name: 'Nordnet',
+    url: 'https://www.nordnet.com/forfaits-mobile',
+    mode: 'browser',
+    networks: ['Orange'],
+    minOffers: 5,
+    scrapeFunction: nordnetScrapeLogic,
+  },
+  {
+    name: 'France Téléphone',
+    legacyNames: ['France Telephone'],
+    url: 'https://france-telephone.com/forfaits-mobiles-bleutel-2/',
+    mode: 'http',
+    networks: ['Orange', 'Bouygues Telecom'],
+    minOffers: 8,
+    htmlScrapeFunction: franceTelephoneHtmlScrapeLogic,
+    scrapeFunction: franceTelephoneScrapeLogic,
+  },
+] as const;
 
-/**
- * Fonction principale qui orchestre le scraping de tous les opérateurs configurés de manière concurrente.
- */
-export const scrapeOffers = async () => {
-  console.log('Lancement du scraping de toutes les offres...');
-  activeBrowser = await launchBrowser();
-  const browser = activeBrowser;
+let activeCrawler: PlaywrightCrawler | null = null;
+let activeRun: Promise<ScrapeRunSummary> | null = null;
+let latestRunSummary: ScrapeRunSummary | null = null;
 
-  const scrapeOperator = async (config: ScraperConfig) => {
-    console.log(`--- Début du scraping pour ${config.name} ---`);
-    const page = await browser.newPage();
-    try {
-      await preparePage(page);
+export const isScrapeRunning = () => activeRun !== null;
+export const getLatestScrapeSummary = () => latestRunSummary;
 
-      // Navigation avec retry en cas de timeout réseau
-      let navSuccess = false;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          await page.goto(config.url, { waitUntil: 'networkidle2', timeout: 60000 });
-          navSuccess = true;
-          break;
-        } catch (navError: any) {
-          if (navError?.name === 'TimeoutError') {
-            console.warn(`[${config.name}] Timeout de navigation (tentative ${attempt + 1}/2), tentative avec la page partiellement chargée...`);
-            navSuccess = true; // On essaie quand même avec la page partielle
-            break;
-          } else if (navError?.message?.includes('ERR_TIMED_OUT') && attempt === 0) {
-            console.warn(`[${config.name}] Erreur réseau (tentative 1/2), retry dans 10s...`);
-            await new Promise(r => setTimeout(r, 10000));
-          } else {
-            throw navError;
-          }
-        }
-      }
-
-      if (!navSuccess) {
-        console.warn(`[${config.name}] Navigation échouée après 2 tentatives, passage au suivant.`);
-        return;
-      }
-
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-      await sleep(3000);
-
-      const scrapedPlans = await config.scrapeFunction(page);
-
-      if (scrapedPlans.length > 0) {
-        console.log(`[${config.name}] ${scrapedPlans.length} offres trouvées. Enrichissement des données...`);
-
-        const siteSimCount = scrapedPlans.filter(p => p.simPrice != null).length;
-        const siteActCount = scrapedPlans.filter(p => p.activationPrice != null).length;
-        const siteCancelCount = scrapedPlans.filter(p => p.cancellationPrice != null).length;
-        console.log(`[${config.name}] Données site - SIM: ${siteSimCount}/${scrapedPlans.length}, activation: ${siteActCount}/${scrapedPlans.length}, résiliation: ${siteCancelCount}/${scrapedPlans.length}`);
-
-        // --- Fallback checkout : SIM + activation (si le site n'a pas trouvé) ---
-        const needsSimPrice = scrapedPlans.some(p => p.simPrice == null);
-        const needsActivation = scrapedPlans.some(p => p.activationPrice == null);
-        let checkoutFees = { simPrice: null as number | null, activationPrice: null as number | null };
-        if (needsSimPrice || needsActivation) {
-          console.log(`[${config.name}] Données manquantes sur le site (SIM: ${needsSimPrice}, activation: ${needsActivation}), tentative checkout...`);
-          checkoutFees = await detectFeesFromCheckout(page, config.name);
-        }
-
-        // --- Fallback PDF (dernier recours) ---
-        const needsCancellation = scrapedPlans.some(p => p.cancellationPrice == null);
-        const needsActivFromPdf = needsActivation && checkoutFees.activationPrice == null;
-        const needsSimFromPdf = needsSimPrice && checkoutFees.simPrice == null;
-        let pdfFees = null;
-        if (needsCancellation || needsActivFromPdf || needsSimFromPdf) {
-          let resolvedPdfUrl = config.pdfUrl || null;
-          if (config.findPdfUrl) {
-            try {
-              const dynamicUrl = await config.findPdfUrl(page);
-              if (dynamicUrl) {
-                console.log(`[${config.name}] PDF détecté dynamiquement : ${dynamicUrl}`);
-                resolvedPdfUrl = dynamicUrl;
-              }
-            } catch (e) {
-              console.warn(`[${config.name}] Erreur lors de la recherche dynamique du PDF:`, e);
-            }
-          }
-          if (resolvedPdfUrl) {
-            console.log(`[${config.name}] Données manquantes - fallback PDF (cancel: ${needsCancellation}, activ: ${needsActivFromPdf}, sim: ${needsSimFromPdf})`);
-            pdfFees = await fetchFeesFromPdf(resolvedPdfUrl, config.name);
-          }
-        }
-
-        for (const plan of scrapedPlans) {
-          if (plan.simPrice == null && checkoutFees.simPrice != null) {
-            plan.simPrice = checkoutFees.simPrice;
-          }
-          if (plan.simPrice == null && pdfFees?.simPrice != null) {
-            plan.simPrice = pdfFees.simPrice;
-          }
-          if (plan.simPrice == null && config.defaultSimPrice != null) {
-            console.log(`[${config.name}] SIM prix par défaut appliqué : ${config.defaultSimPrice}€`);
-            plan.simPrice = config.defaultSimPrice;
-          }
-          if (plan.activationPrice == null && checkoutFees.activationPrice != null) {
-            plan.activationPrice = checkoutFees.activationPrice;
-          }
-          if (plan.activationPrice == null && pdfFees?.activationPrice != null) {
-            plan.activationPrice = pdfFees.activationPrice;
-          }
-          if (plan.cancellationPrice == null && pdfFees?.cancellationPrice != null) {
-            plan.cancellationPrice = pdfFees.cancellationPrice;
-          }
-        }
-
-        console.log(`[${config.name}] Sauvegarde en cours...`);
-
-        for (const plan of scrapedPlans) {
-          try {
-            const score = plan.dataGb > 0 ? plan.price / plan.dataGb : null;
-
-            const existing = await prisma.mobilePlan.findFirst({
-              where: {
-                operator: plan.operator,
-                planName: plan.planName,
-                network: plan.network ?? null,
-              },
-            });
-
-            if (existing) {
-              const hasChanged =
-                existing.price !== plan.price ||
-                existing.dataGb !== plan.dataGb ||
-                existing.calls !== (plan.calls || 'Illimités') ||
-                existing.networkGeneration !== (plan.networkGeneration || null) ||
-                existing.dataEuGb !== (plan.dataEuGb ?? null) ||
-                existing.simPrice !== (plan.simPrice ?? null) ||
-                existing.activationPrice !== (plan.activationPrice ?? null) ||
-                existing.cancellationPrice !== (plan.cancellationPrice ?? null);
-
-              const updatedPlan = await prisma.mobilePlan.update({
-                where: { id: existing.id },
-                data: {
-                  price: plan.price,
-                  dataGb: plan.dataGb,
-                  calls: plan.calls || 'Illimités',
-                  network: plan.network,
-                  networkGeneration: plan.networkGeneration || null,
-                  dataEuGb: plan.dataEuGb ?? null,
-                  simPrice: plan.simPrice ?? null,
-                  activationPrice: plan.activationPrice ?? null,
-                  cancellationPrice: plan.cancellationPrice ?? null,
-                  url: config.url,
-                  score: score,
-                },
-              });
-
-              if (hasChanged) {
-                await broadcastDeal(updatedPlan, 'UPDATE', existing);
-              }
-            } else {
-              const newPlan = await prisma.mobilePlan.create({
-                data: {
-                  operator: plan.operator,
-                  planName: plan.planName,
-                  price: plan.price,
-                  dataGb: plan.dataGb,
-                  calls: plan.calls || 'Illimités',
-                  sms: 'Illimités',
-                  network: plan.network,
-                  networkGeneration: plan.networkGeneration || null,
-                  dataEuGb: plan.dataEuGb ?? null,
-                  simPrice: plan.simPrice ?? null,
-                  activationPrice: plan.activationPrice ?? null,
-                  cancellationPrice: plan.cancellationPrice ?? null,
-                  url: config.url,
-                  score: score,
-                },
-              });
-
-              await broadcastDeal(newPlan, 'NEW');
-            }
-          } catch (dbError) {
-            console.error(`Erreur lors de la sauvegarde de l'offre "${plan.planName}" de ${plan.operator}:`, dbError);
-          }
-        }
-        console.log(`[${config.name}] Sauvegarde terminée.`);
-
-        // --- Nettoyage : supprimer les forfaits obsolètes ---
-        try {
-          const existingPlans = await prisma.mobilePlan.findMany({
-            where: { operator: config.name },
-          });
-
-          const scrapedKeys = new Set(
-            scrapedPlans.map(p => `${p.planName}|||${p.network || ''}`),
-          );
-
-          const stalePlans = existingPlans.filter(
-            ep => !scrapedKeys.has(`${ep.planName}|||${ep.network || ''}`),
-          );
-
-          if (stalePlans.length > 0) {
-            console.log(`[${config.name}] 🗑️ - ${stalePlans.length} forfait(s) obsolète(s) détecté(s), suppression...`);
-            for (const stale of stalePlans) {
-              try {
-                await prisma.mobilePlan.delete({ where: { id: stale.id } });
-                console.log(`[${config.name}]   → Supprimé : ${stale.planName} (${stale.network || 'N/A'}) - ${stale.price}€/mois, ${stale.dataGb} Go`);
-                await broadcastDeal(stale, 'DELETE');
-              } catch (delErr) {
-                console.error(`[${config.name}] Erreur suppression "${stale.planName}":`, delErr);
-              }
-            }
-          }
-        } catch (cleanupErr) {
-          console.error(`[${config.name}] Erreur lors du nettoyage des forfaits obsolètes:`, cleanupErr);
-        }
-      } else {
-        console.log(`[${config.name}] Aucune offre trouvée ou le scraping a échoué.`);
-      }
-    } catch (error) {
-      console.error(`Erreur lors du scraping de ${config.name}:`, error);
-    } finally {
-      await page.close();
-    }
-  };
+export const closeActiveBrowser = async () => {
+  const crawler = activeCrawler;
+  if (!crawler) return;
 
   try {
-    // Concurrency limit: 3
-    const limit = 3;
-    let poolIndex = 0;
-
-    const worker = async () => {
-      while (poolIndex < scraperConfigs.length) {
-        const config = scraperConfigs[poolIndex++];
-        await scrapeOperator(config);
-      }
-    };
-
-    const workers = Array.from(
-      { length: Math.min(limit, scraperConfigs.length) },
-      () => worker()
-    );
-    await Promise.all(workers);
-
-    console.log('--- Scraping de tous les opérateurs terminé. ---');
+    crawler.autoscaledPool?.abort();
+    await crawler.browserPool?.destroy();
   } catch (error) {
-    console.error('Une erreur générale est survenue durant le scraping:', error);
+    console.error('[Crawlee] Erreur pendant la fermeture du navigateur :', error);
   } finally {
-    await closeActiveBrowser();
+    activeCrawler = null;
+  }
+};
+
+export const scrapeOffers = (): Promise<ScrapeRunSummary> => {
+  if (activeRun) {
+    console.warn('[Crawlee] Une collecte est déjà en cours, réutilisation de son résultat.');
+    return activeRun;
   }
 
-  return { success: true, message: 'Opération de scraping terminée.' };
+  activeRun = runScrape().finally(() => {
+    activeRun = null;
+  });
+  return activeRun;
 };
+
+async function runScrape(): Promise<ScrapeRunSummary> {
+  const startedAt = new Date();
+  const outcomes: ScrapeOutcome[] = [];
+  const outcomeOperators = new Set<string>();
+  const definitionsByName = new Map(operatorDefinitions.map((definition) => [definition.name, definition]));
+  const proxyUrls = splitEnvList(process.env.SCRAPER_PROXY_URLS);
+  const proxyConfiguration = proxyUrls.length > 0
+    ? new ProxyConfiguration({ proxyUrls })
+    : undefined;
+  const maxConcurrency = readPositiveInteger(process.env.SCRAPER_MAX_CONCURRENCY, DEFAULT_CONCURRENCY);
+  const requestTimeoutSecs = readPositiveInteger(process.env.SCRAPER_TIMEOUT_SECS, DEFAULT_REQUEST_TIMEOUT_SECS);
+  const maxRequestRetries = readNonNegativeInteger(process.env.SCRAPER_MAX_RETRIES, DEFAULT_RETRIES);
+  const headless = process.env.SCRAPER_HEADLESS !== 'false';
+  const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH || undefined;
+  const extraArgs = splitEnvList(process.env.PLAYWRIGHT_ARGS, ' ');
+
+  const crawleeConfig = new Configuration({
+    persistStorage: false,
+    purgeOnStart: true,
+  });
+
+  console.log(`[Crawlee] Démarrage de ${operatorDefinitions.length} opérateurs, concurrence ${maxConcurrency}.`);
+
+  const completeOperator = async (
+    definition: OperatorDefinition,
+    rawPlans: ScrapedPlan[],
+    page: Page | undefined,
+    attempts: number,
+    actualMode: 'http' | 'browser',
+    operatorStartedAt: number,
+  ) => {
+    const plans = validateAndNormalizePlans(definition, rawPlans);
+    if (plans.length < definition.minOffers) {
+      throw new Error(`Résultat incomplet : ${plans.length}/${definition.minOffers} offre(s) minimum`);
+    }
+    const persistence = await enrichAndPersistPlans(definition, page, plans);
+    const status = persistence.saveErrors > 0 ? 'partial' : 'success';
+    const outcome: ScrapeOutcome = {
+      operator: definition.name,
+      status,
+      offers: plans.length,
+      durationMs: Date.now() - operatorStartedAt,
+      mode: actualMode,
+      attempts,
+      purgeSkipped: persistence.purgeSkipped,
+      ...(persistence.saveErrors > 0
+        ? { error: `${persistence.saveErrors} sauvegarde(s) en erreur` }
+        : {}),
+    };
+    outcomes.push(outcome);
+    outcomeOperators.add(definition.name);
+    log.info(`[${definition.name}] ${plans.length} offre(s) validée(s) via ${actualMode} en ${outcome.durationMs} ms.`);
+  };
+
+  const httpDefinitions = operatorDefinitions.filter((definition) =>
+    definition.mode === 'http' && definition.htmlScrapeFunction,
+  );
+  if (httpDefinitions.length > 0) {
+    const httpCrawler = new CheerioCrawler({
+      maxConcurrency,
+      maxRequestRetries,
+      requestHandlerTimeoutSecs: requestTimeoutSecs,
+      useSessionPool: true,
+      persistCookiesPerSession: true,
+      proxyConfiguration,
+      requestHandler: async ({ request, body, response, session }) => {
+        const operatorName = String(request.userData.operatorName || '');
+        const definition = definitionsByName.get(operatorName);
+        if (!definition?.htmlScrapeFunction) throw new Error(`Extracteur HTTP introuvable : ${operatorName}`);
+        if (response.statusCode === 403 || response.statusCode === 429) {
+          session?.retire();
+          throw new Error(`BLOCKED_HTTP_${response.statusCode}`);
+        }
+        const html = typeof body === 'string' ? body : body.toString('utf8');
+        if (isBlockedContent(html)) {
+          session?.retire();
+          throw new Error('BLOCKED_PAGE_DETECTED');
+        }
+        const rawPlans = await definition.htmlScrapeFunction(html, request.loadedUrl ?? request.url);
+        await completeOperator(
+          definition,
+          rawPlans,
+          undefined,
+          request.retryCount + 1,
+          'http',
+          Number(request.userData.startedAt || Date.now()),
+        );
+      },
+      failedRequestHandler: async ({ request }, error) => {
+        console.warn(`[${String(request.userData.operatorName)}] HTTP insuffisant, repli vers Playwright : ${error.message}`);
+      },
+    }, crawleeConfig);
+    await httpCrawler.run(httpDefinitions.map((definition) => ({
+      url: definition.url,
+      uniqueKey: `http:${definition.name}`,
+      userData: { operatorName: definition.name, startedAt: Date.now() },
+    })));
+  }
+
+  const browserDefinitions = operatorDefinitions.filter((definition) => !outcomeOperators.has(definition.name));
+
+  const crawler = new PlaywrightCrawler({
+    maxConcurrency,
+    maxRequestRetries,
+    requestHandlerTimeoutSecs: requestTimeoutSecs,
+    navigationTimeoutSecs: Math.min(requestTimeoutSecs, 60),
+    useSessionPool: true,
+    persistCookiesPerSession: true,
+    proxyConfiguration,
+    launchContext: {
+      launchOptions: {
+        headless,
+        executablePath,
+        args: [
+          '--disable-dev-shm-usage',
+          '--ignore-certificate-errors',
+          '--disable-blink-features=AutomationControlled',
+          '--lang=fr-FR,fr',
+          ...extraArgs,
+        ],
+      },
+    },
+    browserPoolOptions: {
+      useFingerprints: true,
+    },
+    preNavigationHooks: [async ({ page }, gotoOptions) => {
+      gotoOptions.waitUntil = 'domcontentloaded';
+      await preparePage(page);
+    }],
+    requestHandler: async ({ request, page, response, session }) => {
+      const operatorName = String(request.userData.operatorName || '');
+      const definition = definitionsByName.get(operatorName);
+      if (!definition) throw new Error(`Configuration opérateur introuvable : ${operatorName}`);
+
+      const operatorStartedAt = Number(request.userData.startedAt || Date.now());
+      const statusCode = response?.status();
+      if (statusCode === 403 || statusCode === 429) {
+        session?.retire();
+        throw new Error(`BLOCKED_HTTP_${statusCode}`);
+      }
+
+      const initialHtml = await page.content();
+      if (isBlockedContent(initialHtml)) {
+        session?.retire();
+        throw new Error('BLOCKED_PAGE_DETECTED');
+      }
+
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
+      await page.waitForTimeout(1200);
+
+      const rawPlans = await definition.scrapeFunction(page);
+      await completeOperator(definition, rawPlans, page, request.retryCount + 1, 'browser', operatorStartedAt);
+    },
+    failedRequestHandler: async ({ request }, error) => {
+      const operatorName = String(request.userData.operatorName || 'Inconnu');
+      if (outcomeOperators.has(operatorName)) return;
+      const message = error instanceof Error ? error.message : String(error);
+      outcomes.push({
+        operator: operatorName,
+        status: /BLOCKED_|captcha|datadome|cloudflare/i.test(message) ? 'blocked' : 'failed',
+        offers: 0,
+        durationMs: Date.now() - Number(request.userData.startedAt || Date.now()),
+        mode: 'browser',
+        attempts: request.retryCount + 1,
+        error: message,
+        purgeSkipped: true,
+      });
+      outcomeOperators.add(operatorName);
+      console.error(`[${operatorName}] Collecte abandonnée : ${message}`);
+    },
+  }, crawleeConfig);
+
+  activeCrawler = crawler;
+  try {
+    await crawler.run(browserDefinitions.map((definition) => ({
+      url: definition.url,
+      uniqueKey: `browser:${definition.name}`,
+      userData: {
+        operatorName: definition.name,
+        startedAt: Date.now(),
+        preferredMode: definition.mode,
+      },
+    })));
+  } finally {
+    activeCrawler = null;
+  }
+
+  for (const definition of operatorDefinitions) {
+    if (!outcomeOperators.has(definition.name)) {
+      outcomes.push({
+        operator: definition.name,
+        status: 'failed',
+        offers: 0,
+        durationMs: 0,
+        mode: definition.mode,
+        attempts: 0,
+        error: 'Aucun résultat produit par Crawlee',
+        purgeSkipped: true,
+      });
+    }
+  }
+
+  outcomes.sort((left, right) => left.operator.localeCompare(right.operator, 'fr'));
+  const finishedAt = new Date();
+  const summary: ScrapeRunSummary = {
+    success: outcomes.every((outcome) => outcome.status === 'success'),
+    startedAt: startedAt.toISOString(),
+    finishedAt: finishedAt.toISOString(),
+    durationMs: finishedAt.getTime() - startedAt.getTime(),
+    outcomes,
+  };
+  latestRunSummary = summary;
+  console.log(`[Crawlee] Collecte terminée en ${summary.durationMs} ms : ${outcomes.filter((o) => o.status === 'success').length}/${outcomes.length} succès.`);
+  return summary;
+}
+
+async function preparePage(page: Page) {
+  page.setDefaultNavigationTimeout(60_000);
+  page.setDefaultTimeout(30_000);
+  await page.setViewportSize({ width: 1280, height: 960 });
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8' });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr', 'en-US', 'en'] });
+  });
+}
+
+export function validateAndNormalizePlans(
+  definition: OperatorDefinition,
+  rawPlans: readonly ScrapedPlan[],
+): ScrapedPlan[] {
+  const plans = new Map<string, ScrapedPlan>();
+
+  for (const rawPlan of rawPlans) {
+    const planName = rawPlan.planName?.replace(/\s+/g, ' ').trim();
+    const network = normalizeNetwork(rawPlan.network);
+    const generation = normalizeGeneration(rawPlan.networkGeneration);
+    if (!planName || FORBIDDEN_OFFER_PATTERN.test(planName)) continue;
+    if (!Number.isFinite(rawPlan.price) || rawPlan.price <= 0 || rawPlan.price > 200) continue;
+    if (!Number.isFinite(rawPlan.dataGb) || rawPlan.dataGb <= 0 || rawPlan.dataGb > 9999) continue;
+    if (!network || !definition.networks.includes(network)) continue;
+
+    const dataEuGb = normalizeOptionalNumber(rawPlan.dataEuGb);
+    if (dataEuGb != null && dataEuGb > rawPlan.dataGb) continue;
+
+    const plan: ScrapedPlan = {
+      operator: definition.name,
+      planName,
+      price: roundMoney(rawPlan.price),
+      dataGb: rawPlan.dataGb,
+      calls: rawPlan.calls?.trim() || 'Illimités',
+      network,
+      ...(generation ? { networkGeneration: generation } : {}),
+      ...(dataEuGb != null ? { dataEuGb } : {}),
+      ...copyOptionalMoney(rawPlan),
+    };
+    plans.set(`${planName}|||${network}`, plan);
+  }
+
+  return [...plans.values()];
+}
+
+async function enrichAndPersistPlans(
+  definition: OperatorDefinition,
+  page: Page | undefined,
+  plans: ScrapedPlan[],
+): Promise<{ saveErrors: number; purgeSkipped: boolean }> {
+  const operatorNames = [definition.name, ...(definition.legacyNames ?? [])];
+  const previousPlans = await prisma.mobilePlan.findMany({
+    where: { operator: { in: operatorNames } },
+  });
+  const needsSimPrice = plans.some((plan) => plan.simPrice == null);
+  const needsActivation = plans.some((plan) => plan.activationPrice == null);
+  const needsCancellation = plans.some((plan) => plan.cancellationPrice == null);
+  let checkoutFees = { simPrice: null as number | null, activationPrice: null as number | null };
+
+  if (page && (needsSimPrice || needsActivation)) {
+    checkoutFees = await detectFeesFromCheckout(page, definition.name);
+  }
+
+  let pdfFees = null;
+  if (needsCancellation || (needsSimPrice && checkoutFees.simPrice == null) || (needsActivation && checkoutFees.activationPrice == null)) {
+    let pdfUrl = definition.pdfUrl ?? null;
+    if (page && definition.findPdfUrl) {
+      pdfUrl = await definition.findPdfUrl(page).catch(() => null) ?? pdfUrl;
+    }
+    if (pdfUrl) pdfFees = await fetchFeesFromPdf(pdfUrl, definition.name);
+  }
+
+  for (const plan of plans) {
+    plan.simPrice ??= checkoutFees.simPrice ?? pdfFees?.simPrice ?? definition.defaultSimPrice;
+    plan.activationPrice ??= checkoutFees.activationPrice ?? pdfFees?.activationPrice ?? undefined;
+    plan.cancellationPrice ??= pdfFees?.cancellationPrice ?? undefined;
+  }
+
+  let saveErrors = 0;
+  for (const plan of plans) {
+    try {
+      await persistPlan(definition, plan);
+    } catch (error) {
+      saveErrors += 1;
+      console.error(`[${definition.name}] Sauvegarde impossible pour ${plan.planName} :`, error);
+    }
+  }
+
+  const existingPlans = await prisma.mobilePlan.findMany({
+    where: { operator: { in: operatorNames } },
+  });
+  const suspiciousDrop = previousPlans.length > 0 && plans.length * 2 <= previousPlans.length;
+  const purgeSkipped = saveErrors > 0 || plans.length < definition.minOffers || suspiciousDrop;
+
+  if (purgeSkipped) {
+    console.warn(`[${definition.name}] Purge ignorée (erreurs=${saveErrors}, offres=${plans.length}, précédentes=${previousPlans.length}).`);
+    return { saveErrors, purgeSkipped: true };
+  }
+
+  const scrapedKeys = new Set(plans.map((plan) => `${plan.planName}|||${plan.network ?? ''}`));
+  const stalePlans = existingPlans.filter((plan) =>
+    plan.operator !== definition.name || !scrapedKeys.has(`${plan.planName}|||${normalizeNetwork(plan.network) ?? plan.network ?? ''}`),
+  );
+  for (const stalePlan of stalePlans) {
+    await prisma.mobilePlan.delete({ where: { id: stalePlan.id } });
+    await broadcastDeal(stalePlan, 'DELETE');
+  }
+
+  return { saveErrors, purgeSkipped: false };
+}
+
+async function persistPlan(definition: OperatorDefinition, plan: ScrapedPlan) {
+  const score = plan.dataGb > 0 ? plan.price / plan.dataGb : null;
+  const existing = await prisma.mobilePlan.findFirst({
+    where: {
+      operator: definition.name,
+      planName: plan.planName,
+      network: plan.network ?? null,
+    },
+  });
+  const data = {
+    price: plan.price,
+    dataGb: plan.dataGb,
+    calls: plan.calls || 'Illimités',
+    network: plan.network,
+    networkGeneration: plan.networkGeneration || null,
+    dataEuGb: plan.dataEuGb ?? null,
+    simPrice: plan.simPrice ?? null,
+    activationPrice: plan.activationPrice ?? null,
+    cancellationPrice: plan.cancellationPrice ?? null,
+    url: definition.url,
+    score,
+  };
+
+  if (!existing) {
+    const created = await prisma.mobilePlan.create({
+      data: {
+        operator: definition.name,
+        planName: plan.planName,
+        sms: 'Illimités',
+        ...data,
+      },
+    });
+    await broadcastDeal(created, 'NEW');
+    return;
+  }
+
+  const changed =
+    existing.price !== data.price ||
+    existing.dataGb !== data.dataGb ||
+    existing.calls !== data.calls ||
+    existing.networkGeneration !== data.networkGeneration ||
+    existing.dataEuGb !== data.dataEuGb ||
+    existing.simPrice !== data.simPrice ||
+    existing.activationPrice !== data.activationPrice ||
+    existing.cancellationPrice !== data.cancellationPrice;
+  const updated = await prisma.mobilePlan.update({ where: { id: existing.id }, data });
+  if (changed) await broadcastDeal(updated, 'UPDATE', existing);
+}
+
+function normalizeNetwork(value: string | null | undefined): MobileNetwork | null {
+  const normalized = value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  if (!normalized) return null;
+  if (normalized === 'orange') return 'Orange';
+  if (normalized === 'sfr') return 'SFR';
+  if (normalized === 'free' || normalized === 'free mobile') return 'Free';
+  if (normalized === 'bouygues' || normalized === 'bouygues telecom') return 'Bouygues Telecom';
+  return null;
+}
+
+function normalizeGeneration(value: string | undefined): '4G' | '5G' | undefined {
+  if (/5g/i.test(value ?? '')) return '5G';
+  if (/4g/i.test(value ?? '')) return '4G';
+  return undefined;
+}
+
+function normalizeOptionalNumber(value: number | undefined): number | undefined {
+  return value != null && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function copyOptionalMoney(plan: ScrapedPlan) {
+  const values: Pick<ScrapedPlan, 'simPrice' | 'activationPrice' | 'cancellationPrice'> = {};
+  if (plan.simPrice != null && Number.isFinite(plan.simPrice) && plan.simPrice >= 0) values.simPrice = roundMoney(plan.simPrice);
+  if (plan.activationPrice != null && Number.isFinite(plan.activationPrice) && plan.activationPrice >= 0) values.activationPrice = roundMoney(plan.activationPrice);
+  if (plan.cancellationPrice != null && Number.isFinite(plan.cancellationPrice) && plan.cancellationPrice >= 0) values.cancellationPrice = roundMoney(plan.cancellationPrice);
+  return values;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function isBlockedContent(html: string) {
+  return html.length < 500 || BLOCKED_PAGE_PATTERN.test(html.slice(0, 250_000));
+}
+
+function splitEnvList(value: string | undefined, separator = ',') {
+  return value?.split(separator).map((item) => item.trim()).filter(Boolean) ?? [];
+}
+
+function readPositiveInteger(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readNonNegativeInteger(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+async function findTariffPdf(page: Page) {
+  return page.evaluate(() => {
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
+    const link = links.find((anchor) => /\.pdf$/i.test(anchor.href) && /(guide|tarif|prix|brochure|cgs)/i.test(`${anchor.textContent} ${anchor.href}`));
+    return link?.href ?? null;
+  }).catch(() => null);
+}
+
+async function findPrixtelPdf(page: Page) {
+  return page.evaluate(() => {
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
+    const link = links.find((anchor) => /\.pdf$/i.test(anchor.href) && /(prixtel_.*_gt_|guide tarifaire|fiche standardis)/i.test(`${anchor.textContent} ${anchor.href}`));
+    return link?.href ?? null;
+  }).catch(() => null);
+}

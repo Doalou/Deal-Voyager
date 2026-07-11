@@ -11,7 +11,8 @@ Il scrape automatiquement les prix des opérateurs (MNO/MVNO), puis les classe a
 ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
-![Puppeteer](https://img.shields.io/badge/Puppeteer-40B5A4?style=for-the-badge&logo=puppeteer&logoColor=white)
+![Crawlee](https://img.shields.io/badge/Crawlee_3.17-1F6FEB?style=for-the-badge)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
@@ -19,7 +20,7 @@ Il scrape automatiquement les prix des opérateurs (MNO/MVNO), puis les classe a
 
 ## Fonctionnalités principales
 
-- **Scraping automatisé et furtif** : Puppeteer + Stealth Plugin pour contourner les protections anti-bot de 18 opérateurs. Cron horaire, déclenchement manuel, détection automatique 4G/5G et Data Europe/DOM.
+- **Scraping automatisé et contrôlé** : Crawlee + Playwright/Cheerio pour 18 opérateurs, avec retries, sessions, limites de concurrence, détection des blocages et validation avant sauvegarde. Cron horaire, déclenchement manuel, détection 4G/5G et Data Europe/DOM.
 - **Classement transparent sur 1 an** : tri basé sur le coût annuel total, avec prix mensuel x 12, carte SIM, frais d'activation et frais de résiliation. Score euro/Go calculé.
 - **Design néobrutaliste et dark mode** : interface avec bordures épaisses, contrastes forts, ombres nettes et dark mode dynamique. Inclut une page 404 sur-mesure.
 - **Filtrage avancé** : slider interactif de 0 à 500 Go, saisie directe au Go près et filtre exclusif par réseau (Orange, SFR, Bouygues, Free).
@@ -38,7 +39,7 @@ Il scrape automatiquement les prix des opérateurs (MNO/MVNO), puis les classe a
 | **RED by SFR** | MNO low-cost | SFR | Oui |
 | **B&You** | MNO low-cost | Bouygues Telecom | Oui |
 | **Free Mobile** | MNO | Free | Oui |
-| **YouPrice** | MVNO | Orange / SFR / Bouygues | Oui (multi-réseau) |
+| **YouPrice** | MVNO | Orange / SFR / Bouygues Telecom | Oui (multi-réseau) |
 | **Coriolis** | MVNO | SFR | Oui |
 | **La Poste Mobile** | MVNO | Bouygues Telecom | Oui |
 | **NRJ Mobile** | MVNO | Bouygues Telecom | Oui |
@@ -47,7 +48,7 @@ Il scrape automatiquement les prix des opérateurs (MNO/MVNO), puis les classe a
 | **Syma Mobile** | MVNO | SFR | Oui |
 | **Lebara** | MVNO | SFR | Oui |
 | **Lycamobile** | MVNO | Bouygues Telecom | Oui |
-| **Prixtel** | MVNO | Orange | Oui |
+| **Prixtel** | MVNO | SFR | Oui |
 | **TeleCoop** | MVNO | Orange | Oui |
 | **Akeo Telecom** | MVNO | Orange / Bouygues Telecom | Oui |
 | **Nordnet** | MVNO | Orange | Oui |
@@ -80,7 +81,7 @@ Seul le port du frontend est exposé. Le backend et PostgreSQL communiquent excl
 |--------|-------------|------|
 | **Frontend** | Nuxt 4 (Vue 3) + Tailwind CSS | Interface utilisateur, SSR, proxy API via Nitro `routeRules` |
 | **Backend** | Node.js + Express 5 + discord.js | API REST, orchestration du scraping, alertes via Discord Bot, rate limiting |
-| **Scrapers** | Puppeteer + Stealth Plugin | Extraction DOM + analyse textuelle heuristique par opérateur |
+| **Scrapers** | Crawlee + Playwright + Cheerio | HTTP prioritaire quand possible, navigateur pour les parcours interactifs, validation centralisée |
 | **BDD** | PostgreSQL 15 + Prisma ORM | Stockage des forfaits (`MobilePlan`), paramétrage (`OperatorSettings`) et serveurs Discord cibles (`DiscordSubscription`) |
 | **Infra** | Docker Compose | Conteneurisation, réseau interne, healthchecks |
 
@@ -219,7 +220,6 @@ Deal-Voyager/
 │   │   │       ├── prixtel.scraper.ts
 │   │   │       ├── telecoop.scraper.ts
 │   │   │       ├── akeo.scraper.ts
-│   │   │       ├── chezswitch.scraper.ts
 │   │   │       ├── nordnet.scraper.ts
 │   │   │       ├── francetelephone.scraper.ts
 │   │   │       └── types.ts

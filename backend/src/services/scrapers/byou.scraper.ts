@@ -169,11 +169,18 @@ export const bAndYouScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                 }, dataGb);
 
                 // ─── Détection data EU ───
-                const euGb = await page.evaluate(() => {
+                const euGb = await page.evaluate((selectedDataGb: number) => {
                     const text = document.body.innerText;
-                    const m = text.match(/(\d{1,3})\s*[Gg]o\s*utilisables?\s*en\s*[Ee]urop/);
-                    return m ? parseInt(m[1], 10) : 0;
-                });
+                    const selected = text.match(/Qualit[ée] du r[ée]seau Bouygues Telecom\s+(\d{1,3})\s*[Gg]o\s*utilisables?/i);
+                    if (selected) {
+                        const value = parseInt(selected[1], 10);
+                        if (value > 0 && value <= selectedDataGb) return value;
+                    }
+                    const matches = Array.from(text.matchAll(/(\d{1,3})\s*[Gg]o\s*utilisables?\s*(?:en|dans)\s*(?:l['’])?[Ee]urop/gi))
+                        .map((match) => parseInt(match[1], 10))
+                        .filter((value) => value > 0 && value <= selectedDataGb);
+                    return matches.length > 0 ? matches[matches.length - 1] : (selectedDataGb <= 20 ? selectedDataGb : 0);
+                }, dataGb);
 
                 const gen = has5G || /\b5g\b/i.test(optText) ? '5G' : '4G';
                 const planName = `Forfait B&You ${dataGb >= 1 ? dataGb + ' Go' : dataGb * 1000 + ' Mo'}`;

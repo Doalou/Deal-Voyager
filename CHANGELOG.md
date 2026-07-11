@@ -2,6 +2,47 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [2.3.0] - 2026-07-11
+
+### Nouveau moteur de scraping
+
+- **Migration vers Crawlee 3.17 et Playwright 1.61** - Puppeteer, Puppeteer Extra et les plugins stealth/reCAPTCHA ont été entièrement retirés. Crawlee gère maintenant les sessions, les nouvelles tentatives, la concurrence et le cycle de vie des navigateurs.
+- **Collecte HTTP avec repli navigateur** - Cheerio traite directement les opérateurs dont le HTML serveur est exploitable. Un résultat vide, bloqué ou incomplet est automatiquement retenté avec Playwright.
+- **Registre central des 18 opérateurs** - Chaque opérateur déclare désormais son URL, ses réseaux autorisés, son nombre minimal d'offres et son mode de collecte préféré.
+- **Configuration simplifiée** - Nouvelles variables `SCRAPER_MAX_CONCURRENCY`, `SCRAPER_TIMEOUT_SECS`, `SCRAPER_MAX_RETRIES`, `SCRAPER_PROXY_URLS`, `SCRAPER_HEADLESS`, `PLAYWRIGHT_EXECUTABLE_PATH` et `PLAYWRIGHT_ARGS`.
+- **Image Docker reproductible** - Le backend utilise l'image officielle `mcr.microsoft.com/playwright:v1.61.1-noble`, alignée sur la dépendance npm.
+
+### Correctifs opérateurs
+
+- **YouPrice et La Poste Mobile réécrits** - Les nouvelles structures de catalogue sont reconnues, avec les variantes réseau YouPrice et les cinq forfaits SIM La Poste Mobile.
+- **TeleCoop et Akeo réécrits** - Les paliers fixes TeleCoop sont détaillés sans inventer de prix pour le forfait facturé au Go. Akeo retient le tarif sans réengagement pour Orange et Bouygues Telecom.
+- **Nordnet corrigé** - Les cinq panneaux sont lus séparément avec leurs vrais prix, au lieu d'appliquer `9,99 €` à toutes les offres.
+- **France Téléphone filtré** - Les BleuBox, offres fixes et téléphones sont exclus. Les cinq forfaits mobiles sont déclinés sur Orange et Bouygues Telecom, avec moyenne sur douze mois pour les promotions temporaires.
+- **Réseaux normalisés** - Les seules valeurs sauvegardées sont `Orange`, `SFR`, `Bouygues Telecom` et `Free`. Prixtel utilise maintenant correctement SFR et le nom `France Téléphone` est uniformisé.
+- **B&You et Syma fiabilisés** - Les enveloppes Europe B&You sont liées à l'offre sélectionnée et Syma ne confond plus les options payantes avec les forfaits principaux.
+
+### Protection des données
+
+- **Validation avant sauvegarde** - Les prix, volumes, réseaux, générations et données Europe sont contrôlés et les box, téléphones ou offres avec engagement sont rejetés.
+- **Purge prudente** - Aucune suppression n'est faite après une collecte vide, incomplète, fortement réduite ou partiellement sauvegardée.
+- **Verrou partagé** - Le cron et l'API ne peuvent plus lancer deux collectes concurrentes.
+- **Rapport par opérateur** - Chaque exécution indique le statut, le nombre d'offres, la durée, le mode utilisé, les tentatives et les erreurs.
+
+### Tests
+
+- **Tests backend actifs** - `npm test` couvre le registre, la validation, les cartes cachées, les promotions et les parseurs réécrits.
+- **Contrôle réel sans effets de bord** - `npm run test:scrapers:live` vérifie les 18 sites sans écrire dans PostgreSQL ni envoyer de notification Discord.
+- **Build renforcé** - `npm run build` génère Prisma puis exécute le contrôle TypeScript complet.
+
+### Panel d'administration
+
+- **Control Room réorganisée** - Le pilotage du scraper, l'état du catalogue et la dernière exécution Crawlee sont regroupés dans une interface plus dense et adaptée aux écrans mobiles.
+- **Suivi des 18 opérateurs** - Le dernier rapport affiche les succès, résultats partiels, blocages et échecs avec le nombre d'offres, le mode de collecte, les tentatives et la durée.
+- **Gestion opérateur simplifiée** - Recherche, filtres, panneaux repliables, statut Fairplay et édition des frais de SIM, d'activation et de résiliation.
+- **Purge mieux protégée** - La suppression du catalogue passe désormais par une confirmation dédiée avec saisie explicite.
+
+---
+
 ## [2.2.3] - 2026-07-09
 
 ### 🐛 Correctifs

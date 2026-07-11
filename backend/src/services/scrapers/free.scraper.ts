@@ -75,7 +75,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
 
         for (const planUrl of planUrls) {
             try {
-                await page.goto(planUrl, { waitUntil: 'networkidle2', timeout: 20000 });
+                await page.goto(planUrl, { waitUntil: 'networkidle', timeout: 20000 });
                 await new Promise(r => setTimeout(r, 3000));
 
                 // ─── Scroller la page du forfait ───

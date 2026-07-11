@@ -1,406 +1,552 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleDollarSign,
+  Clock3,
+  Database,
+  LoaderCircle,
+  Moon,
+  Pencil,
+  Play,
+  RefreshCw,
+  Save,
+  Search,
+  ShieldAlert,
+  Sun,
+  Trash2,
+  WifiOff,
+  X,
+} from 'lucide-vue-next'
 
-definePageMeta({
-  middleware: 'auth'
-})
+definePageMeta({ middleware: 'auth', layout: 'admin' })
+
+type OutcomeStatus = 'success' | 'partial' | 'failed' | 'blocked'
+type ViewName = 'catalogue' | 'execution'
+type OperatorFilter = 'all' | 'fairplay' | 'flagged'
 
 interface MobilePlan {
-  id: number;
-  operator: string;
-  planName: string;
-  price: number;
-  dataGb: number;
-  networkGeneration: string;
-  dataEuGb: number | null;
-  score: number;
+  id: number
+  operator: string
+  planName: string
+  price: number
+  dataGb: number
+  network: string | null
+  networkGeneration: string | null
+  dataEuGb: number | null
+  simPrice: number | null
+  score: number | null
+}
+
+interface ScrapeOutcome {
+  operator: string
+  status: OutcomeStatus
+  offers: number
+  durationMs: number
+  mode: 'http' | 'browser'
+  attempts: number
+  error?: string
+  purgeSkipped?: boolean
+}
+
+interface ScrapeSummary {
+  success: boolean
+  startedAt: string
+  finishedAt: string
+  durationMs: number
+  outcomes: ScrapeOutcome[]
 }
 
 interface Stats {
-  totalOffers: number;
-  isScraping: boolean;
-  lastUpdate: string | null;
+  totalOffers: number
+  isScraping: boolean
+  lastUpdate: string | null
+  lastScrape: ScrapeSummary | null
 }
 
 interface OperatorSettings {
-  operatorName: string;
-  isFairplay: boolean;
-  simPrice: number | null;
-  activationPrice: number | null;
-  cancellationPrice: number | null;
+  operatorName: string
+  isFairplay: boolean
+  simPrice: number | null
+  activationPrice: number | null
+  cancellationPrice: number | null
 }
 
-const authToken = useState<string | null>('authToken')
+interface FeeDraft {
+  simPrice: string
+  activationPrice: string
+  cancellationPrice: string
+}
 
-const authHeaders = computed(() => {
-  if (!authToken.value) return {}
-  return { Authorization: authToken.value }
+const colorMode = useColorMode()
+const authToken = useState<string | null>('authToken')
+const authHeaders = computed(() => authToken.value ? { Authorization: authToken.value } : {})
+
+const { data: stats, refresh: refreshStats } = useFetch<Stats>('/api/v1/stats', {
+  default: () => ({ totalOffers: 0, isScraping: false, lastUpdate: null, lastScrape: null }),
+  server: false,
+  lazy: true,
+})
+const { data: deals, refresh: refreshDeals } = useFetch<MobilePlan[]>('/api/v1/deals', {
+  default: () => [],
+  server: false,
+  lazy: true,
+})
+const { data: operators, refresh: refreshOperators } = useFetch<OperatorSettings[]>('/api/v1/operators', {
+  default: () => [],
+  server: false,
+  lazy: true,
 })
 
-const { data: stats, refresh: refreshStats } = useFetch<Stats>('/api/v1/stats', { default: () => ({ totalOffers: 0, isScraping: false, lastUpdate: null }), server: false, lazy: true })
-const { data: deals, refresh: refreshDeals } = useFetch<MobilePlan[]>('/api/v1/deals', { default: () => [], server: false, lazy: true })
-const { data: operators, refresh: refreshOperators } = useFetch<OperatorSettings[]>('/api/v1/operators', { default: () => [], server: false, lazy: true })
-
-// Loading states
+const activeView = ref<ViewName>('catalogue')
+const operatorFilter = ref<OperatorFilter>('all')
+const searchQuery = ref('')
+const expandedOperators = ref(new Set<string>())
+const editingOperator = ref<string | null>(null)
+const feeDrafts = ref<Record<string, FeeDraft>>({})
+const savingOperator = ref<string | null>(null)
+const togglingOperator = ref<string | null>(null)
 const isScrapingAction = ref(false)
+const isRefreshing = ref(false)
 const isClearingAction = ref(false)
-const notification = ref({ show: false, message: '', type: 'success' })
+const showClearDialog = ref(false)
+const clearConfirmation = ref('')
+const notification = ref<{ show: boolean; message: string; type: 'success' | 'error' }>({
+  show: false,
+  message: '',
+  type: 'success',
+})
 
-// Auto-polling: refresh stats & deals every 5 seconds while scraping is active
 let pollingInterval: ReturnType<typeof setInterval> | null = null
+let notificationTimeout: ReturnType<typeof setTimeout> | null = null
+const wasScraping = ref(false)
 
-const startPolling = () => {
-  if (pollingInterval) return
-  pollingInterval = setInterval(async () => {
-    await refreshStats()
-    if (!stats.value.isScraping) {
-      // Scraping finished - do a final refresh and stop polling
-      await refreshDeals()
-      await refreshOperators()
-      stopPolling()
-      showNotification('Scraping terminé ! Les forfaits sont à jour.', 'success')
-    }
-  }, 5000)
+const settingsByOperator = computed(() => new Map(
+  (operators.value ?? []).map(operator => [operator.operatorName, operator]),
+))
+
+const groupedDeals = computed(() => {
+  const groups = new Map<string, MobilePlan[]>()
+  for (const deal of deals.value ?? []) {
+    const group = groups.get(deal.operator) ?? []
+    group.push(deal)
+    groups.set(deal.operator, group)
+  }
+  for (const group of groups.values()) {
+    group.sort((left, right) => left.dataGb - right.dataGb || left.price - right.price)
+  }
+  return groups
+})
+
+const visibleOperators = computed(() => {
+  const query = searchQuery.value.trim().toLocaleLowerCase('fr')
+  return [...groupedDeals.value.entries()]
+    .filter(([name]) => {
+      const isFairplay = settingsByOperator.value.get(name)?.isFairplay !== false
+      if (operatorFilter.value === 'fairplay' && !isFairplay) return false
+      if (operatorFilter.value === 'flagged' && isFairplay) return false
+      return !query || name.toLocaleLowerCase('fr').includes(query)
+    })
+    .sort(([left], [right]) => left.localeCompare(right, 'fr'))
+})
+
+const operatorCount = computed(() => groupedDeals.value.size)
+const flaggedCount = computed(() => [...groupedDeals.value.keys()].filter(name => !isOperatorFairplay(name)).length)
+const averagePrice = computed(() => {
+  const catalog = deals.value ?? []
+  if (catalog.length === 0) return 0
+  return catalog.reduce((sum, deal) => sum + deal.price, 0) / catalog.length
+})
+const outcomeCounts = computed(() => {
+  const counts: Record<OutcomeStatus, number> = { success: 0, partial: 0, failed: 0, blocked: 0 }
+  for (const outcome of stats.value.lastScrape?.outcomes ?? []) counts[outcome.status] += 1
+  return counts
+})
+const sortedOutcomes = computed(() => [...(stats.value.lastScrape?.outcomes ?? [])].sort((left, right) => {
+  const order: Record<OutcomeStatus, number> = { failed: 0, blocked: 1, partial: 2, success: 3 }
+  return order[left.status] - order[right.status] || left.operator.localeCompare(right.operator, 'fr')
+}))
+
+const formattedDate = computed(() => formatDate(stats.value.lastUpdate))
+const clearIsConfirmed = computed(() => clearConfirmation.value.trim().toUpperCase() === 'SUPPRIMER')
+
+function isOperatorFairplay(operatorName: string) {
+  return settingsByOperator.value.get(operatorName)?.isFairplay !== false
 }
 
-const stopPolling = () => {
-  if (pollingInterval) {
-    clearInterval(pollingInterval)
-    pollingInterval = null
+function operatorFees(operatorName: string) {
+  return settingsByOperator.value.get(operatorName) ?? {
+    operatorName,
+    isFairplay: true,
+    simPrice: null,
+    activationPrice: null,
+    cancellationPrice: null,
   }
 }
 
-// Watch stats to auto-start polling if scraping is detected (e.g. on page load)
-watch(() => stats.value?.isScraping, (isScraping) => {
-  if (isScraping) startPolling()
-}, { immediate: true })
-
-onUnmounted(() => stopPolling())
-
-// Track which operator's fees are being edited
-const editingActivationPrice = ref<Record<string, string>>({})
-const editingCancellationPrice = ref<Record<string, string>>({})
-
-
-const getOperatorActivationPrice = (operatorName: string): number | null => {
-  const op = operators.value?.find(o => o.operatorName === operatorName)
-  return op?.activationPrice ?? null
+function toggleOperator(operatorName: string) {
+  const next = new Set(expandedOperators.value)
+  next.has(operatorName) ? next.delete(operatorName) : next.add(operatorName)
+  expandedOperators.value = next
 }
 
-const getOperatorCancellationPrice = (operatorName: string): number | null => {
-  const op = operators.value?.find(o => o.operatorName === operatorName)
-  return op?.cancellationPrice ?? null
+function formatDate(value: string | null | undefined) {
+  if (!value) return 'Aucune donnée'
+  return new Date(value).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-const showNotification = (msg: string, type: 'success' | 'error' = 'success') => {
-  notification.value = { show: true, message: msg, type }
-  setTimeout(() => { notification.value.show = false }, 5000)
+function formatDuration(milliseconds: number) {
+  if (milliseconds < 1000) return `${milliseconds} ms`
+  const seconds = Math.round(milliseconds / 1000)
+  if (seconds < 60) return `${seconds} s`
+  return `${Math.floor(seconds / 60)} min ${seconds % 60} s`
 }
 
-// Actions
-const triggerScrape = async () => {
+function formatData(dataGb: number) {
+  return dataGb < 1 ? `${Math.round(dataGb * 1000)} Mo` : `${dataGb} Go`
+}
+
+function formatMoney(value: number | null | undefined) {
+  return value == null ? 'Non défini' : `${value.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`
+}
+
+function statusLabel(status: OutcomeStatus) {
+  return { success: 'Réussi', partial: 'Partiel', failed: 'Échec', blocked: 'Bloqué' }[status]
+}
+
+function statusClass(status: OutcomeStatus) {
+  return {
+    success: 'bg-emerald-100 text-emerald-900 border-emerald-900',
+    partial: 'bg-amber-100 text-amber-950 border-amber-900',
+    failed: 'bg-red-100 text-red-900 border-red-900',
+    blocked: 'bg-slate-200 text-slate-950 border-slate-900',
+  }[status]
+}
+
+function showNotification(message: string, type: 'success' | 'error' = 'success') {
+  if (notificationTimeout) clearTimeout(notificationTimeout)
+  notification.value = { show: true, message, type }
+  notificationTimeout = setTimeout(() => { notification.value.show = false }, 5000)
+}
+
+async function refreshAll(silent = false) {
+  if (!silent) isRefreshing.value = true
+  try {
+    await Promise.all([refreshStats(), refreshDeals(), refreshOperators()])
+  } catch {
+    if (!silent) showNotification('Impossible d’actualiser les données.', 'error')
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+async function triggerScrape() {
   if (isScrapingAction.value || stats.value.isScraping) return
   isScrapingAction.value = true
-  
   try {
-    const res = await $fetch('/api/v1/scrape', { 
-        method: 'POST',
-        headers: authHeaders.value
-    }).catch((e) => e.data)
-    if (res && res.message) {
-      showNotification(res.message, 'success')
-      await refreshStats()
-      startPolling()
-    }
-  } catch (error) {
-    showNotification("Erreur lors du lancement du scraper.", 'error')
+    const response = await $fetch<{ message: string }>('/api/v1/scrape', {
+      method: 'POST',
+      headers: authHeaders.value,
+    })
+    showNotification(response.message)
+    await refreshStats()
+  } catch {
+    showNotification('Le lancement de la collecte a échoué.', 'error')
   } finally {
     isScrapingAction.value = false
   }
 }
 
-const clearDB = async () => {
-  if (!confirm("VOULEZ-VOUS VRAIMENT TOUT DÉTRUIRE ?")) return
-  isClearingAction.value = true
-  
+async function toggleFairplay(operatorName: string) {
+  if (togglingOperator.value) return
+  togglingOperator.value = operatorName
+  const isFairplay = !isOperatorFairplay(operatorName)
   try {
-    await $fetch('/api/v1/clear', { 
-        method: 'DELETE',
-        headers: authHeaders.value 
+    await $fetch(`/api/v1/operators/${encodeURIComponent(operatorName)}/fairplay`, {
+      method: 'PUT',
+      headers: authHeaders.value,
+      body: { isFairplay },
     })
-    showNotification("Base de données détruite avec succès.", 'success')
-    refreshStats()
-    refreshDeals()
-  } catch (error) {
-    showNotification("Erreur lors de la suppression.", 'error')
+    await refreshOperators()
+    showNotification(`${operatorName} est maintenant ${isFairplay ? 'Fairplay' : 'signalé'}.`)
+  } catch {
+    showNotification(`Le statut de ${operatorName} n’a pas été modifié.`, 'error')
+  } finally {
+    togglingOperator.value = null
+  }
+}
+
+function startEditFees(operatorName: string) {
+  const settings = operatorFees(operatorName)
+  feeDrafts.value[operatorName] = {
+    simPrice: settings.simPrice?.toString() ?? '',
+    activationPrice: settings.activationPrice?.toString() ?? '',
+    cancellationPrice: settings.cancellationPrice?.toString() ?? '',
+  }
+  editingOperator.value = operatorName
+}
+
+function cancelEditFees() {
+  editingOperator.value = null
+}
+
+function parseFee(value: string) {
+  if (value.trim() === '') return null
+  const parsed = Number.parseFloat(value.replace(',', '.'))
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
+async function saveFees(operatorName: string) {
+  const draft = feeDrafts.value[operatorName]
+  if (!draft || savingOperator.value) return
+  savingOperator.value = operatorName
+  try {
+    await $fetch(`/api/v1/operators/${encodeURIComponent(operatorName)}/simprice`, {
+      method: 'PUT',
+      headers: authHeaders.value,
+      body: {
+        simPrice: parseFee(draft.simPrice),
+        activationPrice: parseFee(draft.activationPrice),
+        cancellationPrice: parseFee(draft.cancellationPrice),
+      },
+    })
+    await refreshOperators()
+    editingOperator.value = null
+    showNotification(`Les frais de ${operatorName} sont enregistrés.`)
+  } catch {
+    showNotification(`Les frais de ${operatorName} n’ont pas été enregistrés.`, 'error')
+  } finally {
+    savingOperator.value = null
+  }
+}
+
+function openClearDialog() {
+  clearConfirmation.value = ''
+  showClearDialog.value = true
+}
+
+function closeClearDialog() {
+  if (isClearingAction.value) return
+  showClearDialog.value = false
+  clearConfirmation.value = ''
+}
+
+async function clearDatabase() {
+  if (!clearIsConfirmed.value || isClearingAction.value) return
+  isClearingAction.value = true
+  try {
+    await $fetch('/api/v1/clear', { method: 'DELETE', headers: authHeaders.value })
+    await refreshAll(true)
+    showClearDialog.value = false
+    clearConfirmation.value = ''
+    showNotification('Le catalogue a été vidé.')
+  } catch {
+    showNotification('La suppression du catalogue a échoué.', 'error')
   } finally {
     isClearingAction.value = false
   }
 }
 
-const toggleFairplay = async (operatorName: string, currentState: boolean) => {
-  try {
-    const newState = !currentState
-    await $fetch(`/api/v1/operators/${encodeURIComponent(operatorName)}/fairplay`, {
-      method: 'PUT',
-      headers: authHeaders.value,
-      body: { isFairplay: newState }
-    })
-    showNotification(`${operatorName} → ${newState ? 'Fairplay ✓' : 'Signalé frauduleux ⚠️'}`, 'success')
-    refreshOperators()
-  } catch (err) {
-    showNotification("Erreur lors de la modification du statut", 'error')
+watch(() => stats.value.isScraping, async (isScraping) => {
+  if (wasScraping.value && !isScraping) {
+    await refreshAll(true)
+    showNotification('La collecte est terminée. Le catalogue est à jour.')
   }
-}
-
-const startEditFees = (operatorName: string) => {
-  editingActivationPrice.value[operatorName] = (getOperatorActivationPrice(operatorName) ?? 0).toString()
-  editingCancellationPrice.value[operatorName] = (getOperatorCancellationPrice(operatorName) ?? 0).toString()
-}
-
-const saveFees = async (operatorName: string) => {
-  const act = editingActivationPrice.value[operatorName]
-  const canc = editingCancellationPrice.value[operatorName]
-  
-  try {
-    await $fetch(`/api/v1/operators/${encodeURIComponent(operatorName)}/simprice`, {
-      method: 'PUT',
-      headers: authHeaders.value,
-      body: { 
-        activationPrice: act ? parseFloat(act) : null,
-        cancellationPrice: canc ? parseFloat(canc) : null
-      }
-    })
-    showNotification(`Frais ${operatorName} mis à jour!`, 'success')
-    delete editingActivationPrice.value[operatorName]
-    delete editingCancellationPrice.value[operatorName]
-    refreshOperators()
-  } catch (err) {
-    showNotification("Erreur lors de la sauvegarde des frais", 'error')
-  }
-}
-
-const cancelEditFees = (operatorName: string) => {
-  delete editingActivationPrice.value[operatorName]
-  delete editingCancellationPrice.value[operatorName]
-}
-
-// Formatters
-const formattedDate = computed(() => {
-  if (!stats.value?.lastUpdate) return 'Jamais'
-  return new Date(stats.value.lastUpdate).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })
+  wasScraping.value = isScraping
 })
 
-const dealsByOperator = computed(() => {
-  if (!deals.value) return {}
-  return deals.value.reduce((acc: Record<string, MobilePlan[]>, deal) => {
-    if (!acc[deal.operator]) acc[deal.operator] = []
-    acc[deal.operator].push(deal)
-    return acc
-  }, {})
+onMounted(() => {
+  pollingInterval = setInterval(async () => {
+    await refreshStats()
+    if (stats.value.isScraping) await refreshDeals()
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval)
+  if (notificationTimeout) clearTimeout(notificationTimeout)
 })
 </script>
 
 <template>
-  <div class="min-h-screen bg-background relative overflow-x-hidden pb-32">
-    <!-- Notification Toast -->
-    <div 
-      v-if="notification.show"
-      :class="[
-        'fixed top-6 right-6 z-50 px-6 py-4 border-4 border-border shadow-neo-lg transition-transform font-bold text-lg',
-        notification.type === 'error' ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground transform rotate-2'
-      ]"
-    >
-      {{ notification.message }}
-    </div>
+  <div class="min-h-screen bg-background text-foreground pb-20">
+    <Transition enter-active-class="transition duration-200" enter-from-class="translate-y-2 opacity-0" leave-active-class="transition duration-150" leave-to-class="translate-y-2 opacity-0">
+      <div
+        v-if="notification.show"
+        role="status"
+        :class="[
+          'fixed bottom-5 left-4 right-4 z-[70] mx-auto flex max-w-xl items-center gap-3 border-2 border-border px-4 py-3 shadow-neo md:left-auto md:right-6',
+          notification.type === 'error' ? 'bg-destructive text-destructive-foreground' : 'bg-foreground text-background',
+        ]"
+      >
+        <AlertTriangle v-if="notification.type === 'error'" class="h-5 w-5 shrink-0" />
+        <Check v-else class="h-5 w-5 shrink-0" />
+        <span class="min-w-0 flex-1 font-bold">{{ notification.message }}</span>
+        <button class="p-1" title="Fermer" @click="notification.show = false"><X class="h-4 w-4" /></button>
+      </div>
+    </Transition>
 
-    <!-- Admin Header -->
-    <header class="bg-foreground text-background py-12 px-4 border-b-8 border-accent mb-16">
-      <div class="container mx-auto max-w-5xl flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-        <div>
-          <div class="bg-accent text-accent-foreground px-3 py-1 inline-block border-2 border-border mb-4 font-bold uppercase tracking-widest text-sm shadow-[4px_4px_0_0_var(--border)] transform -rotate-2">
-            Zone Restreinte
+    <header class="sticky top-0 z-40 border-b-2 border-border bg-foreground text-background">
+      <div class="mx-auto flex min-h-16 max-w-7xl items-center gap-3 px-4 py-3 lg:px-6">
+        <NuxtLink to="/" class="grid h-10 w-10 shrink-0 place-items-center border-2 border-background/40 hover:bg-background hover:text-foreground" title="Retour au site">
+          <ArrowLeft class="h-5 w-5" />
+        </NuxtLink>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <span class="h-2.5 w-2.5 shrink-0 bg-primary" />
+            <h1 class="truncate font-display text-xl font-black uppercase md:text-2xl">Control Room</h1>
           </div>
-          <h1 class="text-5xl md:text-7xl font-black uppercase tracking-tighter">
-            Control <br/> Room
-          </h1>
+          <p class="truncate text-xs font-semibold text-background/65">Deal-Voyager 2.3.0</p>
         </div>
-        
-        <div class="flex items-center gap-4">
-          <NuxtLink to="/" class="neo-button bg-card text-card-foreground border-border shadow-[4px_4px_0_0_#4F46E5]">
-            ← Retour au site
-          </NuxtLink>
+        <div class="hidden items-center gap-2 sm:flex">
+          <span :class="['h-2.5 w-2.5', stats.isScraping ? 'animate-pulse bg-primary' : 'bg-emerald-400']" />
+          <span class="text-sm font-bold">{{ stats.isScraping ? 'Collecte active' : 'Service disponible' }}</span>
         </div>
+        <button class="grid h-10 w-10 place-items-center border-2 border-background/40 hover:bg-background hover:text-foreground" title="Changer de thème" @click="colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'">
+          <ClientOnly><Sun v-if="colorMode.value === 'dark'" class="h-5 w-5" /><Moon v-else class="h-5 w-5" /></ClientOnly>
+        </button>
       </div>
     </header>
 
-    <main class="container mx-auto px-4 max-w-5xl flex flex-col gap-12 text-card-foreground">
-      
-      <!-- Stats Dashboards -->
-      <div class="grid md:grid-cols-2 gap-8">
-        
-        <!-- Db Status -->
-        <div class="neo-box bg-card p-8 md:p-12 relative overflow-hidden group hover:bg-secondary transition-colors text-card-foreground">
-          <div class="bg-foreground text-background px-3 py-1 inline-block font-bold uppercase text-xs mb-8">
-            Inventaire
-          </div>
-          <p class="text-8xl font-black mb-4">{{ stats?.totalOffers || 0 }}</p>
-          <h2 class="text-2xl font-bold uppercase tracking-wider mb-8">Offres Actives</h2>
-          <div class="pt-4 border-t-4 border-border font-bold flex flex-col">
-            <span class="text-muted-foreground uppercase text-xs">Dernière extraction</span>
-            <span class="text-xl">{{ formattedDate }}</span>
-          </div>
+    <main class="mx-auto max-w-7xl px-4 py-6 lg:px-6 lg:py-8">
+      <section class="mb-6 grid grid-cols-2 border-l-2 border-t-2 border-border lg:grid-cols-4">
+        <div class="min-w-0 border-b-2 border-r-2 border-border bg-card p-4 text-card-foreground lg:p-5">
+          <div class="mb-3 flex items-center justify-between"><Database class="h-5 w-5 text-accent" /><span class="text-xs font-black uppercase text-muted-foreground">Catalogue</span></div>
+          <p class="text-3xl font-black tabular-nums">{{ stats.totalOffers }}</p><p class="text-sm font-semibold text-muted-foreground">offres actives</p>
         </div>
-
-        <!-- Scraper Status -->
-        <div :class="['neo-box p-8 md:p-12 relative overflow-hidden text-card-foreground', stats?.isScraping ? 'bg-primary text-primary-foreground' : 'bg-card']">
-          <div class="bg-foreground text-background px-3 py-1 inline-block font-bold uppercase text-xs mb-8">
-            Processus Robot
-          </div>
-           
-          <div class="flex items-center gap-6 mb-8">
-            <div :class="['w-8 h-8 border-4 border-border rounded-full', stats?.isScraping ? 'bg-destructive animate-pulse' : 'bg-green-500']"></div>
-            <p class="text-3xl md:text-4xl font-black uppercase leading-tight">
-              {{ stats?.isScraping ? "Scraping en cours..." : "En veille" }}
-            </p>
-          </div>
-
-          <p class="text-lg font-bold border-l-4 border-border pl-4 my-8">
-            Planification: Cron <code class="bg-foreground text-background px-2 py-1 ml-1">0 * * * *</code>
-          </p>
-
-          <button 
-            @click="triggerScrape" 
-            :disabled="isScrapingAction || stats?.isScraping"
-            class="w-full neo-button bg-foreground text-background hover:bg-accent hover:text-accent-foreground border-border"
-          >
-            Lancer l'extraction maintenant
-          </button>
+        <div class="min-w-0 border-b-2 border-r-2 border-border bg-card p-4 text-card-foreground lg:p-5">
+          <div class="mb-3 flex items-center justify-between"><Activity class="h-5 w-5 text-emerald-600" /><span class="text-xs font-black uppercase text-muted-foreground">Couverture</span></div>
+          <p class="text-3xl font-black tabular-nums">{{ operatorCount }}<span class="text-lg text-muted-foreground">/18</span></p><p class="text-sm font-semibold text-muted-foreground">opérateurs publiés</p>
         </div>
-      </div>
-
-      <!-- Danger Zone -->
-      <div class="neo-box bg-card text-card-foreground p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 justify-between">
-        <div>
-          <h2 class="text-2xl font-black uppercase flex items-center gap-3 mb-2">
-            <span class="bg-destructive text-destructive-foreground p-1 border-2 border-border">⚠</span>
-            Bouton Rouge
-          </h2>
-          <p class="font-bold text-lg">Supprime l'intégralité de la base de données. Irréversible.</p>
+        <div class="min-w-0 border-b-2 border-r-2 border-border bg-card p-4 text-card-foreground lg:p-5">
+          <div class="mb-3 flex items-center justify-between"><CircleDollarSign class="h-5 w-5 text-primary" /><span class="text-xs font-black uppercase text-muted-foreground">Prix moyen</span></div>
+          <p class="text-3xl font-black tabular-nums">{{ averagePrice.toFixed(2) }} €</p><p class="text-sm font-semibold text-muted-foreground">par mois</p>
         </div>
-        <button 
-          @click="clearDB" 
-          :disabled="isClearingAction"
-          class="neo-button bg-destructive text-destructive-foreground hover:bg-red-600 border-border text-xl whitespace-nowrap"
-        >
-          Détruire la base
-        </button>
-      </div>
-
-      <!-- ===================== -->
-      <!-- DEALS DETAIL TABLE -->
-      <!-- ===================== -->
-      <div class="text-card-foreground">
-        <h2 class="text-4xl font-black uppercase mb-8 border-b-8 border-border pb-4 inline-block">Forfaits & Prix SIM</h2>
-        
-        <div v-if="Object.keys(dealsByOperator).length === 0" class="neo-box bg-card p-12 text-center text-xl font-bold uppercase">
-          Aucune offre. Lancez un scraping d'abord.
+        <div class="min-w-0 border-b-2 border-r-2 border-border bg-card p-4 text-card-foreground lg:p-5">
+          <div class="mb-3 flex items-center justify-between"><Clock3 class="h-5 w-5 text-secondary" /><span class="text-xs font-black uppercase text-muted-foreground">Actualisation</span></div>
+          <p class="truncate text-base font-black md:text-lg">{{ formattedDate }}</p><p class="text-sm font-semibold text-muted-foreground">cron horaire</p>
         </div>
+      </section>
 
-        <div v-for="(operatorDeals, operatorName) in dealsByOperator" :key="operatorName" class="neo-box bg-card mb-8 text-card-foreground">
-          
-          <!-- Operator Header Row -->
-          <div class="flex flex-col md:flex-row items-start md:items-center justify-between p-4 md:p-6 bg-muted border-b-4 border-border gap-4">
-            <div class="flex items-center gap-4">
-              <h3 class="text-2xl md:text-3xl font-black uppercase">{{ operatorName }}</h3>
-              <span class="bg-foreground text-background px-2 py-1 text-xs font-bold">{{ operatorDeals.length }} offres</span>
+      <section class="mb-8 border-2 border-border bg-card text-card-foreground shadow-neo">
+        <div class="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between lg:p-5">
+          <div class="flex min-w-0 items-center gap-3">
+            <div :class="['grid h-11 w-11 shrink-0 place-items-center border-2 border-border', stats.isScraping ? 'bg-primary' : 'bg-muted']">
+              <LoaderCircle v-if="stats.isScraping" class="h-6 w-6 animate-spin" /><Activity v-else class="h-6 w-6" />
             </div>
-            <div class="flex items-center gap-4 flex-wrap mt-4 md:mt-0">
-              <!-- Frais per operator -->
-              <div class="flex flex-col gap-2 bg-card p-3 border-2 border-border">
-                <span class="font-black text-sm uppercase mb-1 border-b-2 border-border pb-1">Frais Opérateur (Act, Résil)</span>
-                
-                <div v-if="editingActivationPrice[operatorName as string] === undefined" class="flex items-center justify-between gap-4">
-                  <div class="flex gap-3 text-sm">
-                    <span><strong>Act:</strong> {{ getOperatorActivationPrice(operatorName as string) !== null ? getOperatorActivationPrice(operatorName as string) + '€' : '0€' }}</span>
-                    <span><strong>Résil:</strong> {{ getOperatorCancellationPrice(operatorName as string) !== null ? getOperatorCancellationPrice(operatorName as string) + '€' : '0€' }}</span>
-                  </div>
-                  <button 
-                    @click="startEditFees(operatorName as string)" 
-                    class="bg-card border-2 border-border px-2 py-1 text-xs font-bold uppercase shadow-neo-hover hover:bg-primary transition-colors text-card-foreground hover:text-primary-foreground"
-                  >✏️ Editer</button>
-                </div>
-                
-                <div v-else class="flex flex-col gap-2 relative z-50">
-                  <div class="flex items-center gap-2 text-sm justify-between">
-                    <label class="font-bold w-12">Act:</label>
-                    <div class="flex items-center">
-                      <input v-model="editingActivationPrice[operatorName as string]" type="number" step="0.01" min="0" class="w-16 px-1 py-0.5 border-2 border-border text-center font-bold bg-card text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary h-7" @keyup.enter="saveFees(operatorName as string)" @keyup.escape="cancelEditFees(operatorName as string)" />
-                      <span class="font-bold ml-1">€</span>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2 text-sm justify-between">
-                    <label class="font-bold w-12">Résil:</label>
-                    <div class="flex items-center">
-                      <input v-model="editingCancellationPrice[operatorName as string]" type="number" step="0.01" min="0" class="w-16 px-1 py-0.5 border-2 border-border text-center font-bold bg-card text-card-foreground focus:outline-none focus:ring-1 focus:ring-primary h-7" @keyup.enter="saveFees(operatorName as string)" @keyup.escape="cancelEditFees(operatorName as string)" />
-                      <span class="font-bold ml-1">€</span>
-                    </div>
-                  </div>
-                  <div class="flex items-center justify-end gap-2 mt-1 z-50">
-                    <button @click="saveFees(operatorName as string)" class="bg-primary text-primary-foreground border-2 border-border px-3 py-1 text-xs font-bold shadow-neo-hover">Sauvegarder</button>
-                    <button @click="cancelEditFees(operatorName as string)" class="bg-card text-card-foreground border-2 border-border px-3 py-1 text-xs font-bold shadow-neo-hover hover:bg-destructive hover:text-white">Annuler</button>
-                  </div>
-                </div>
+            <div class="min-w-0"><h2 class="font-black uppercase">{{ stats.isScraping ? 'Collecte Crawlee en cours' : 'Collecteur en veille' }}</h2><p class="truncate text-sm font-medium text-muted-foreground">{{ stats.isScraping ? 'Le catalogue se met à jour automatiquement.' : 'Dernière mise à jour : ' + formattedDate }}</p></div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button class="neo-button min-h-11 flex-1 bg-primary px-4 py-2 text-primary-foreground md:flex-none" :disabled="stats.isScraping || isScrapingAction" @click="triggerScrape">
+              <LoaderCircle v-if="isScrapingAction" class="h-4 w-4 animate-spin" /><Play v-else class="h-4 w-4" />
+              {{ stats.isScraping ? 'En cours' : 'Lancer maintenant' }}
+            </button>
+            <button class="grid h-11 w-11 place-items-center border-2 border-border bg-card shadow-neo-hover disabled:opacity-50" :disabled="isRefreshing" title="Actualiser" @click="refreshAll()">
+              <RefreshCw :class="['h-5 w-5', isRefreshing && 'animate-spin']" />
+            </button>
+            <button class="grid h-11 w-11 place-items-center border-2 border-border bg-destructive text-destructive-foreground shadow-neo-hover" title="Vider le catalogue" @click="openClearDialog"><Trash2 class="h-5 w-5" /></button>
+          </div>
+        </div>
+      </section>
+
+      <div class="mb-6 flex border-b-2 border-border" role="tablist">
+        <button :class="['flex items-center gap-2 border-x-2 border-t-2 border-border px-4 py-3 text-sm font-black uppercase', activeView === 'catalogue' ? 'bg-foreground text-background' : 'bg-card text-card-foreground']" @click="activeView = 'catalogue'"><Database class="h-4 w-4" />Catalogue</button>
+        <button :class="['-ml-0.5 flex items-center gap-2 border-x-2 border-t-2 border-border px-4 py-3 text-sm font-black uppercase', activeView === 'execution' ? 'bg-foreground text-background' : 'bg-card text-card-foreground']" @click="activeView = 'execution'"><Activity class="h-4 w-4" />Dernière exécution</button>
+      </div>
+
+      <section v-if="activeView === 'catalogue'">
+        <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div class="relative w-full max-w-lg"><Search class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" /><input v-model="searchQuery" class="neo-input pl-11 shadow-none" type="search" placeholder="Rechercher un opérateur" /></div>
+          <div class="flex overflow-x-auto" role="group" aria-label="Filtrer les opérateurs">
+            <button v-for="filter in ([['all', 'Tous'], ['fairplay', 'Fairplay'], ['flagged', `Signalés (${flaggedCount})`]] as const)" :key="filter[0]" :class="['whitespace-nowrap border-2 border-border px-4 py-2 text-sm font-bold first:ml-0 -ml-0.5', operatorFilter === filter[0] ? 'bg-accent text-accent-foreground' : 'bg-card text-card-foreground']" @click="operatorFilter = filter[0]">{{ filter[1] }}</button>
+          </div>
+        </div>
+
+        <div v-if="visibleOperators.length === 0" class="border-2 border-dashed border-border bg-card px-6 py-14 text-center"><Search class="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p class="font-black uppercase">Aucun opérateur trouvé</p></div>
+
+        <div class="space-y-4">
+          <article v-for="[operatorName, operatorDeals] in visibleOperators" :key="operatorName" class="border-2 border-border bg-card text-card-foreground shadow-neo">
+            <div class="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:p-5">
+              <button class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-expanded="expandedOperators.has(operatorName)" @click="toggleOperator(operatorName)">
+                <ChevronDown v-if="expandedOperators.has(operatorName)" class="h-5 w-5 shrink-0" /><ChevronRight v-else class="h-5 w-5 shrink-0" />
+                <div class="min-w-0"><h3 class="truncate text-lg font-black uppercase md:text-xl">{{ operatorName }}</h3><p class="text-sm font-semibold text-muted-foreground">{{ operatorDeals.length }} offres · {{ operatorDeals.filter(deal => deal.networkGeneration === '5G').length }} en 5G</p></div>
+              </button>
+
+              <div v-if="editingOperator !== operatorName" class="grid grid-cols-3 gap-x-4 gap-y-1 border-y-2 border-border py-3 text-sm lg:border-y-0 lg:border-l-2 lg:py-0 lg:pl-5">
+                <div><span class="block text-xs font-bold uppercase text-muted-foreground">SIM</span><strong>{{ formatMoney(operatorFees(operatorName).simPrice) }}</strong></div>
+                <div><span class="block text-xs font-bold uppercase text-muted-foreground">Activation</span><strong>{{ formatMoney(operatorFees(operatorName).activationPrice) }}</strong></div>
+                <div><span class="block text-xs font-bold uppercase text-muted-foreground">Résiliation</span><strong>{{ formatMoney(operatorFees(operatorName).cancellationPrice) }}</strong></div>
+              </div>
+              <div v-else class="grid gap-2 border-y-2 border-border py-3 sm:grid-cols-3 lg:border-y-0 lg:border-l-2 lg:py-0 lg:pl-5">
+                <label v-for="field in ([['simPrice', 'SIM'], ['activationPrice', 'Activation'], ['cancellationPrice', 'Résiliation']] as const)" :key="field[0]" class="text-xs font-bold uppercase"><span>{{ field[1] }}</span><span class="mt-1 flex items-center border-2 border-border bg-background"><input v-model="feeDrafts[operatorName][field[0]]" class="min-w-0 w-20 bg-transparent px-2 py-1.5 text-right text-sm font-bold outline-none" inputmode="decimal" /><span class="pr-2">€</span></span></label>
               </div>
 
-              <button 
-                @click="toggleFairplay(operatorName as string, operators?.find(o => o.operatorName === operatorName)?.isFairplay ?? true)"
-                class="neo-button px-4 py-2 text-sm border-border h-full relative z-40"
-                :class="operators?.find(o => o.operatorName === operatorName)?.isFairplay === false ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground hover:bg-destructive hover:text-destructive-foreground'"
-              >
-                {{ operators?.find(o => o.operatorName === operatorName)?.isFairplay === false ? '⚠ Frauduleux (Rétablir)' : '✓ Fairplay (Signaler)' }}
-              </button>
+              <div class="flex items-center gap-2">
+                <template v-if="editingOperator === operatorName">
+                  <button class="grid h-10 w-10 place-items-center border-2 border-border bg-primary shadow-neo-hover" :disabled="savingOperator === operatorName" title="Enregistrer les frais" @click="saveFees(operatorName)"><LoaderCircle v-if="savingOperator === operatorName" class="h-4 w-4 animate-spin" /><Save v-else class="h-4 w-4" /></button>
+                  <button class="grid h-10 w-10 place-items-center border-2 border-border bg-card shadow-neo-hover" title="Annuler" @click="cancelEditFees"><X class="h-4 w-4" /></button>
+                </template>
+                <button v-else class="grid h-10 w-10 place-items-center border-2 border-border bg-card shadow-neo-hover" title="Modifier les frais" @click="startEditFees(operatorName)"><Pencil class="h-4 w-4" /></button>
+                <button role="switch" :aria-checked="isOperatorFairplay(operatorName)" :disabled="togglingOperator === operatorName" :class="['flex h-10 items-center gap-2 border-2 border-border px-3 text-sm font-black shadow-neo-hover', isOperatorFairplay(operatorName) ? 'bg-emerald-100 text-emerald-950' : 'bg-destructive text-destructive-foreground']" @click="toggleFairplay(operatorName)">
+                  <LoaderCircle v-if="togglingOperator === operatorName" class="h-4 w-4 animate-spin" /><Check v-else-if="isOperatorFairplay(operatorName)" class="h-4 w-4" /><ShieldAlert v-else class="h-4 w-4" />
+                  {{ isOperatorFairplay(operatorName) ? 'Fairplay' : 'Signalé' }}
+                </button>
+              </div>
+            </div>
+
+            <div v-if="expandedOperators.has(operatorName)" class="border-t-2 border-border">
+              <div class="divide-y-2 divide-border md:hidden">
+                <div v-for="deal in operatorDeals" :key="deal.id" class="grid grid-cols-[1fr_auto] gap-3 p-4">
+                  <div class="min-w-0"><p class="truncate font-black">{{ deal.planName }}</p><p class="mt-1 text-sm font-semibold text-muted-foreground">{{ deal.network || 'Réseau inconnu' }} · {{ deal.networkGeneration || '4G' }} · {{ deal.dataEuGb != null ? deal.dataEuGb + ' Go UE' : 'UE non renseignée' }}</p></div>
+                  <div class="text-right"><p class="text-lg font-black">{{ deal.price.toFixed(2) }} €</p><p class="text-sm font-bold text-muted-foreground">{{ formatData(deal.dataGb) }}</p></div>
+                </div>
+              </div>
+              <div class="hidden overflow-x-auto md:block">
+                <table class="w-full min-w-[760px] border-collapse text-left">
+                  <thead class="bg-muted text-xs uppercase text-muted-foreground"><tr><th class="px-4 py-3 font-black">Forfait</th><th class="px-4 py-3 font-black">Réseau</th><th class="px-4 py-3 text-right font-black">Data</th><th class="px-4 py-3 text-right font-black">UE</th><th class="px-4 py-3 text-right font-black">Prix mensuel</th><th class="px-4 py-3 text-right font-black">SIM</th><th class="px-4 py-3 text-right font-black">€/Go</th></tr></thead>
+                  <tbody class="divide-y-2 divide-border"><tr v-for="deal in operatorDeals" :key="deal.id" class="hover:bg-primary/10"><td class="px-4 py-3 font-bold">{{ deal.planName }}</td><td class="px-4 py-3"><span class="border-2 border-border px-2 py-1 text-xs font-black">{{ deal.network || '-' }} · {{ deal.networkGeneration || '4G' }}</span></td><td class="px-4 py-3 text-right font-bold">{{ formatData(deal.dataGb) }}</td><td class="px-4 py-3 text-right">{{ deal.dataEuGb != null ? deal.dataEuGb + ' Go' : '-' }}</td><td class="px-4 py-3 text-right text-lg font-black">{{ deal.price.toFixed(2) }} €</td><td class="px-4 py-3 text-right">{{ formatMoney(deal.simPrice) }}</td><td class="px-4 py-3 text-right font-mono text-sm">{{ deal.score != null ? deal.score.toFixed(3) : '-' }}</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section v-else>
+        <div v-if="!stats.lastScrape" class="border-2 border-dashed border-border bg-card px-6 py-14 text-center"><Activity class="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p class="font-black uppercase">Aucune exécution enregistrée</p></div>
+        <template v-else>
+          <div class="mb-5 flex flex-col gap-4 border-2 border-border bg-card p-4 text-card-foreground md:flex-row md:items-center md:justify-between">
+            <div><p class="text-xs font-black uppercase text-muted-foreground">Terminée le</p><p class="font-black">{{ formatDate(stats.lastScrape.finishedAt) }}</p><p class="text-sm font-semibold text-muted-foreground">Durée totale : {{ formatDuration(stats.lastScrape.durationMs) }}</p></div>
+            <div class="grid grid-cols-4 divide-x-2 divide-border border-2 border-border text-center"><div class="px-3 py-2"><strong class="block text-xl text-emerald-700">{{ outcomeCounts.success }}</strong><span class="text-xs font-bold">Réussis</span></div><div class="px-3 py-2"><strong class="block text-xl text-amber-700">{{ outcomeCounts.partial }}</strong><span class="text-xs font-bold">Partiels</span></div><div class="px-3 py-2"><strong class="block text-xl text-slate-700">{{ outcomeCounts.blocked }}</strong><span class="text-xs font-bold">Bloqués</span></div><div class="px-3 py-2"><strong class="block text-xl text-red-700">{{ outcomeCounts.failed }}</strong><span class="text-xs font-bold">Échecs</span></div></div>
+          </div>
+
+          <div class="overflow-hidden border-2 border-border bg-card text-card-foreground shadow-neo">
+            <div v-for="outcome in sortedOutcomes" :key="outcome.operator" class="grid gap-3 border-b-2 border-border p-4 last:border-b-0 md:grid-cols-[minmax(180px,1fr)_110px_90px_100px_90px] md:items-center">
+              <div class="min-w-0"><p class="truncate font-black uppercase">{{ outcome.operator }}</p><p v-if="outcome.error" class="mt-1 line-clamp-2 text-xs font-semibold text-muted-foreground" :title="outcome.error">{{ outcome.error }}</p></div>
+              <span :class="['w-fit border-2 px-2 py-1 text-xs font-black uppercase', statusClass(outcome.status)]"><WifiOff v-if="outcome.status === 'blocked'" class="mr-1 inline h-3.5 w-3.5" />{{ statusLabel(outcome.status) }}</span>
+              <p class="text-sm"><span class="text-muted-foreground md:hidden">Offres : </span><strong>{{ outcome.offers }}</strong></p>
+              <p class="text-sm"><span class="text-muted-foreground md:hidden">Mode : </span><strong>{{ outcome.mode === 'browser' ? 'Playwright' : 'HTTP' }}</strong><span class="block text-xs font-semibold text-muted-foreground">{{ outcome.attempts }} {{ outcome.attempts > 1 ? 'tentatives' : 'tentative' }}</span></p>
+              <p class="text-sm tabular-nums"><span class="text-muted-foreground md:hidden">Durée : </span><strong>{{ formatDuration(outcome.durationMs) }}</strong></p>
             </div>
           </div>
-          
-          <!-- Deals Table -->
-          <table class="w-full text-left border-collapse z-10 relative">
-            <thead>
-              <tr class="border-b-4 border-border text-xs uppercase tracking-wider bg-card text-card-foreground">
-                <th class="p-3 md:p-4 font-black border-r-2 border-border">Forfait</th>
-                <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Data</th>
-                <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Réseau</th>
-                <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">Prix/mois</th>
-                <th class="p-3 md:p-4 font-black border-r-2 border-border text-center">SIM</th>
-                <th class="p-3 md:p-4 font-black text-center">€/Go</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="deal in operatorDeals" :key="deal.id" class="border-b-2 border-border last:border-0 hover:bg-primary/10 transition-colors">
-                <td class="p-3 md:p-4 font-bold text-lg border-r-2 border-border">{{ deal.planName }}</td>
-                <td class="p-3 md:p-4 text-center font-bold border-r-2 border-border">
-                  <span class="bg-secondary text-secondary-foreground border-2 border-border px-2 py-0.5 text-sm">{{ deal.dataGb < 1 ? (deal.dataGb * 1000) + ' Mo' : deal.dataGb + ' Go' }}</span>
-                </td>
-                <td class="p-3 md:p-4 text-center border-r-2 border-border">
-                  <span :class="[
-                    'px-2 py-0.5 text-xs font-black border-2 border-border',
-                    deal.networkGeneration === '5G' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
-                  ]">{{ deal.networkGeneration || '-' }}</span>
-                </td>
-                <td class="p-3 md:p-4 text-center font-black text-xl border-r-2 border-border">{{ deal.price.toFixed(2) }}€</td>
-                <td class="p-3 md:p-4 text-center border-r-2 border-border">
-                  <span v-if="deal.simPrice !== null && deal.simPrice !== undefined" class="px-2 py-0.5 text-xs font-black border-2 border-border" :class="deal.simPrice === 0 ? 'bg-green-100 text-green-800' : 'bg-card text-card-foreground'">{{ deal.simPrice }}€</span>
-                  <span v-else class="text-muted-foreground text-xs">-</span>
-                </td>
-                <td class="p-3 md:p-4 text-center font-mono text-sm">
-                  {{ deal.score ? deal.score.toFixed(3) : '-' }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        </template>
+      </section>
+    </main>
+
+    <Teleport to="body">
+      <div v-if="showClearDialog" class="fixed inset-0 z-[80] grid place-items-center bg-black/70 p-4" @click.self="closeClearDialog">
+        <div role="dialog" aria-modal="true" aria-labelledby="clear-title" class="w-full max-w-md border-2 border-border bg-card p-5 text-card-foreground shadow-neo-lg md:p-6">
+          <div class="mb-5 flex items-start gap-3"><div class="grid h-11 w-11 shrink-0 place-items-center border-2 border-border bg-destructive text-destructive-foreground"><Trash2 class="h-5 w-5" /></div><div><h2 id="clear-title" class="text-xl font-black uppercase">Vider le catalogue</h2><p class="mt-1 text-sm font-semibold text-muted-foreground">Les {{ stats.totalOffers }} offres seront supprimées définitivement.</p></div></div>
+          <label class="block text-sm font-black uppercase" for="clear-confirmation">Confirmation</label>
+          <input id="clear-confirmation" v-model="clearConfirmation" class="neo-input mt-2 shadow-none" autocomplete="off" placeholder="SUPPRIMER" @keyup.enter="clearDatabase" />
+          <div class="mt-6 flex justify-end gap-2"><button class="border-2 border-border bg-card px-4 py-2 font-bold shadow-neo-hover" @click="closeClearDialog">Annuler</button><button class="flex items-center gap-2 border-2 border-border bg-destructive px-4 py-2 font-bold text-destructive-foreground shadow-neo-hover disabled:cursor-not-allowed disabled:opacity-40" :disabled="!clearIsConfirmed || isClearingAction" @click="clearDatabase"><LoaderCircle v-if="isClearingAction" class="h-4 w-4 animate-spin" /><Trash2 v-else class="h-4 w-4" />Supprimer</button></div>
         </div>
       </div>
-
-    </main>
+    </Teleport>
   </div>
 </template>

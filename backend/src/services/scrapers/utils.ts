@@ -1,4 +1,5 @@
-import type { Page } from 'puppeteer';
+import type { Page } from 'playwright';
+import { load } from 'cheerio';
 import https from 'https';
 import http from 'http';
 import type { PdfFees } from './types';
@@ -210,6 +211,21 @@ export interface PageFees {
     simPrice: number | null;
     activationPrice: number | null;
     cancellationPrice: number | null;
+}
+
+export function extractVisibleTextFromHtml(html: string): string {
+    const $ = load(html);
+    $('script, style, noscript, template, [hidden], [aria-hidden="true"], [style*="display:none"], [style*="display: none"]').remove();
+    $('br').replaceWith('\n');
+    $('h1, h2, h3, h4, h5, h6, p, li, article, section, button, a, label, td, th').each((_, element) => {
+        $(element).prepend('\n').append('\n');
+    });
+    return $('body').text()
+        .replace(/\u00a0|\u202f/g, ' ')
+        .split('\n')
+        .map((line) => line.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join('\n');
 }
 
 /**
@@ -463,7 +479,7 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
 
             if (checkoutUrl) {
                 console.log(`[${operatorName}] Navigation checkout : ${checkoutUrl}`);
-                await page.goto(checkoutUrl, { waitUntil: 'networkidle2', timeout: 30000 }).catch(() => { });
+                await page.goto(checkoutUrl, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => { });
                 await new Promise(r => setTimeout(r, 3000));
             } else {
                 console.log(`[${operatorName}] Aucun bouton de commande trouvé.`);

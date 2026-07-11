@@ -45,7 +45,9 @@ schedule.scheduleJob("0 * * * *", () => {
   console.log(
     `Exécution du scraping planifié par Cron (${new Date().toLocaleTimeString("fr-FR")})...`,
   );
-  scrapeOffers();
+  scrapeOffers().catch((error) => {
+    console.error('[CRON] La collecte planifiée a échoué :', error);
+  });
 });
 
 const server = app.listen(Number(port), "0.0.0.0", async () => {

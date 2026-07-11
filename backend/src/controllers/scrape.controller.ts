@@ -1,9 +1,6 @@
 import { Request, Response } from 'express';
-import { scrapeOffers } from '../services/scraper.service';
+import { getLatestScrapeSummary, isScrapeRunning, scrapeOffers } from '../services/scraper.service';
 import prisma from '../lib/prisma';
-
-// Simple lock en mémoire
-let isScraping = false;
 
 const getSingleParam = (value: string | string[] | undefined): string | null => {
   if (typeof value === 'string' && value.trim().length > 0) {
@@ -13,25 +10,20 @@ const getSingleParam = (value: string | string[] | undefined): string | null => 
 };
 
 export const handleScrapeRequest = async (req: Request, res: Response): Promise<void> => {
-  if (isScraping) {
+  if (isScrapeRunning()) {
     res.status(429).json({ message: 'Un scraping est déjà en cours. Veuillez patienter.' });
     return;
   }
 
   console.log('Requête de scraping reçue...');
-  isScraping = true;
-
   // On lance en arrière-plan
   scrapeOffers()
-    .then(() => {
-      console.log('Scraping job finished.');
+    .then((summary) => {
+      console.log(`Scraping job finished (${summary.success ? 'succès' : 'partiel/échoué'}).`);
     })
     .catch((err) => {
       console.error('Scraping job failed:', err);
     })
-    .finally(() => {
-      isScraping = false;
-    });
 
   res.status(202).json({ message: 'Le scraping a été lancé en arrière-plan.' });
 };
@@ -60,8 +52,9 @@ export const handleGetStatsRequest = async (req: Request, res: Response) => {
 
     res.status(200).json({
       totalOffers: count,
-      isScraping: isScraping,
-      lastUpdate: lastUpdate?.updatedAt || null
+      isScraping: isScrapeRunning(),
+      lastUpdate: lastUpdate?.updatedAt || null,
+      lastScrape: getLatestScrapeSummary(),
     });
   } catch (error) {
     console.error("Erreur stats :", error);

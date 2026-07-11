@@ -3,8 +3,8 @@ FROM --platform=linux/amd64 node:24-slim AS builder
 
 WORKDIR /app
 
-# Le runtime final fournit deja Chromium via l'image Puppeteer.
-ENV PUPPETEER_SKIP_DOWNLOAD=true
+# Le runtime final fournit deja les navigateurs Playwright.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 # Copie des fichiers de dépendances
 COPY package*.json ./
@@ -23,21 +23,22 @@ RUN npm run build
 # Nettoyage des dépendances de développement pour alléger le dossier node_modules
 RUN npm prune --omit=dev && npm cache clean --force
 
-# Stage 2: Final Run Image
-FROM --platform=linux/amd64 ghcr.io/puppeteer/puppeteer:latest
+# Stage 2: Final Run Image, alignee sur la version npm de Playwright.
+FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.61.1-noble
 
-USER pptruser
-WORKDIR /home/pptruser/app
+WORKDIR /home/pwuser/app
 
 # Copie des fichiers d'exécution
-COPY --chown=pptruser:pptruser package.json entrypoint.sh ./
-COPY --chown=pptruser:pptruser --from=builder /app/node_modules ./node_modules
-COPY --chown=pptruser:pptruser --from=builder /app/src ./src
-COPY --chown=pptruser:pptruser --from=builder /app/prisma ./prisma
-COPY --chown=pptruser:pptruser --from=builder /app/prisma.config.ts ./
+COPY --chown=pwuser:pwuser package.json entrypoint.sh ./
+COPY --chown=pwuser:pwuser --from=builder /app/node_modules ./node_modules
+COPY --chown=pwuser:pwuser --from=builder /app/src ./src
+COPY --chown=pwuser:pwuser --from=builder /app/prisma ./prisma
+COPY --chown=pwuser:pwuser --from=builder /app/prisma.config.ts ./
 
 # Rendre le script d'entrée exécutable
 RUN chmod +x entrypoint.sh
+
+USER pwuser
 
 EXPOSE 3001
 

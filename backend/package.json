@@ -1,35 +1,37 @@
 {
   "name": "backend",
-  "version": "1.0.0",
+  "version": "2.3.0",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
-    "build": "prisma generate",
+    "build": "prisma generate && tsc --noEmit",
     "start": "tsx src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tsx --test src/**/*.test.ts",
+    "test:scrapers:live": "tsx src/scripts/scrape-live.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@crawlee/cheerio": "^3.17.0",
+    "@crawlee/core": "^3.17.0",
+    "@crawlee/playwright": "^3.17.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "7.8.0",
     "axios": "^1.18.1",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "node-schedule": "^2.1.1",
     "pdf-parse": "^2.4.5",
-    "puppeteer": "^25.3.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-recaptcha": "^3.6.8",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "pg": "^8.22.0",
+    "playwright": "^1.61.1",
     "tsx": "^4.23.0",
     "undici": "^8.7.0"
   },
@@ -39,8 +41,8 @@
     "@types/node": "^26.1.1",
     "@types/node-schedule": "^2.1.8",
     "@types/pdf-parse": "^1.1.5",
-    "prisma": "7.8.0",
     "@types/pg": "^8.20.0",
+    "prisma": "7.8.0",
     "typescript": "^7.0.2"
   }
 }

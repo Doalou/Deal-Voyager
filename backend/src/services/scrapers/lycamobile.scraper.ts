@@ -4,7 +4,7 @@ import { extractFeesFromText } from './utils';
 export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
     try {
         // ─── Anti-détection supplémentaire pour Lycamobile ───
-        await page.evaluateOnNewDocument(() => {
+        await page.addInitScript(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
             // Désactiver le flag headless
             Object.defineProperty(navigator, 'plugins', {
@@ -12,15 +12,6 @@ export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
             });
         });
         await new Promise(r => setTimeout(r, 8000)); // Attente plus longue pour Lycamobile
-
-        // --- Résolution active des captchas (le cas échéant) ---
-        try {
-            if (typeof (page as any).solveRecaptchas === 'function') {
-                await (page as any).solveRecaptchas();
-            }
-        } catch (e) {
-            console.error('[Lycamobile] Exception solveRecaptchas:', e);
-        }
 
         const tryAcceptCookies = async () => {
             try {
@@ -224,7 +215,7 @@ export const lycamobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
 
             try {
                 if (page.url() !== targetUrl) {
-                    await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+                    await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 60000 });
                     await new Promise(r => setTimeout(r, 2500));
                 }
             } catch {

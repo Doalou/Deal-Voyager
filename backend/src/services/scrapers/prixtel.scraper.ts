@@ -55,7 +55,7 @@ export const prixtelScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
 
         for (const link of linksToVisit) {
             try {
-                await page.goto(link, { waitUntil: 'networkidle2', timeout: 60000 });
+                await page.goto(link, { waitUntil: 'networkidle', timeout: 60000 });
                 await new Promise(r => setTimeout(r, 2200));
 
                 const extracted = await page.evaluate(() => {
@@ -224,7 +224,7 @@ export const prixtelScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
                 price: plan.price,
                 calls: plan.calls,
                 operator: 'Prixtel',
-                network: 'Orange',
+                network: 'SFR',
                 networkGeneration: plan.networkGeneration || '4G',
                 dataEuGb: plan.dataEuGb || undefined,
                 simPrice: fees.simPrice ?? undefined,
