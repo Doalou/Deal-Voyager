@@ -145,6 +145,7 @@ test('les liens de souscription excluent les espaces client et les pages éditor
     { href: '/assistance/choisir', text: 'Choisir son forfait' },
     { href: 'https://client.operateur.test/', text: 'Souscrire depuis mon espace client' },
     { href: '/choisir-son-forfait', text: 'Choisir son forfait' },
+    { href: '/suivi-de-commande.html', text: 'Suivi de commande' },
   ]), ['https://operateur.test/commande/offre-100-go']);
 });
 

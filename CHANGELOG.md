@@ -2,6 +2,20 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [2.3.3] - 2026-07-12
+
+### Correctifs de collecte
+
+- **Mémoire Crawlee adaptée à Docker** - Le budget d'autoscaling est configurable avec `SCRAPER_MEMORY_MBYTES` et fixé à 3 Go par défaut sous la limite backend de 4 Go, évitant le bridage prématuré observé à 1,5 Go.
+- **Chromium allégé** - Les images, médias et polices sont ignorés pendant la collecte afin de réduire la mémoire et la bande passante sans supprimer le JavaScript nécessaire aux catalogues.
+- **Repli navigateur accéléré** - Un parseur HTTP vide passe immédiatement à Playwright au lieu de relire trois fois la même réponse.
+- **Checkout RED filtré** - Le lien éditorial « suivi de commande » n'est plus pris pour un lien de nouvelle souscription.
+- **Événement Discord actualisé** - Le bot utilise désormais `clientReady`, supprimant l'avertissement de dépréciation de discord.js.
+
+### Interface
+
+- **Bandeau bêta** - Les pages publiques indiquent clairement que le service est encore en bêta et orientent les signalements vers les messages privés du compte X `@doalou`.
+
 ## [2.3.2] - 2026-07-12
 
 ### Infrastructure Docker

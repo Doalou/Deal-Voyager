@@ -374,7 +374,7 @@ export async function fetchFeesFromWebPage(url: string, operatorName: string): P
     try {
         console.log(`[${operatorName}] Lecture de la page tarifaire : ${url}`);
         const response = await fetch(url, {
-            headers: { 'accept-language': 'fr-FR,fr;q=0.9', 'user-agent': 'Mozilla/5.0 Deal-Voyager/2.3.2' },
+            headers: { 'accept-language': 'fr-FR,fr;q=0.9', 'user-agent': 'Mozilla/5.0 Deal-Voyager/2.3.3' },
             signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -388,7 +388,8 @@ export async function fetchFeesFromWebPage(url: string, operatorName: string): P
 }
 
 const CHECKOUT_LABEL_PATTERN = /(?:j['’]?en\s+profite|souscri|command|ajouter\s+au\s+panier|acheter|sélectionner)/i;
-const CHECKOUT_URL_EXCLUSION_PATTERN = /(?:auth|login|connexion|account|(?:^|[./_-])client(?:[./_-]|$)|espace[-_/]?client|assistance|faq|forum|blog|actualit|smartphone|telephone|choisir[-_/]son[-_/]forfait)/i;
+const CHECKOUT_URL_EXCLUSION_PATTERN = /(?:auth|login|connexion|account|(?:^|[./_-])client(?:[./_-]|$)|espace[-_/]?client|suivi[-_/]?de[-_/]?commande|assistance|faq|forum|blog|actualit|smartphone|telephone|choisir[-_/]son[-_/]forfait)/i;
+const CHECKOUT_LABEL_EXCLUSION_PATTERN = /(?:suivi|suivre)\s+(?:de\s+|ma\s+)?commande/i;
 
 export function extractCheckoutCandidateUrls(
     pageUrl: string,
@@ -396,7 +397,7 @@ export function extractCheckoutCandidateUrls(
 ): string[] {
     const candidates = new Set<string>();
     for (const link of links) {
-        if (!CHECKOUT_LABEL_PATTERN.test(link.text) || CHECKOUT_URL_EXCLUSION_PATTERN.test(link.href)) continue;
+        if (!CHECKOUT_LABEL_PATTERN.test(link.text) || CHECKOUT_LABEL_EXCLUSION_PATTERN.test(link.text) || CHECKOUT_URL_EXCLUSION_PATTERN.test(link.href)) continue;
         try {
             const url = new URL(link.href, pageUrl);
             if (!/^https?:$/.test(url.protocol)) continue;

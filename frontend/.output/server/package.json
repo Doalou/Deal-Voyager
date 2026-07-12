@@ -21,6 +21,7 @@
     "entities": "7.0.1",
     "estree-walker": "2.0.2",
     "hookable": "6.1.1",
+    "lucide-vue-next": "1.0.0",
     "perfect-debounce": "2.1.0",
     "source-map-js": "1.2.1",
     "ufo": "1.6.4",

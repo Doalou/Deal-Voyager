@@ -1,4 +1,4 @@
-import { Configuration, ProxyConfiguration, log } from '@crawlee/core';
+import { Configuration, NonRetryableError, ProxyConfiguration, log } from '@crawlee/core';
 import { CheerioCrawler } from '@crawlee/cheerio';
 import { PlaywrightCrawler } from '@crawlee/playwright';
 import type { Page } from 'playwright';
@@ -314,14 +314,23 @@ async function runScrape(): Promise<ScrapeRunSummary> {
           throw new Error('BLOCKED_PAGE_DETECTED');
         }
         const rawPlans = await definition.htmlScrapeFunction(html, request.loadedUrl ?? request.url);
-        await completeOperator(
-          definition,
-          rawPlans,
-          undefined,
-          request.retryCount + 1,
-          'http',
-          Number(request.userData.startedAt || Date.now()),
-        );
+        try {
+          await completeOperator(
+            definition,
+            rawPlans,
+            undefined,
+            request.retryCount + 1,
+            'http',
+            Number(request.userData.startedAt || Date.now()),
+          );
+        } catch (error) {
+          // Un parseur HTTP vide ne produira pas davantage d'offres en relisant
+          // exactement la même réponse. On passe immédiatement à Playwright.
+          if (error instanceof Error && error.message.startsWith('Résultat incomplet')) {
+            throw new NonRetryableError(error.message);
+          }
+          throw error;
+        }
       },
       failedRequestHandler: async ({ request }, error) => {
         console.warn(`[${String(request.userData.operatorName)}] HTTP insuffisant, repli vers Playwright : ${error.message}`);
@@ -478,6 +487,14 @@ async function preparePage(page: Page) {
   page.setDefaultTimeout(30_000);
   await page.setViewportSize({ width: 1280, height: 960 });
   await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8' });
+  await page.route('**/*', async (route) => {
+    const resourceType = route.request().resourceType();
+    if (resourceType === 'image' || resourceType === 'media' || resourceType === 'font') {
+      await route.abort();
+      return;
+    }
+    await route.continue();
+  });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => false });
     Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr', 'en-US', 'en'] });

@@ -6,6 +6,7 @@ import {
   Interaction,
   TextChannel,
   MessageFlags,
+  Events,
 } from "discord.js";
 import prisma from "../lib/prisma";
 
@@ -47,7 +48,7 @@ export const initDiscordBot = async () => {
     );
   }
 
-  discordClient.on("ready", () => {
+  discordClient.once(Events.ClientReady, () => {
     console.log(
       `📡 Discord Bot connecté en tant que ${discordClient.user?.tag}`,
     );
