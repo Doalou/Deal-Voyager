@@ -21,14 +21,14 @@ import { auchanTelecomScrapeLogic } from './scrapers/auchan.scraper';
 import { nrjMobileScrapeLogic } from './scrapers/nrj.scraper';
 import { cdiscountMobileScrapeLogic } from './scrapers/cdiscount.scraper';
 import { symaMobileHtmlScrapeLogic, symaMobileScrapeLogic } from './scrapers/syma.scraper';
-import { lebaraScrapeLogic } from './scrapers/lebara.scraper';
+import { lebaraHtmlScrapeLogic, lebaraScrapeLogic } from './scrapers/lebara.scraper';
 import { lycamobileScrapeLogic } from './scrapers/lycamobile.scraper';
 import { prixtelScrapeLogic } from './scrapers/prixtel.scraper';
 import { telecoopHtmlScrapeLogic, telecoopScrapeLogic } from './scrapers/telecoop.scraper';
 import { akeoHtmlScrapeLogic, akeoScrapeLogic } from './scrapers/akeo.scraper';
 import { nordnetScrapeLogic } from './scrapers/nordnet.scraper';
 import { franceTelephoneHtmlScrapeLogic, franceTelephoneScrapeLogic } from './scrapers/francetelephone.scraper';
-import { detectFeesFromCheckout, fetchFeesFromPdf } from './scrapers/utils';
+import { detectFeesFromCheckout, extractCheckoutCandidateUrls, extractTariffPdfUrl, fetchFeesFromPdf, fetchFeesFromWebPage } from './scrapers/utils';
 import { broadcastDeal } from './discord.service';
 
 const DEFAULT_CONCURRENCY = 3;
@@ -44,7 +44,6 @@ export const operatorDefinitions: readonly OperatorDefinition[] = [
     mode: 'http',
     networks: ['Orange'],
     minOffers: 4,
-    defaultSimPrice: 10,
     scrapeFunction: soshScrapeLogic,
   },
   {
@@ -53,7 +52,6 @@ export const operatorDefinitions: readonly OperatorDefinition[] = [
     mode: 'browser',
     networks: ['SFR'],
     minOffers: 4,
-    defaultSimPrice: 10,
     scrapeFunction: redScrapeLogic,
   },
   {
@@ -139,10 +137,11 @@ export const operatorDefinitions: readonly OperatorDefinition[] = [
   },
   {
     name: 'Lebara',
-    url: 'https://www.lebara.fr/fr/',
+    url: 'https://www.lebara.fr/fr/forfait-mensuel.html',
     mode: 'http',
     networks: ['SFR'],
     minOffers: 3,
+    htmlScrapeFunction: lebaraHtmlScrapeLogic,
     scrapeFunction: lebaraScrapeLogic,
   },
   {
@@ -186,6 +185,7 @@ export const operatorDefinitions: readonly OperatorDefinition[] = [
     mode: 'browser',
     networks: ['Orange'],
     minOffers: 5,
+    feeSourceUrl: 'https://www.nordnet.com/tarifs',
     scrapeFunction: nordnetScrapeLogic,
   },
   {
@@ -263,12 +263,14 @@ async function runScrape(): Promise<ScrapeRunSummary> {
     attempts: number,
     actualMode: 'http' | 'browser',
     operatorStartedAt: number,
+    checkoutCandidateUrls: readonly string[] = [],
+    discoveredPdfUrl: string | null = null,
   ) => {
     const plans = validateAndNormalizePlans(definition, rawPlans);
     if (plans.length < definition.minOffers) {
       throw new Error(`Résultat incomplet : ${plans.length}/${definition.minOffers} offre(s) minimum`);
     }
-    const persistence = await enrichAndPersistPlans(definition, page, plans);
+    const persistence = await enrichAndPersistPlans(definition, page, plans, checkoutCandidateUrls, discoveredPdfUrl);
     const status = persistence.saveErrors > 0 ? 'partial' : 'success';
     const outcome: ScrapeOutcome = {
       operator: definition.name,
@@ -374,17 +376,39 @@ async function runScrape(): Promise<ScrapeRunSummary> {
         throw new Error(`BLOCKED_HTTP_${statusCode}`);
       }
 
-      const initialHtml = await page.content();
+      let initialHtml = await page.content();
       if (isBlockedContent(initialHtml)) {
-        session?.retire();
-        throw new Error('BLOCKED_PAGE_DETECTED');
+        // Certains challenges JS (notamment Baleen) posent un cookie puis
+        // rechargent automatiquement la vraie page.
+        await page.waitForTimeout(8000);
+        initialHtml = await page.content();
+        if (isBlockedContent(initialHtml)) {
+          session?.retire();
+          throw new Error('BLOCKED_PAGE_DETECTED');
+        }
       }
 
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
       await page.waitForTimeout(1200);
 
+      const checkoutLinks = await page.evaluate(() => Array.from(document.querySelectorAll('a[href]')).map((link) => ({
+        href: link.getAttribute('href') || '',
+        text: link.textContent || '',
+      })));
+      const checkoutCandidateUrls = extractCheckoutCandidateUrls(page.url(), checkoutLinks);
+      const discoveredPdfUrl = await definition.findPdfUrl?.(page).catch(() => null)
+        ?? extractTariffPdfUrl(page.url(), checkoutLinks);
       const rawPlans = await definition.scrapeFunction(page);
-      await completeOperator(definition, rawPlans, page, request.retryCount + 1, 'browser', operatorStartedAt);
+      await completeOperator(
+        definition,
+        rawPlans,
+        page,
+        request.retryCount + 1,
+        'browser',
+        operatorStartedAt,
+        checkoutCandidateUrls,
+        discoveredPdfUrl,
+      );
     },
     failedRequestHandler: async ({ request }, error) => {
       const operatorName = String(request.userData.operatorName || 'Inconnu');
@@ -499,6 +523,8 @@ async function enrichAndPersistPlans(
   definition: OperatorDefinition,
   page: Page | undefined,
   plans: ScrapedPlan[],
+  checkoutCandidateUrls: readonly string[] = [],
+  discoveredPdfUrl: string | null = null,
 ): Promise<{ saveErrors: number; purgeSkipped: boolean }> {
   const operatorNames = [definition.name, ...(definition.legacyNames ?? [])];
   const previousPlans = await prisma.mobilePlan.findMany({
@@ -510,22 +536,21 @@ async function enrichAndPersistPlans(
   let checkoutFees = { simPrice: null as number | null, activationPrice: null as number | null };
 
   if (page && (needsSimPrice || needsActivation)) {
-    checkoutFees = await detectFeesFromCheckout(page, definition.name);
+    checkoutFees = await detectFeesFromCheckout(page, definition.name, checkoutCandidateUrls);
   }
 
   let pdfFees = null;
+  let webFees = null;
   if (needsCancellation || (needsSimPrice && checkoutFees.simPrice == null) || (needsActivation && checkoutFees.activationPrice == null)) {
-    let pdfUrl = definition.pdfUrl ?? null;
-    if (page && definition.findPdfUrl) {
-      pdfUrl = await definition.findPdfUrl(page).catch(() => null) ?? pdfUrl;
-    }
+    const pdfUrl = definition.pdfUrl ?? discoveredPdfUrl ?? null;
     if (pdfUrl) pdfFees = await fetchFeesFromPdf(pdfUrl, definition.name);
+    if (definition.feeSourceUrl) webFees = await fetchFeesFromWebPage(definition.feeSourceUrl, definition.name);
   }
 
   for (const plan of plans) {
-    plan.simPrice ??= checkoutFees.simPrice ?? pdfFees?.simPrice ?? definition.defaultSimPrice;
-    plan.activationPrice ??= checkoutFees.activationPrice ?? pdfFees?.activationPrice ?? undefined;
-    plan.cancellationPrice ??= pdfFees?.cancellationPrice ?? undefined;
+    plan.simPrice ??= checkoutFees.simPrice ?? pdfFees?.simPrice ?? webFees?.simPrice ?? undefined;
+    plan.activationPrice ??= checkoutFees.activationPrice ?? pdfFees?.activationPrice ?? webFees?.activationPrice ?? undefined;
+    plan.cancellationPrice ??= pdfFees?.cancellationPrice ?? webFees?.cancellationPrice ?? undefined;
   }
 
   let saveErrors = 0;

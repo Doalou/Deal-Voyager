@@ -7,7 +7,7 @@ interface MobilePlan {
   operator: string;
   planName: string;
   price: number;
-  simPrice: number;
+  simPrice: number | null;
   dataGb: number;
   calls: string;
   sms: string;
@@ -22,12 +22,16 @@ const props = defineProps<{
   deal: MobilePlan;
   isFairplay: boolean;
   isStarOffer?: boolean;
-  activationPrice: number;
-  cancellationPrice: number;
+  simPrice: number | null;
+  activationPrice: number | null;
+  cancellationPrice: number | null;
 }>()
 
-// Use deal.simPrice if scraped, otherwise default to 10€
-const simPrice = computed(() => props.deal.simPrice ?? 10)
+const hasUnknownFees = computed(() => [props.simPrice, props.activationPrice, props.cancellationPrice].some(fee => fee == null))
+const annualPrice = computed(() => props.deal.price * 12
+  + (props.simPrice ?? 0)
+  + (props.activationPrice ?? 0)
+  + (props.cancellationPrice ?? 0))
 
 const formattedScore = (score: number | null) => {
   if (!score || score <= 0) return null
@@ -99,15 +103,15 @@ const formattedScore = (score: number | null) => {
 
       <div class="text-left sm:text-right flex flex-col items-start sm:items-end gap-1 w-full sm:w-auto">
         <div class="bg-card border-2 border-border px-3 py-1 font-bold text-xs uppercase shadow-neo-hover flex flex-col items-start sm:items-end leading-tight text-card-foreground w-full sm:w-auto">
-          <span>Carte SIM: <span class="text-primary text-base">{{ simPrice }}€</span></span>
-          <span v-if="activationPrice !== undefined" class="text-[10px] text-muted-foreground">Activation: {{ activationPrice }}€</span>
-          <span v-if="cancellationPrice !== undefined" class="text-[10px] text-muted-foreground">Résiliation: {{ cancellationPrice }}€</span>
+          <span>Carte SIM: <span class="text-primary text-base">{{ simPrice == null ? 'Non détecté' : simPrice + '€' }}</span></span>
+          <span class="text-[10px] text-muted-foreground">Activation: {{ activationPrice == null ? 'Non détecté' : activationPrice + '€' }}</span>
+          <span class="text-[10px] text-muted-foreground">Résiliation: {{ cancellationPrice == null ? 'Non détecté' : cancellationPrice + '€' }}</span>
         </div>
         <div :class="[
           'px-3 py-1 font-bold text-xs uppercase w-full sm:w-auto text-center sm:text-right', 
           isStarOffer ? 'bg-foreground text-background' : 'bg-muted border-2 border-border text-muted-foreground'
         ]">
-          1 an: {{ (deal.price * 12 + simPrice + activationPrice + cancellationPrice).toFixed(2) }}€
+          {{ hasUnknownFees ? '1 an, minimum :' : '1 an :' }} {{ annualPrice.toFixed(2) }}€
         </div>
       </div>
 

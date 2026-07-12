@@ -12,7 +12,9 @@ interface MobilePlan {
   operator: string;
   planName: string;
   price: number;
-  simPrice: number;
+  simPrice: number | null;
+  activationPrice: number | null;
+  cancellationPrice: number | null;
   dataGb: number;
   calls: string;
   sms: string;
@@ -45,15 +47,14 @@ const isFairplay = (operatorName: string) => {
   return op ? op.isFairplay : true // True by default
 }
 
-const getActivationPrice = (operatorName: string): number => {
-  const op = operators.value?.find((o: OperatorSettings) => o.operatorName === operatorName)
-  return op?.activationPrice ?? 0
+const getFee = (deal: MobilePlan, field: 'simPrice' | 'activationPrice' | 'cancellationPrice'): number | null => {
+  const settings = operators.value?.find((operator: OperatorSettings) => operator.operatorName === deal.operator)
+  return settings?.[field] ?? deal[field] ?? null
 }
 
-const getCancellationPrice = (operatorName: string): number => {
-  const op = operators.value?.find((o: OperatorSettings) => o.operatorName === operatorName)
-  return op?.cancellationPrice ?? 0
-}
+const unknownFeeCount = (deal: MobilePlan) => (
+  ['simPrice', 'activationPrice', 'cancellationPrice'] as const
+).filter(field => getFee(deal, field) == null).length
 
 // Computed: Filtered deals
 const filteredDeals = computed(() => {
@@ -66,10 +67,10 @@ const filteredDeals = computed(() => {
     .filter((d: MobilePlan) => d.dataGb >= targetDataGb.value)
     .filter((d: MobilePlan) => targetNetworks.value.length > 0 && targetNetworks.value.some(net => d.network?.toLowerCase().includes(net.toLowerCase())))
     .sort((a: MobilePlan, b: MobilePlan) => {
-      const simA = a.simPrice ?? 10;
-      const simB = b.simPrice ?? 10;
-      const costA = (a.price * 12) + simA + getActivationPrice(a.operator) + getCancellationPrice(a.operator);
-      const costB = (b.price * 12) + simB + getActivationPrice(b.operator) + getCancellationPrice(b.operator);
+      const missingFeeDifference = unknownFeeCount(a) - unknownFeeCount(b)
+      if (missingFeeDifference !== 0) return missingFeeDifference
+      const costA = (a.price * 12) + (getFee(a, 'simPrice') ?? 0) + (getFee(a, 'activationPrice') ?? 0) + (getFee(a, 'cancellationPrice') ?? 0);
+      const costB = (b.price * 12) + (getFee(b, 'simPrice') ?? 0) + (getFee(b, 'activationPrice') ?? 0) + (getFee(b, 'cancellationPrice') ?? 0);
       if (costA === costB) return b.dataGb - a.dataGb;
       return costA - costB;
     })
@@ -153,8 +154,9 @@ const isDiscordConfigured = computed(() => !!config.public.discordClientId)
               :deal="starOffer"
               :is-fairplay="isFairplay(starOffer.operator)"
               :is-star-offer="true"
-              :activation-price="getActivationPrice(starOffer.operator)"
-              :cancellation-price="getCancellationPrice(starOffer.operator)"
+              :sim-price="getFee(starOffer, 'simPrice')"
+              :activation-price="getFee(starOffer, 'activationPrice')"
+              :cancellation-price="getFee(starOffer, 'cancellationPrice')"
             />
           </div>
 
@@ -171,8 +173,9 @@ const isDiscordConfigured = computed(() => !!config.public.discordClientId)
                 :deal="deal"
                 :is-fairplay="isFairplay(deal.operator)"
                 :is-star-offer="false"
-                :activation-price="getActivationPrice(deal.operator)"
-                :cancellation-price="getCancellationPrice(deal.operator)"
+                :sim-price="getFee(deal, 'simPrice')"
+                :activation-price="getFee(deal, 'activationPrice')"
+                :cancellation-price="getFee(deal, 'cancellationPrice')"
               />
             </div>
 

@@ -3,9 +3,11 @@ import test from 'node:test';
 import { operatorDefinitions, validateAndNormalizePlans } from '../scraper.service';
 import { parseAkeoText } from './akeo.scraper';
 import { parseFranceTelephoneText } from './francetelephone.scraper';
+import { discoverFreePlanUrls } from './free.scraper';
+import { parseLebaraText } from './lebara.scraper';
 import { parseSymaText } from './syma.scraper';
 import { parseTelecoopText } from './telecoop.scraper';
-import { extractVisibleTextFromHtml } from './utils';
+import { extractCheckoutCandidateUrls, extractCheckoutFeesFromText, extractTariffPdfUrl, extractVisibleTextFromHtml } from './utils';
 
 test('le registre contient 18 opérateurs uniques et complets', () => {
   assert.equal(operatorDefinitions.length, 18);
@@ -84,6 +86,57 @@ test('France Téléphone ignore les box et moyenne les promotions sur douze mois
   assert.deepEqual(plans.map((plan) => plan.network), ['Orange', 'Bouygues Telecom']);
 });
 
+test('Free découvre les forfaits depuis les liens sans routes prédéfinies', () => {
+  const urls = discoverFreePlanUrls('https://mobile.free.fr/', [
+    { href: '/une-offre-mobile', text: 'Forfait principal' },
+    { href: '/serie-speciale', text: 'Série du moment' },
+    { href: '/assistance', text: 'Assistance' },
+  ]);
+  assert.deepEqual(urls, [
+    'https://mobile.free.fr/une-offre-mobile',
+    'https://mobile.free.fr/serie-speciale',
+  ]);
+});
+
+test("le checkout ne confond pas l'activation de la SIM avec des frais d'activation", () => {
+  assert.deepEqual(extractCheckoutFeesFromText('Activation SIM : 10 €'), {
+    simPrice: 10,
+    activationPrice: null,
+  });
+  assert.deepEqual(extractCheckoutFeesFromText('Carte SIM 1,99 € - Frais de souscription : 5 €'), {
+    simPrice: 1.99,
+    activationPrice: 5,
+  });
+  assert.deepEqual(extractCheckoutFeesFromText('Carte SIM / eSIM Frais d’activation 10,00 € Total 10,00 €'), {
+    simPrice: null,
+    activationPrice: 10,
+  });
+  assert.deepEqual(extractCheckoutFeesFromText('Forfait 7,99 € / mois TYPE CARTE SIM Carte SIM triple découpe Frais d’activation 10,00 €'), {
+    simPrice: null,
+    activationPrice: 10,
+  });
+});
+
+test('les liens de souscription excluent les espaces client et les pages éditoriales', () => {
+  assert.deepEqual(extractCheckoutCandidateUrls('https://operateur.test/forfaits', [
+    { href: '/commande/offre-100-go', text: 'Je souscris' },
+    { href: '/espace-client/connexion', text: 'Continuer' },
+    { href: '/assistance/choisir', text: 'Choisir son forfait' },
+    { href: 'https://client.operateur.test/', text: 'Souscrire depuis mon espace client' },
+    { href: '/choisir-son-forfait', text: 'Choisir son forfait' },
+  ]), ['https://operateur.test/commande/offre-100-go']);
+});
+
+test('la brochure tarifaire est mémorisée avant de quitter le catalogue', () => {
+  assert.equal(extractTariffPdfUrl('https://operateur.test/forfaits', [
+    { href: '/mentions.pdf', text: 'Mentions légales' },
+    { href: '/documents/brochure-tarifaire.pdf?version=2026', text: 'Brochure tarifaire' },
+  ]), 'https://operateur.test/documents/brochure-tarifaire.pdf?version=2026');
+  assert.equal(extractTariffPdfUrl('https://operateur.test/forfaits', [
+    { href: '/documents/offre.pdf', text: 'Récapitulatif contractuel' },
+  ]), 'https://operateur.test/documents/offre.pdf');
+});
+
 test('Syma associe les colonnes prix, data et Europe sans lire les options', () => {
   const plans = parseSymaText(`
     SANS ENGAGEMENT
@@ -109,6 +162,35 @@ test('Syma associe les colonnes prix, data et Europe sans lire les options', () 
   `);
   assert.equal(plans.length, 2);
   assert.deepEqual(plans.map((plan) => [plan.dataGb, plan.price, plan.dataEuGb]), [[10, 7.99, 10], [100, 9.99, 32]]);
+});
+
+test('Lebara lit le catalogue nouveaux clients et ses frais gratuits', () => {
+  const plans = parseLebaraText(`
+    Forfaits mobiles sans engagement
+    La carte SIM et la livraison sont offertes !
+    Offre exclusive nouvelle souscription
+    Forfait Mensuel 50Go
+    50Go
+    5,99 €
+    / Mois
+    Appels/SMS illimités vers la France
+    Réseau 4G/4G+
+    Dont 7Go depuis l'UE/ DOM
+    Sans engagement
+    Forfait Mensuel 250Go 5G
+    250Go
+    8,99 €
+    / Mois
+    Appels/SMS illimités vers la France
+    5G incluse !
+    Dont 7Go depuis l'UE/ DOM
+    Sans engagement
+  `);
+  assert.deepEqual(plans.map(plan => [plan.dataGb, plan.price, plan.dataEuGb, plan.networkGeneration]), [
+    [50, 5.99, 7, '4G'],
+    [250, 8.99, 7, '5G'],
+  ]);
+  assert.ok(plans.every(plan => plan.simPrice === 0 && plan.cancellationPrice === 0));
 });
 
 test('TeleCoop développe les paliers fixes et exclut la facturation au Go', () => {

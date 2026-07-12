@@ -401,7 +401,7 @@ onUnmounted(() => {
             <span class="h-2.5 w-2.5 shrink-0 bg-primary" />
             <h1 class="truncate font-display text-xl font-black uppercase md:text-2xl">Control Room</h1>
           </div>
-          <p class="truncate text-xs font-semibold text-background/65">Deal-Voyager 2.3.0</p>
+          <p class="truncate text-xs font-semibold text-background/65">Deal-Voyager 2.3.1</p>
         </div>
         <div class="hidden items-center gap-2 sm:flex">
           <span :class="['h-2.5 w-2.5', stats.isScraping ? 'animate-pulse bg-primary' : 'bg-emerald-400']" />

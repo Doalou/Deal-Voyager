@@ -1,6 +1,26 @@
 import type { ScraperConfig, ScrapedPlan } from './types';
 import { extractFeesFromText } from './utils';
 
+export function discoverFreePlanUrls(
+    pageUrl: string,
+    links: readonly { href: string; text: string }[],
+) {
+    const currentUrl = new URL(pageUrl);
+    const found = new Set<string>();
+
+    for (const link of links) {
+        const text = link.text.replace(/\s+/g, ' ').trim();
+        if (!/forfait|série/i.test(`${link.href} ${text}`)) continue;
+        try {
+            const url = new URL(link.href, currentUrl);
+            if (url.origin !== currentUrl.origin || url.href === currentUrl.href) continue;
+            found.add(url.href);
+        } catch { }
+    }
+
+    return [...found];
+}
+
 export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) => {
     try {
         await new Promise(r => setTimeout(r, 5000));
@@ -27,55 +47,19 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
 
         const plans: ScrapedPlan[] = [];
 
-        // ─── Découverte dynamique des liens vers les fiches forfait ───
-        // On cherche tous les liens du type "/fiche-forfait-*" sur la page d'accueil
-        const planUrls = await page.evaluate(() => {
-            var links = Array.from(document.querySelectorAll('a[href]'));
-            var found: string[] = [];
-            for (var i = 0; i < links.length; i++) {
-                var href = links[i].getAttribute('href') || '';
-                // Chercher les liens vers les fiches forfait (pattern: /fiche-forfait-*)
-                if (/\/fiche-forfait-/i.test(href)) {
-                    try {
-                        var fullUrl = new URL(href, window.location.origin).href;
-                        if (found.indexOf(fullUrl) === -1) {
-                            found.push(fullUrl);
-                        }
-                    } catch (e) { }
-                }
-            }
-            return found;
+        // ─── Découverte dynamique de toutes les pages forfait ───
+        const links = await page.evaluate(() => {
+            return Array.from(document.querySelectorAll('a[href]')).map(link => ({
+                href: link.getAttribute('href') || '',
+                text: link.textContent || '',
+            }));
         });
+        const planUrls = discoverFreePlanUrls(page.url(), links);
         console.log(`[Free Mobile] ${planUrls.length} fiche(s) forfait découverte(s): ${planUrls.join(', ')}`);
-
-        // Fallback : si aucun lien fiche-forfait trouvé, chercher les onglets/menu
-        if (planUrls.length === 0) {
-            const menuLinks = await page.evaluate(() => {
-                var links = Array.from(document.querySelectorAll('a[href]'));
-                var found: string[] = [];
-                for (var i = 0; i < links.length; i++) {
-                    var href = links[i].getAttribute('href') || '';
-                    var text = (links[i].textContent || '').trim().toLowerCase();
-                    // Chercher des liens contenant "forfait" dans le texte ou l'URL
-                    if ((text.length < 40 && text.length > 3 && /forfait|série/i.test(text)) ||
-                        /\/forfait/i.test(href)) {
-                        try {
-                            var fullUrl = new URL(href, window.location.origin).href;
-                            if (found.indexOf(fullUrl) === -1 && fullUrl !== window.location.href) {
-                                found.push(fullUrl);
-                            }
-                        } catch (e) { }
-                    }
-                }
-                return found;
-            });
-            for (var url of menuLinks) planUrls.push(url);
-            console.log(`[Free Mobile] Fallback: ${menuLinks.length} lien(s) forfait trouvé(s)`);
-        }
 
         for (const planUrl of planUrls) {
             try {
-                await page.goto(planUrl, { waitUntil: 'networkidle', timeout: 20000 });
+                await page.goto(planUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
                 await new Promise(r => setTimeout(r, 3000));
 
                 // ─── Scroller la page du forfait ───
@@ -127,7 +111,7 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                         var nl = j + 1 < lines.length ? lines[j + 1].replace(/\s+/g, ' ').trim() : '';
 
                         // Data illimitée
-                        if (dataGb === 0 && /^illimit[ée]/i.test(cl)) {
+                        if (dataGb === 0 && /^(?:internet\s+)?illimit[ée]?\b/i.test(cl)) {
                             dataGb = 9999;
                         }
 

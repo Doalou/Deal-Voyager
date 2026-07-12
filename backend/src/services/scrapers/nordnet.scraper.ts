@@ -26,7 +26,7 @@ export const nordnetScrapeLogic: ScraperConfig['scrapeFunction'] = async (page) 
         network: 'Orange',
         networkGeneration: dataGb >= 100 ? '5G' : '4G',
         dataEuGb: dataGb,
-        simPrice: fees.simPrice ?? 10,
+        simPrice: fees.simPrice ?? undefined,
         activationPrice: fees.activationPrice ?? undefined,
         cancellationPrice: fees.cancellationPrice ?? 0,
       });

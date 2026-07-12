@@ -90,32 +90,30 @@ export function extractFeesFromPdfText(pdfText: string, operatorName?: string): 
     const text = operatorName ? narrowToOperatorSection(rawText, operatorName) : rawText;
 
     let cancellationPrice: number | null = null;
+    if (/(?:sans\s+frais\s+de\s+r[ée]siliation|r[ée]siliation\s+gratuite?)/i.test(text)) cancellationPrice = 0;
     const cancelPatterns = [
-        /frais\s*(?:de\s*)?r[ée]siliation\s*[^€\d]{0,60}?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
-        /r[ée]siliation[^€\d]{0,80}?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
-        /(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)\s*[^.\n]{0,40}?(?:r[ée]siliation|r[ée]silier)/gi,
-        /frais\s*(?:de\s*)?fermeture\s*[^€\d]{0,60}?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+        /frais\s*(?:de\s*)?r[ée]siliation\s*[^€\d\n]{0,40}(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+        /frais\s*(?:de\s*)?fermeture\s*[^€\d\n]{0,40}(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
     ];
     for (const pattern of cancelPatterns) {
         const match = pattern.exec(text);
         if (match) {
             const val = parseFloat(match[1].replace(',', '.'));
-            if (val >= 0 && val <= 100) { cancellationPrice = val; break; }
+            if (val >= 0 && val <= 20) { cancellationPrice = val; break; }
         }
     }
 
     let activationPrice: number | null = null;
     const activationPatterns = [
-        /frais\s*(?:d[''e]\s*)?activation\s*[^€\d]{0,60}?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
-        /frais\s*(?:de\s*)?mise\s*en\s*service\s*[^€\d]{0,60}?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
-        /(?:souscription|ouverture\s*(?:de\s*)?ligne)\s*[^€\d]{0,60}?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
-        /(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)\s*[^.\n]{0,40}?(?:activation|mise\s*en\s*service|souscription)/gi,
+        /frais\s*(?:d[''e]\s*)?activation\s*[^€\d\n]{0,40}(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+        /frais\s*(?:de\s*)?mise\s*en\s*service\s*[^€\d\n]{0,40}(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+        /frais\s*(?:de\s*)?souscription\s*[^€\d\n]{0,40}(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
     ];
     for (const pattern of activationPatterns) {
         const match = pattern.exec(text);
         if (match) {
             const val = parseFloat(match[1].replace(',', '.'));
-            if (val >= 0 && val <= 100) { activationPrice = val; break; }
+            if (val >= 0 && val <= 20) { activationPrice = val; break; }
         }
     }
 
@@ -199,6 +197,10 @@ export function extractFeesFromPdfText(pdfText: string, operatorName?: string): 
                 }
             }
         }
+    }
+
+    if (simPrice != null && simPrice > 0 && !/(?:prix|frais|co[uû]t)?\s*(?:de\s+la\s+)?carte\s*sim(?:\s*\/\s*e?sim)?\s*(?:est\s*)?(?:factur[ée]e?|co[uû]te?|pay[ée]e?|[:àa])\s*\d+(?:[,.]\d{1,2})?\s*(?:€|euros?)/i.test(text)) {
+        simPrice = null;
     }
 
     return { cancellationPrice, activationPrice, simPrice };
@@ -365,15 +367,120 @@ export interface CheckoutFees {
     activationPrice: number | null;
 }
 
+export async function fetchFeesFromWebPage(url: string, operatorName: string): Promise<PageFees | null> {
+    try {
+        console.log(`[${operatorName}] Lecture de la page tarifaire : ${url}`);
+        const response = await fetch(url, {
+            headers: { 'accept-language': 'fr-FR,fr;q=0.9', 'user-agent': 'Mozilla/5.0 Deal-Voyager/2.3.1' },
+            signal: AbortSignal.timeout(30_000),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const fees = extractFeesFromText(extractVisibleTextFromHtml(await response.text()));
+        console.log(`[${operatorName}] Frais extraits de la page tarifaire :`, JSON.stringify(fees));
+        return fees;
+    } catch (error) {
+        console.warn(`[${operatorName}] Impossible de lire la page tarifaire (${url}):`, error);
+        return null;
+    }
+}
+
+const CHECKOUT_LABEL_PATTERN = /(?:j['’]?en\s+profite|souscri|command|ajouter\s+au\s+panier|acheter|sélectionner)/i;
+const CHECKOUT_URL_EXCLUSION_PATTERN = /(?:auth|login|connexion|account|(?:^|[./_-])client(?:[./_-]|$)|espace[-_/]?client|assistance|faq|forum|blog|actualit|smartphone|telephone|choisir[-_/]son[-_/]forfait)/i;
+
+export function extractCheckoutCandidateUrls(
+    pageUrl: string,
+    links: readonly { href: string; text: string }[],
+): string[] {
+    const candidates = new Set<string>();
+    for (const link of links) {
+        if (!CHECKOUT_LABEL_PATTERN.test(link.text) || CHECKOUT_URL_EXCLUSION_PATTERN.test(link.href)) continue;
+        try {
+            const url = new URL(link.href, pageUrl);
+            if (!/^https?:$/.test(url.protocol)) continue;
+            candidates.add(url.href);
+        } catch { }
+    }
+    return [...candidates];
+}
+
+export function extractTariffPdfUrl(
+    pageUrl: string,
+    links: readonly { href: string; text: string }[],
+): string | null {
+    for (const link of links) {
+        if (!/(?:brochure|guide|tarif|prix|r[ée]capitulatif\s+contractuel|contract[-_ ]?summary|conditions?\s+g[ée]n[ée]rales?|cgs)/i.test(`${link.text} ${link.href}`)) continue;
+        try {
+            const url = new URL(link.href, pageUrl);
+            if (/\.pdf(?:$|[?#])/i.test(url.href)) return url.href;
+        } catch { }
+    }
+    return null;
+}
+
+/**
+ * Extrait uniquement les frais explicitement libellés dans un panier.
+ * En particulier, "activation SIM : 10 €" désigne généralement le prix de
+ * la carte et ne doit pas être dupliqué dans les frais d'activation.
+ */
+export function extractCheckoutFeesFromText(rawText: string): CheckoutFees {
+    const text = rawText
+        .replace(/[\u00a0\u202f]/g, ' ')
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+
+    const readPrice = (patterns: RegExp[], maximum: number): number | null => {
+        for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (!match) continue;
+            const price = Number.parseFloat(match[1].replace(',', '.'));
+            if (Number.isFinite(price) && price >= 0 && price <= maximum) return price;
+        }
+        return null;
+    };
+
+    let simPrice = /(?:carte\s*)?sim[^.;]{0,35}(?:gratuite?|offerte?|incluse?)/i.test(text) ? 0 : readPrice([
+        /(?:frais\s*(?:de\s*)?|co[uû]t\s*(?:de\s*)?)?carte\s*sim\b(?:(?!frais|activation)[^€\d]){0,40}(\d+(?:[,.]\d{1,2})?)\s*€/i,
+        /activation\s+(?:de\s+la\s+)?sim\b[^€\d]{0,30}(\d+(?:[,.]\d{1,2})?)\s*€/i,
+        /frais\s*(?:de\s*)?(?:livraison|envoi)\b[^€\d]{0,30}(\d+(?:[,.]\d{1,2})?)\s*€/i,
+    ], 50);
+
+    const activationIsFree = /(?:frais\s*(?:d['e]\s*)?activation|frais\s*(?:de\s*)?(?:mise\s*en\s*service|souscription))\s*(?:sont\s*)?(?:gratuits?|offerts?)/i.test(text);
+    const activationPrice = activationIsFree ? 0 : readPrice([
+        /frais\s*(?:d['e]\s*)?activation\b(?!\s+(?:de\s+la\s+)?sim\b)[^€\d]{0,30}(\d+(?:[,.]\d{1,2})?)\s*€/i,
+        /frais\s*(?:de\s*)?mise\s*en\s*service\b[^€\d]{0,30}(\d+(?:[,.]\d{1,2})?)\s*€/i,
+        /frais\s*(?:de\s*)?souscription\b[^€\d]{0,30}(\d+(?:[,.]\d{1,2})?)\s*€/i,
+    ], 20);
+
+    return { simPrice, activationPrice };
+}
+
 /**
  * Tente de détecter le prix SIM et les frais d'activation en naviguant vers le checkout/panier.
  * Cherche un bouton "Commander"/"Souscrire"/"Choisir" sur la page, clique dessus,
  * puis lit les frais depuis la page de commande.
  */
-export async function detectFeesFromCheckout(page: Page, operatorName: string): Promise<CheckoutFees> {
+export async function detectFeesFromCheckout(
+    page: Page,
+    operatorName: string,
+    candidateUrls: readonly string[] = [],
+): Promise<CheckoutFees> {
     const result: CheckoutFees = { simPrice: null, activationPrice: null };
     try {
         console.log(`[${operatorName}] Tentative de détection des frais via checkout...`);
+
+        if (candidateUrls.length > 0) {
+            for (const candidateUrl of candidateUrls.slice(0, 4)) {
+                console.log(`[${operatorName}] Ouverture du lien de souscription détecté : ${candidateUrl}`);
+                await page.goto(candidateUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => undefined);
+                await new Promise(r => setTimeout(r, 2500));
+                const candidateText = await page.evaluate(() => document.body?.innerText ?? '');
+                const candidateFees = extractCheckoutFeesFromText(candidateText);
+                result.simPrice ??= candidateFees.simPrice;
+                result.activationPrice ??= candidateFees.activationPrice;
+                if (result.simPrice !== null || result.activationPrice !== null) break;
+            }
+        }
 
         const keywords = [
             'j\'en profite', 'choisir ce forfait', 'je choisis', 'je commande', 'je souscris',
@@ -386,7 +493,7 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
             const buttons = Array.from(document.querySelectorAll('a, button, [role="button"], input[type="submit"]'))
                 .filter(el => !el.closest(excludeSelectors));
 
-            const excludeUrlKeywords = ['guide', 'faq', 'assistance', 'blog', 'forum', 'actualite', 'news'];
+            const excludeUrlKeywords = ['guide', 'faq', 'assistance', 'blog', 'forum', 'actualite', 'news', 'auth', 'login', 'connexion', 'account', 'espace-client'];
 
             for (const kw of kws) {
                 for (const el of buttons) {
@@ -420,7 +527,7 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
                 const excludeSelectors = 'nav, header, [role="navigation"]';
                 const buttons = Array.from(document.querySelectorAll('a, button, [role="button"]'))
                     .filter(el => !el.closest(excludeSelectors));
-                const excludeUrlKeywords = ['guide', 'faq', 'assistance', 'blog', 'forum', 'actualite', 'news'];
+                const excludeUrlKeywords = ['guide', 'faq', 'assistance', 'blog', 'forum', 'actualite', 'news', 'auth', 'login', 'connexion', 'account', 'espace-client'];
                 for (const kw of kws) {
                     for (const el of buttons) {
                         const originalText = (el.textContent || '').trim();
@@ -450,7 +557,7 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
                 const links = Array.from(document.querySelectorAll('a[href]'))
                     .filter(el => !el.closest(excludeSelectors));
 
-                const excludeUrlKeywords = ['guide', 'faq', 'assistance', 'blog', 'forum', 'actualite', 'news', 'telephone', 'smartphone', 'mobile/'];
+                const excludeUrlKeywords = ['guide', 'faq', 'assistance', 'blog', 'forum', 'actualite', 'news', 'telephone', 'smartphone', 'mobile/', 'auth', 'login', 'connexion', 'account', 'espace-client'];
 
                 for (const kw of kws) {
                     for (const el of links) {
@@ -489,67 +596,10 @@ export async function detectFeesFromCheckout(page: Page, operatorName: string): 
 
         console.log(`[${operatorName}] Page checkout active : ${page.url()}`);
 
-        const fees = await page.evaluate(() => {
-            const bodyLines = document.body.innerText.split('\n').filter(l => l.trim().length > 0 && l.trim().length < 300);
-            const bodyText = bodyLines.join(' ').toLowerCase().replace(/\u00a0/g, ' ');
-
-            let simPrice: number | null = null;
-            if (/sim\s*gratuit/i.test(bodyText) || /sim\s*offert/i.test(bodyText)) {
-                simPrice = 0;
-            } else {
-                const simPatterns = [
-                    /carte\s*sim\s*(?:[\s\S]{0,40}?)(\d+(?:[,.]\d{2})?)\s*€/i,
-                    /sim\s*(?:triple|nano|micro)?\s*(?:[\s\S]{0,20}?)(\d+(?:[,.]\d{2})?)\s*€/i,
-                    /(\d+(?:[,.]\d{2})?)\s*€\s*(?:[\s\S]{0,20}?)(?:carte\s*sim|sim)/i,
-                    /livraison\s*(?:[\s\S]{0,30}?)(\d+(?:[,.]\d{2})?)\s*€/i,
-                    /frais\s*(?:de\s*)?(?:livraison|envoi)\s*(?:[\s\S]{0,20}?)(\d+(?:[,.]\d{2})?)\s*€/i,
-                ];
-                for (const pat of simPatterns) {
-                    const m = bodyText.match(pat);
-                    if (m) {
-                        const price = parseFloat(m[1].replace(',', '.'));
-                        if (price >= 0 && price <= 50) { simPrice = price; break; }
-                    }
-                }
-                if (simPrice === null) {
-                    const section = bodyText.match(/(?:récapitulatif|panier|commande|détail)[\s\S]{0,500}?sim[\s\S]{0,100}?(\d+(?:[,.]\d{2})?)\s*€/i);
-                    if (section) {
-                        const price = parseFloat(section[1].replace(',', '.'));
-                        if (price >= 0 && price <= 50) simPrice = price;
-                    }
-                }
-            }
-
-            let activationPrice: number | null = null;
-            const actPatterns = [
-                /frais\s*(?:d['\u2019e]\s*)?activation\s*(?:[\s\S]{0,30}?)(\d+(?:[,.]\d{2})?)\s*€/i,
-                /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?:[\s\S]{0,30}?)(\d+(?:[,.]\d{2})?)\s*€/i,
-                /frais\s*(?:de\s*)?souscription\s*(?:[\s\S]{0,30}?)(\d+(?:[,.]\d{2})?)\s*€/i,
-                /activation\s*(?:[\s\S]{0,30}?)(\d+(?:[,.]\d{2})?)\s*€/i,
-                /(\d+(?:[,.]\d{2})?)\s*€\s*(?:[\s\S]{0,20}?)(?:activation|mise\s*en\s*service|souscription)/i,
-            ];
-            if (/activation\s*gratuit/i.test(bodyText) || /frais\s*(?:d['\u2019e]\s*)?activation\s*offert/i.test(bodyText)) {
-                activationPrice = 0;
-            } else {
-                for (const pat of actPatterns) {
-                    const m = bodyText.match(pat);
-                    if (m) {
-                        // Skip if explicitly mentioned as offered/free (e.g. B&You 48€ mis en service offerts for Fiber)
-                        const context = bodyText.substring(Math.max(0, m.index! - 20), Math.min(bodyText.length, m.index! + m[0].length + 20));
-                        if (/offert|gratuit/i.test(context)) {
-                            console.log(`[CHECKOUT DEBUG] Fee skipped (offered/free): ${m[0]}`);
-                            continue;
-                        }
-                        const price = parseFloat(m[1].replace(',', '.'));
-                        // Maximum reasonable activation fee for a French mobile plan is around 10-15€. 
-                        // If it's 48€, it's a Bbox/Fiber cross-sell.
-                        if (price >= 0 && price <= 20) { activationPrice = price; break; }
-                    }
-                }
-            }
-
-            return { simPrice, activationPrice };
-        });
+        const checkoutText = await page.evaluate(() => document.body?.innerText ?? '');
+        const fees = extractCheckoutFeesFromText(checkoutText);
+        fees.simPrice ??= result.simPrice;
+        fees.activationPrice ??= result.activationPrice;
 
         if (fees.simPrice !== null) {
             console.log(`[${operatorName}] Prix SIM détecté via checkout : ${fees.simPrice}€`);

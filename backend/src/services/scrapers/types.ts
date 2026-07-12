@@ -32,8 +32,8 @@ export interface OperatorDefinition {
   minOffers: number;
   legacyNames?: readonly string[];
   pdfUrl?: string;
+  feeSourceUrl?: string;
   findPdfUrl?: (page: Page) => Promise<string | null>;
-  defaultSimPrice?: number;
   htmlScrapeFunction?: (html: string, url: string) => ScrapedPlan[] | Promise<ScrapedPlan[]>;
   scrapeFunction: (page: Page) => Promise<ScrapedPlan[]>;
 }

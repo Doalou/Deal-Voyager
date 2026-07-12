@@ -2,6 +2,20 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [2.3.1] - 2026-07-12
+
+### Correctifs opérateurs
+
+- **Catalogue Free fiabilisé** - Toutes les pages de forfait présentes dans la navigation sont découvertes dynamiquement, sans liste de routes prédéfinies, et la mention `internet illimité` est reconnue.
+- **Détection des frais fiabilisée** - Le coût d'activation d'une carte SIM n'est plus enregistré une seconde fois comme frais d'activation du forfait.
+- **Parcours de souscription fiabilisé** - Les liens de commande sont mémorisés avant que les scrapers ne changent de page, tandis que les espaces client et pages d'assistance sont exclus de la détection des frais.
+- **Brochures tarifaires préservées** - Les liens vers les PDF officiels sont mémorisés avant l'ouverture du panier, puis utilisés pour compléter uniquement les frais encore absents.
+- **Lebara réécrit** - Le catalogue nouveaux clients dispose maintenant d'un parseur texte partagé entre HTTP et navigateur, avec collecte HTTP prioritaire avant le repli Cloudflare.
+- **Sources tarifaires secondaires** - Lorsqu'un PDF contractuel ne contient pas les frais, une page tarifaire officielle dédiée peut désormais compléter les champs manquants ; Nordnet utilise ainsi sa grille tarifaire publique.
+- **Lecture PDF durcie** - Seuls les frais explicitement libellés à proximité immédiate de leur montant sont retenus, afin d'éviter de confondre options, remplacements de SIM et frais d'entrée.
+- **Diagnostic Cdiscount amélioré** - Le collecteur attend la résolution du challenge JavaScript avant de conclure à un blocage ; si Baleen renvoie toujours `Accès bloqué`, une sortie réseau autorisée via `SCRAPER_PROXY_URLS` reste nécessaire.
+- **Frais inconnus rendus visibles** - L'interface n'invente plus un prix SIM de `10 €` lorsque la collecte échoue. Les frais absents sont indiqués comme non détectés, le coût annuel devient explicitement un minimum et une offre incomplète ne peut plus être favorisée par des frais artificiellement nuls.
+
 ## [2.3.0] - 2026-07-11
 
 ### Nouveau moteur de scraping
