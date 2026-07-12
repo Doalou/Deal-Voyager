@@ -106,20 +106,21 @@ Editez le fichier `.env` avec vos propres credentials :
 
 ```env
 # Admin credentials (OBLIGATOIRE)
-ADMIN_USERNAME=votre_identifiant
-ADMIN_PASSWORD=votre_mot_de_passe
+DEAL_VOYAGER_ADMIN_USERNAME=votre_identifiant
+DEAL_VOYAGER_ADMIN_PASSWORD=votre_mot_de_passe
 
 # Base de données PostgreSQL (OBLIGATOIRE)
-POSTGRES_USER=dealvoyager
-POSTGRES_PASSWORD=votre_mdp_postgres
-POSTGRES_DB=deal_voyager
+DEAL_VOYAGER_POSTGRES_USER=dealvoyager
+DEAL_VOYAGER_POSTGRES_PASSWORD=votre_mdp_postgres
+DEAL_VOYAGER_POSTGRES_DB=deal_voyager
 
 # Configuration Discord Bot (Requis pour /deal-setup et les alertes automatiques)
 DISCORD_CLIENT_ID=votre_client_id_discord
 DISCORD_BOT_TOKEN=votre_token_bot_discord
 
 # Port public (optionnel, défaut: 3000)
-# APP_PORT=3000
+DEAL_VOYAGER_APP_PORT=3000
+DEAL_VOYAGER_CORS_ORIGIN=http://localhost:3000
 ```
 
 > **Important :** Le déploiement refuse de démarrer si les variables obligatoires ne sont pas définies.
@@ -131,6 +132,39 @@ docker compose up -d --build
 ```
 
 Le conteneur `backend` execute automatiquement `prisma db push` au demarrage pour creer/mettre a jour le schema.
+
+### Utilisation du proxy de collecte
+
+Le compose démarre un proxy Squid interne nommé `proxy`. Par défaut, Crawlee et
+Playwright font transiter les requêtes des scrapers par ce service grâce à :
+
+```env
+SCRAPER_PROXY_URLS=http://proxy:3128
+```
+
+Le proxy n'expose aucun port sur la machine hôte : seul le réseau Docker de
+Deal Voyager peut l'utiliser. Il centralise la sortie HTTP(S) des collecteurs,
+mais ne masque pas l'adresse IP publique de votre connexion Internet.
+
+Pour utiliser un ou plusieurs proxies externes, indiquez leurs URL séparées par
+des virgules. Les identifiants peuvent être inclus dans chaque URL :
+
+```env
+SCRAPER_PROXY_URLS=http://utilisateur:mot_de_passe@proxy.example:3128,https://proxy2.example:8443
+```
+
+Pour désactiver complètement le routage par proxy, laissez la valeur vide dans
+votre `.env`, puis recréez le backend :
+
+```env
+SCRAPER_PROXY_URLS=
+```
+
+```bash
+docker compose up -d --force-recreate backend
+```
+
+Les journaux sont consultables avec `docker compose logs -f proxy backend`.
 
 ### 3. Acces
 
@@ -171,7 +205,8 @@ Pour permettre à votre communauté de recevoir des alertes automatiques lors de
 | **Comparaison timing-safe** | Mots de passe comparés via XOR constant-time (backend + frontend). |
 | **Sécurité par l'obscurité** | Le bouton `/admin` n'est pas affiché publiquement dans l'interface. |
 | **Rate limiting** | 10 tentatives max par IP sur 15 min (backend). |
-| **Proxy interne** | Le backend n'est pas exposé - tout passe par le proxy Nitro du frontend. |
+| **API interne** | Le backend n'est pas exposé : les appels web passent par le proxy inverse Nitro du frontend. |
+| **Proxy de collecte** | Squid accepte uniquement le trafic du réseau Docker et n'expose aucun port public. |
 | **PostgreSQL isolé** | Port 5432 non exposé, accessible uniquement via le réseau Docker. |
 | **CORS restreint** | Whitelist configurable au lieu de `origin: *`. |
 | **Auth header transmis** | Le header HTTP Basic du navigateur est stocké côté serveur (`useState`) et réutilisé pour les appels API. |
@@ -259,7 +294,7 @@ deal-voyager.mondomaine.fr {
 Pensez a :
 - Rediriger les ports 80/443 sur votre routeur
 - Pointer le DNS vers l'IP publique de votre serveur
-- Mettre a jour `APP_PORT` si necessaire
+- Mettre a jour `DEAL_VOYAGER_APP_PORT` si necessaire
 
 ## Licence
 

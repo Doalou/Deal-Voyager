@@ -2,6 +2,26 @@
 
 Toutes les modifications notables de ce projet sont documentées ici.
 
+## [2.3.2] - 2026-07-12
+
+### Infrastructure Docker
+
+- **Compose modernisé** - Les services disposent maintenant de healthchecks, limites CPU/mémoire, rotation des journaux, arrêt propre et options de sécurité communes.
+- **Proxy Squid intégré** - Les collecteurs utilisent par défaut un proxy HTTP interne dédié, isolé sur le réseau Docker et configurable avec `SCRAPER_PROXY_URLS`.
+- **Configuration harmonisée** - Les variables propres à l'application utilisent le préfixe `DEAL_VOYAGER_*`, tandis que `.env.example` sert de guide détaillé pour une première installation.
+- **Connexion PostgreSQL fiabilisée** - `DEAL_VOYAGER_DATABASE_URL` permet de fournir une URL explicite lorsque le mot de passe contient des caractères réservés.
+
+### Correctifs des frais
+
+- **Libellés opérateurs actuels reconnus** - La détection comprend désormais les formes `SIM/eSIM : 10 €`, `carte SIM est facturée 9,90 €`, les montants placés avant le libellé et les prix exprimés en euros sans symbole.
+- **Brochures PDF normalisées** - Les espaces insécables et apostrophes typographiques sont traités avant l'extraction des frais.
+- **Promotions Free isolées par forfait** - Les frais sont lus sur chaque fiche détaillée afin qu'une promotion SIM ciblée ne soit plus appliquée à tout le catalogue.
+- **Parcours de souscription complété** - Plusieurs liens candidats peuvent être consultés jusqu'à obtenir à la fois le prix de la SIM et les frais d'activation.
+
+### Documentation
+
+- **Utilisation du proxy expliquée** - Le README décrit le proxy Squid interne, la configuration de proxies externes, sa désactivation et les commandes de diagnostic.
+
 ## [2.3.1] - 2026-07-12
 
 ### Correctifs opérateurs

@@ -1,70 +1,143 @@
+name: deal-voyager
+
+x-common-service: &common-service
+  restart: unless-stopped
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
+  proxy:
+    <<: *common-service
+    image: ubuntu/squid:6.6-24.04_edge
+    volumes:
+      - ./proxy/squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - backend
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/3128'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "${DEAL_VOYAGER_PROXY_CPU_LIMIT:-0.5}"
+          memory: "${DEAL_VOYAGER_PROXY_MEM_LIMIT:-256M}"
+
   db:
+    <<: *common-service
     image: postgres:15-alpine
-    container_name: deal_voyager_db
-    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "${DEAL_VOYAGER_POSTGRES_USER:-dealvoyager}"
+      POSTGRES_PASSWORD: "${DEAL_VOYAGER_POSTGRES_PASSWORD:?DEAL_VOYAGER_POSTGRES_PASSWORD is required}"
+      POSTGRES_DB: "${DEAL_VOYAGER_POSTGRES_DB:-deal_voyager}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-dealvoyager}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      - POSTGRES_DB=${POSTGRES_DB:-deal_voyager}
+    networks:
+      - backend
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-dealvoyager} -d ${POSTGRES_DB:-deal_voyager}",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "${DEAL_VOYAGER_DB_CPU_LIMIT:-1}"
+          memory: "${DEAL_VOYAGER_DB_MEM_LIMIT:-512M}"
 
   backend:
-    container_name: deal_voyager_backend
+    <<: *common-service
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: unless-stopped
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-      - 1.1.1.1
     depends_on:
       db:
         condition: service_healthy
+      proxy:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-dealvoyager}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-deal_voyager}
-      - PORT=3001
-      - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
-      - CORS_ORIGIN=http://frontend:3000
-      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
-      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
-      - PLAYWRIGHT_EXECUTABLE_PATH=${PLAYWRIGHT_EXECUTABLE_PATH:-}
-      - PLAYWRIGHT_ARGS=${PLAYWRIGHT_ARGS:-}
-      - SCRAPER_HEADLESS=${SCRAPER_HEADLESS:-true}
-      - SCRAPER_MAX_CONCURRENCY=${SCRAPER_MAX_CONCURRENCY:-3}
-      - SCRAPER_TIMEOUT_SECS=${SCRAPER_TIMEOUT_SECS:-90}
-      - SCRAPER_MAX_RETRIES=${SCRAPER_MAX_RETRIES:-2}
-      - SCRAPER_PROXY_URLS=${SCRAPER_PROXY_URLS:-}
+      DATABASE_URL: "${DEAL_VOYAGER_DATABASE_URL:-postgresql://${DEAL_VOYAGER_POSTGRES_USER:-dealvoyager}:${DEAL_VOYAGER_POSTGRES_PASSWORD}@db:5432/${DEAL_VOYAGER_POSTGRES_DB:-deal_voyager}}"
+      PORT: "3001"
+      ADMIN_USERNAME: "${DEAL_VOYAGER_ADMIN_USERNAME:?DEAL_VOYAGER_ADMIN_USERNAME is required}"
+      ADMIN_PASSWORD: "${DEAL_VOYAGER_ADMIN_PASSWORD:?DEAL_VOYAGER_ADMIN_PASSWORD is required}"
+      CORS_ORIGIN: "${DEAL_VOYAGER_CORS_ORIGIN:-http://localhost:3000}"
+      DISCORD_BOT_TOKEN: "${DISCORD_BOT_TOKEN:-}"
+      DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
+      PLAYWRIGHT_EXECUTABLE_PATH: "${PLAYWRIGHT_EXECUTABLE_PATH:-}"
+      PLAYWRIGHT_ARGS: "${PLAYWRIGHT_ARGS:-}"
+      SCRAPER_HEADLESS: "${SCRAPER_HEADLESS:-true}"
+      SCRAPER_MAX_CONCURRENCY: "${SCRAPER_MAX_CONCURRENCY:-3}"
+      SCRAPER_TIMEOUT_SECS: "${SCRAPER_TIMEOUT_SECS:-120}"
+      SCRAPER_MAX_RETRIES: "${SCRAPER_MAX_RETRIES:-3}"
+      SCRAPER_PROXY_URLS: "${SCRAPER_PROXY_URLS-http://proxy:3128}"
+    networks:
+      - backend
+    shm_size: "1gb"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "${DEAL_VOYAGER_BACKEND_CPU_LIMIT:-2}"
+          memory: "${DEAL_VOYAGER_BACKEND_MEM_LIMIT:-4G}"
 
   frontend:
-    container_name: deal_voyager_frontend
+    <<: *common-service
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "${APP_PORT:-3000}:3000"
-    environment:
-      - NUXT_HOST=0.0.0.0
-      - NUXT_PORT=3000
-      - NUXT_API_INTERNAL_URL=http://backend:3001
-      - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
-      - NUXT_PUBLIC_DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
     depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NUXT_HOST: "0.0.0.0"
+      NUXT_PORT: "3000"
+      NUXT_API_INTERNAL_URL: http://backend:3001
+      ADMIN_USERNAME: "${DEAL_VOYAGER_ADMIN_USERNAME:?DEAL_VOYAGER_ADMIN_USERNAME is required}"
+      ADMIN_PASSWORD: "${DEAL_VOYAGER_ADMIN_PASSWORD:?DEAL_VOYAGER_ADMIN_PASSWORD is required}"
+      NUXT_PUBLIC_DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
+    ports:
+      - "${DEAL_VOYAGER_APP_PORT:-3000}:3000"
+    networks:
       - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "${DEAL_VOYAGER_FRONTEND_CPU_LIMIT:-1}"
+          memory: "${DEAL_VOYAGER_FRONTEND_MEM_LIMIT:-512M}"
+
+networks:
+  backend:
+    driver: bridge
 
 volumes:
   postgres_data:

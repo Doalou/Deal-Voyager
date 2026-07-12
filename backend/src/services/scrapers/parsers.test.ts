@@ -7,7 +7,7 @@ import { discoverFreePlanUrls } from './free.scraper';
 import { parseLebaraText } from './lebara.scraper';
 import { parseSymaText } from './syma.scraper';
 import { parseTelecoopText } from './telecoop.scraper';
-import { extractCheckoutCandidateUrls, extractCheckoutFeesFromText, extractTariffPdfUrl, extractVisibleTextFromHtml } from './utils';
+import { extractCheckoutCandidateUrls, extractCheckoutFeesFromText, extractFeesFromPdfText, extractFeesFromText, extractTariffPdfUrl, extractVisibleTextFromHtml } from './utils';
 
 test('le registre contient 18 opérateurs uniques et complets', () => {
   assert.equal(operatorDefinitions.length, 18);
@@ -115,6 +115,27 @@ test("le checkout ne confond pas l'activation de la SIM avec des frais d'activat
     simPrice: null,
     activationPrice: 10,
   });
+});
+
+test('les frais reconnaissent les libellés réellement publiés par les opérateurs', () => {
+  assert.deepEqual(
+    extractFeesFromText('Carte SIM à 1€ Frais d’activation à 1€ Frais de résiliation : 5€. Sans engagement.'),
+    { simPrice: 1, activationPrice: 1, cancellationPrice: 5 },
+  );
+  assert.equal(
+    extractFeesFromText("La carte SIM est facturée 9,90€ le jour de la souscription.").simPrice,
+    9.9,
+  );
+  assert.equal(extractFeesFromText('SIM/eSIM : 10€ (à la commande)').simPrice, 10);
+  assert.equal(extractFeesFromText('10 euros pour la carte SIM lors de la commande').simPrice, 10);
+  assert.equal(extractFeesFromText('SIM/eSIM offerte au lieu de 10€').simPrice, 0);
+});
+
+test('les brochures PDF reconnaissent SIM/eSIM et les apostrophes typographiques', () => {
+  assert.deepEqual(
+    extractFeesFromPdfText("SIM/eSIM : 10€ à la commande\nFrais d’activation : 1 euro\nFrais de résiliation : 5 euros"),
+    { simPrice: 10, activationPrice: 1, cancellationPrice: 5 },
+  );
 });
 
 test('les liens de souscription excluent les espaces client et les pages éditoriales', () => {

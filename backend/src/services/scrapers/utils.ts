@@ -86,7 +86,10 @@ function narrowToOperatorSection(fullText: string, operatorName: string): string
  * Si operatorName est fourni, tente de restreindre la recherche à la section pertinente.
  */
 export function extractFeesFromPdfText(pdfText: string, operatorName?: string): PdfFees {
-    const rawText = pdfText.toLowerCase().replace(/\u00a0/g, ' ');
+    const rawText = pdfText
+        .toLowerCase()
+        .replace(/[\u00a0\u202f]/g, ' ')
+        .replace(/[\u2018\u2019]/g, "'");
     const text = operatorName ? narrowToOperatorSection(rawText, operatorName) : rawText;
 
     let cancellationPrice: number | null = null;
@@ -122,7 +125,7 @@ export function extractFeesFromPdfText(pdfText: string, operatorName?: string): 
         simPrice = 0;
     } else {
         const directPatterns = [
-            /carte\s*sim\s*(?:\/?\s*e?\s*sim\s*)?(?:est\s*)?(?:factur[ée]e?|co[uû]te?|pay[ée]e?)\s*(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+            /(?:carte\s*)?sim\s*(?:\/?\s*e?\s*sim\s*)?(?:est\s*)?(?:factur[ée]e?|co[uû]te?|pay[ée]e?|au\s+prix\s+de|[:àa])\s*(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
             /carte\s*sim\s*(?:\/?\s*e?\s*sim\s*)?[\t ]*(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)\s*\(?[^)\n]{0,30}commande/gi,
         ];
         for (const pattern of directPatterns) {
@@ -199,7 +202,7 @@ export function extractFeesFromPdfText(pdfText: string, operatorName?: string): 
         }
     }
 
-    if (simPrice != null && simPrice > 0 && !/(?:prix|frais|co[uû]t)?\s*(?:de\s+la\s+)?carte\s*sim(?:\s*\/\s*e?sim)?\s*(?:est\s*)?(?:factur[ée]e?|co[uû]te?|pay[ée]e?|[:àa])\s*\d+(?:[,.]\d{1,2})?\s*(?:€|euros?)/i.test(text)) {
+    if (simPrice != null && simPrice > 0 && !/(?:prix|frais|co[uû]t)?\s*(?:de\s+la\s+)?(?:carte\s*)?sim(?:\s*\/\s*e?sim)?\s*(?:est\s*)?(?:factur[ée]e?|co[uû]te?|pay[ée]e?|au\s+prix\s+de|[:àa])\s*\d+(?:[,.]\d{1,2})?\s*(?:€|euros?)/i.test(text)) {
         simPrice = null;
     }
 
@@ -242,7 +245,7 @@ export function extractVisibleTextFromHtml(html: string): string {
 export function extractFeesFromText(rawText: string): PageFees {
     // Normalisation unicode complète
     const text = rawText
-        .replace(/\u00a0/g, ' ')  // non-breaking space
+        .replace(/[\u00a0\u202f]/g, ' ')  // espaces insécables
         .replace(/\u2019/g, "'")  // right single quote → apostrophe
         .replace(/\u2018/g, "'")  // left single quote → apostrophe
         .replace(/\u20ac/g, '€')  // euro sign
@@ -255,12 +258,12 @@ export function extractFeesFromText(rawText: string): PageFees {
     let cancellationPrice: number | null = null;
 
     // ─── SIM price ───
-    if (/(?:carte\s*)?sim\s*(?:gratuit|offert)/i.test(text)) {
+    if (/(?:carte\s*)?(?:sim(?:\s*\/\s*e?sim)?|e-?sim)[^.;\n]{0,50}(?:gratuite?s?|offerte?s?|incluse?s?)/i.test(text)) {
         simPrice = 0;
     } else {
         const simPatterns = [
-            /(?:carte\s*)?sim\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
-            /(\d+(?:[,.]\d{1,2})?)\s*€[^\n]{0,30}(?:carte\s*sim)/gi,
+            /(?:prix|frais|co[uû]t)?\s*(?:de\s+la\s+)?(?:carte\s*)?(?:sim(?:\s*\/\s*e?sim)?|e-?sim)\s*(?:est\s*)?(?:factur[ée]e?|co[uû]te?|pay[ée]e?|au\s+prix\s+de|[:àa])\s*(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+            /(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)[^.;\n]{0,40}(?:pour\s+)?(?:la\s+)?(?:carte\s*)?(?:sim|e-?sim)\b/gi,
         ];
         for (const pat of simPatterns) {
             let m;
@@ -273,15 +276,15 @@ export function extractFeesFromText(rawText: string): PageFees {
     }
 
     // ─── Activation price ───
-    if (/activation\s*(?:gratuit|offert)/i.test(text) ||
-        /frais\s*(?:d['e]\s*)?activation\s*offert/i.test(text)) {
+    if (/(?:aucuns?\s+|sans\s+)?frais\s*(?:d['e]\s*)?activation\s*(?:sont\s*)?(?:gratuits?|offerts?)/i.test(text) ||
+        /activation\s*(?:gratuite?|offerte?)/i.test(text)) {
         activationPrice = 0;
     } else {
         const actPatterns = [
-            /frais\s*d['e]\s*activation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
-            /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
-            /frais\s*(?:de\s*)?souscription\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
-            /activation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+            /frais\s*d['e]\s*activation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+            /frais\s*(?:de\s*)?mise\s*en\s*service\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+            /frais\s*(?:de\s*)?souscription\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
+            /activation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
         ];
         for (const pat of actPatterns) {
             let m;
@@ -301,7 +304,7 @@ export function extractFeesFromText(rawText: string): PageFees {
     // Même si "sans engagement" est trouvé, on cherche quand même un prix explicite
     // qui l'emporterait (ex: "sans engagement, frais de résiliation : 5€")
     const cancelPatterns = [
-        /frais\s*(?:de\s*)?r[ée]siliation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*€/gi,
+        /frais\s*(?:de\s*)?r[ée]siliation\s*(?:[àa:]\s*)?(\d+(?:[,.]\d{1,2})?)\s*(?:€|euros?)/gi,
     ];
     for (const pat of cancelPatterns) {
         let m;
@@ -371,7 +374,7 @@ export async function fetchFeesFromWebPage(url: string, operatorName: string): P
     try {
         console.log(`[${operatorName}] Lecture de la page tarifaire : ${url}`);
         const response = await fetch(url, {
-            headers: { 'accept-language': 'fr-FR,fr;q=0.9', 'user-agent': 'Mozilla/5.0 Deal-Voyager/2.3.1' },
+            headers: { 'accept-language': 'fr-FR,fr;q=0.9', 'user-agent': 'Mozilla/5.0 Deal-Voyager/2.3.2' },
             signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -478,7 +481,7 @@ export async function detectFeesFromCheckout(
                 const candidateFees = extractCheckoutFeesFromText(candidateText);
                 result.simPrice ??= candidateFees.simPrice;
                 result.activationPrice ??= candidateFees.activationPrice;
-                if (result.simPrice !== null || result.activationPrice !== null) break;
+                if (result.simPrice !== null && result.activationPrice !== null) break;
             }
         }
 

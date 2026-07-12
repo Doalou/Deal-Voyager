@@ -40,10 +40,9 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
         });
         await new Promise(r => setTimeout(r, 2000));
 
-        // ─── Extraction frais via helper centralisé ───
+        // ─── Frais généraux utilisés uniquement en repli ───
         const pageText = await page.evaluate(() => (document.body.innerText || ''));
-        const fees = extractFeesFromText(pageText);
-        console.log(`[Free Mobile] Frais extraits - SIM: ${fees.simPrice}€, activation: ${fees.activationPrice}€, résiliation: ${fees.cancellationPrice}€`);
+        const fallbackFees = extractFeesFromText(pageText);
 
         const plans: ScrapedPlan[] = [];
 
@@ -70,6 +69,11 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                     }
                 });
                 await new Promise(r => setTimeout(r, 1500));
+
+                // Les promotions SIM Free peuvent dépendre du forfait. La fiche
+                // détaillée est donc prioritaire sur les mentions de l'accueil.
+                const planText = await page.evaluate(() => document.body.innerText || '');
+                const planFees = extractFeesFromText(planText);
 
                 // ─── Extraire le forfait depuis cette page dédiée ───
                 var planData = await page.evaluate(function() {
@@ -195,9 +199,9 @@ export const freeMobileScrapeLogic: ScraperConfig['scrapeFunction'] = async (pag
                         network: 'Free Mobile',
                         networkGeneration: planData.networkGeneration || '4G',
                         dataEuGb: planData.dataEuGb || undefined,
-                        simPrice: fees.simPrice ?? undefined,
-                        activationPrice: fees.activationPrice ?? undefined,
-                        cancellationPrice: fees.cancellationPrice ?? undefined,
+                        simPrice: planFees.simPrice ?? fallbackFees.simPrice ?? undefined,
+                        activationPrice: planFees.activationPrice ?? fallbackFees.activationPrice ?? undefined,
+                        cancellationPrice: planFees.cancellationPrice ?? fallbackFees.cancellationPrice ?? undefined,
                     });
                     console.log(`[Free Mobile] Forfait détecté: ${planData.planName} - ${planData.dataGb}Go - ${planData.price}€`);
                 }
